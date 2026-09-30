@@ -1,0 +1,9 @@
+{
+  "as_of": null,
+  "timezone": "Asia/Shanghai",
+  "source": "pending",
+  "status": "等待首次数据同步",
+  "strategy_version": "0.1.0",
+  "universe": "沪深京 A 股（默认排除 ST、退市整理期与明显异常价格）",
+  "candidates": []
+}
