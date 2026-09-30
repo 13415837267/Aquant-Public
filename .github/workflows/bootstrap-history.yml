@@ -1,6 +1,20 @@
 ﻿name: Historical Data Bootstrap
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "validate 3 recent trading days first; backfill only after validation passes"
+        required: true
+        default: "validate"
+        type: choice
+        options:
+          - validate
+          - backfill
+      days:
+        description: "Number of recent trading days for validation"
+        required: false
+        default: "3"
+        type: string
 permissions:
   contents: write
 jobs:
@@ -9,8 +23,13 @@ jobs:
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
-        with: {fetch-depth: 0}
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
-        with: {python-version: '3.11'}
+        with:
+          python-version: "3.11"
       - run: pip install -r requirements.txt
-      - run: python scripts/backfill_history.py
+      - name: Run bulk collector
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/backfill_history.py --mode ${{ inputs.mode }} --days ${{ inputs.days }}
