@@ -61,6 +61,16 @@ ops: harden scheduled pipeline
 docs: update architecture
 ```
 
+## GitHub Pages
+
+The public dashboard is configured for GitHub Pages with Next.js static export.
+
+Expected site URL:
+
+`https://13415837267.github.io/Aquant-Public/`
+
+Every push to `main` triggers the Pages deployment workflow. The daily data workflow updates `data/candidates.json` and the immutable history snapshot; that commit then triggers a fresh static-site deployment.
+
 ## Deployment
 
 The repository is Vercel-friendly and contains a Next.js production build. Connect this public GitHub repository to Vercel to enable automatic deployments after pushes to `main`. A Vercel Cron endpoint is not required for the Python data job; GitHub Actions is the source of truth for the 18:00 data refresh.
