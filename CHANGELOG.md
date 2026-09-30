@@ -22,3 +22,7 @@ Every code change is recorded here with the corresponding Git commit or pull req
 - Formalized Aquant-Public as the exclusive cloud build/runtime surface.
 - Clarified that Aquant-Private does not participate in CI, scheduled jobs, production backtests, or site builds.
 - Removed stale API/Vercel deployment references from the public runtime documentation.
+
+## Unreleased — Cloud build hardening
+- Changed the GitHub Pages workflow from npm ci to npm install because the public repository intentionally has no committed npm lockfile yet.
+- Kept the entire production build on GitHub-hosted runners without requiring local dependency installation.
