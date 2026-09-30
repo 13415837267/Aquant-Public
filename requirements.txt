@@ -2,3 +2,4 @@ akshare>=1.18.0,<2
 pandas>=2.2,<3
 numpy>=2.0,<3
 pytest>=8,<9
+baostock>=0.8.9,<1
