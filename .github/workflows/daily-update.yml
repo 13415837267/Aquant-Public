@@ -1,4 +1,4 @@
-name: Daily Candidate Refresh
+﻿name: Daily Candidate Refresh
 
 on:
   schedule:
@@ -28,8 +28,7 @@ jobs:
       - name: Install data pipeline
         run: pip install -r requirements.txt
 
-      - name: Refresh candidate pool
-        run: python scripts/update_candidates.py
+      - name: Update historical data\n        run: python scripts/backfill_history.py\r\n\r\n      - name: Refresh candidate pool\r\n        run: python scripts/update_candidates.py
 
       - name: Commit data snapshot
         run: |
@@ -42,3 +41,4 @@ jobs:
           fi
           git commit -m "data: refresh daily candidate pool"
           git push
+
