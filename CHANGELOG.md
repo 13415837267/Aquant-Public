@@ -17,3 +17,8 @@ Every code change is recorded here with the corresponding Git commit or pull req
 - Switched the Next.js runtime to static export for GitHub Pages.
 - Added GitHub Pages build/deploy workflow.
 - Removed server-only API routes; the dashboard reads the generated candidate snapshot at build time.
+
+## Unreleased — Cloud-only runtime boundary
+- Formalized Aquant-Public as the exclusive cloud build/runtime surface.
+- Clarified that Aquant-Private does not participate in CI, scheduled jobs, production backtests, or site builds.
+- Removed stale API/Vercel deployment references from the public runtime documentation.
