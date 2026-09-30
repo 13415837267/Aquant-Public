@@ -10,6 +10,10 @@ from zoneinfo import ZoneInfo
 
 import akshare as ak
 import pandas as pd
+try:
+    import baostock as bs
+except ImportError:
+    bs = None
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
@@ -93,7 +97,7 @@ def git_checkpoint(message):
     subprocess.run(["git", "push"], check=True)
 
 
-def fetch_stock_window(symbol, start, end):
+def fetch_stock_window_ak(symbol, start, end):
     for attempt in range(3):
         try:
             df = ak.stock_zh_a_hist(
@@ -155,6 +159,57 @@ def fetch_stock_window(symbol, start, end):
                 print(f"WARN {symbol} {start} -> {end}: {exc}")
             time.sleep(1.5 * (attempt + 1))
     return None
+
+
+def fetch_stock_window_bs(symbol, start, end):
+    if bs is None:
+        return None
+    code = ("sh." if str(symbol).startswith("6") else "sz.") + str(symbol).zfill(6)
+    try:
+        lg = bs.login()
+        if lg.error_code != "0":
+            return None
+        rs = bs.query_history_k_data_plus(
+            code,
+            "date,code,open,high,low,close,volume,amount,turn,pctChg",
+            start_date=start.strftime("%Y-%m-%d"),
+            end_date=end.strftime("%Y-%m-%d"),
+            frequency="d", adjustflag="3",
+        )
+        rows = []
+        while rs.error_code == "0" and rs.next():
+            rows.append(rs.get_row_data())
+        bs.logout()
+        if not rows:
+            return None
+        df = pd.DataFrame(rows, columns=rs.fields)
+        return pd.DataFrame({
+            "date": df["date"], "symbol": str(symbol).zfill(6),
+            "open": pd.to_numeric(df["open"], errors="coerce"),
+            "high": pd.to_numeric(df["high"], errors="coerce"),
+            "low": pd.to_numeric(df["low"], errors="coerce"),
+            "close": pd.to_numeric(df["close"], errors="coerce"),
+            "volume": pd.to_numeric(df["volume"], errors="coerce"),
+            "amount": pd.to_numeric(df["amount"], errors="coerce"),
+            "amplitude_pct": pd.NA,
+            "pct_chg": pd.to_numeric(df["pctChg"], errors="coerce"),
+            "change": pd.NA,
+            "turnover_pct": pd.to_numeric(df["turn"], errors="coerce"),
+        }).dropna(subset=["date", "close"])
+    except Exception as exc:
+        print(f"WARN baostock {symbol} {start}->{end}: {exc}")
+        try:
+            bs.logout()
+        except Exception:
+            pass
+        return None
+
+
+def fetch_stock_window(symbol, start, end):
+    df = fetch_stock_window_ak(symbol, start, end)
+    if df is not None and not df.empty:
+        return df
+    return fetch_stock_window_bs(symbol, start, end)
 
 
 def write_daily_files(df):
