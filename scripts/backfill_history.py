@@ -150,14 +150,17 @@ def load_trade_days(api: DataApi, start: str | None = None, end: str | None = No
 
     df = raw.copy() if isinstance(raw, pd.DataFrame) else pd.DataFrame(raw)
     candidate = next((c for c in ["trade_date", "cal_date", "date", "日期"] if c in df.columns), None)
+    if candidate is None and len(df.columns) == 1:
+        candidate = df.columns[0]
     if candidate is None:
         raise RuntimeError(f"cannot identify trade-date column: {list(df.columns)}")
 
-    dates = pd.to_datetime(df[candidate], errors="coerce").dropna().dt.strftime("%Y-%m-%d")
+    dates = pd.to_datetime(df[candidate], errors="coerce")
     if "is_open" in df.columns:
         open_flag = pd.to_numeric(df["is_open"], errors="coerce")
-        dates = dates[open_flag.reindex(df.index).fillna(1).astype(bool)]
+        dates = dates.where(open_flag.reindex(df.index).fillna(1).astype(bool))
 
+    dates = dates.dropna().dt.strftime("%Y-%m-%d")
     return sorted(set(dates.tolist()), reverse=True)
 
 
