@@ -26,14 +26,14 @@ VALIDATION_TRADING_DAYS = 3
 REQUEST_RETRIES = 4
 MIN_VALIDATION_ROWS = 4500
 MIN_REQUIRED_COLUMNS = {
-    "ts_code",
-    "trade_date",
+    "symbol",
+    "date",
     "open",
     "high",
     "low",
     "close",
     "pct_chg",
-    "vol",
+    "volume",
     "amount",
 }
 
