@@ -9,9 +9,8 @@ A publication/runtime repository for a daily quantitative candidate-pool dashboa
 - Trading-day guard: skips non-trading days when the public calendar endpoint is available.
 - Output: a generated top-30 candidate snapshot at `data/candidates.json`.
 - Web: Next.js 16 App Router.
-- API: `/api/candidates` and `/api/health`.
 
-The public repository is deliberately a release-safe runtime surface. Strategy research remains in `Aquant-Private`.
+The public repository is the **only cloud build and runtime surface**. It owns public-safe runtime code, data processing, tests, scheduled jobs, static-site builds and GitHub Pages deployment. Strategy research remains in `Aquant-Private`, which does not run CI or production jobs.
 
 ## Data source
 
@@ -71,6 +70,12 @@ Expected site URL:
 
 Every push to `main` triggers the Pages deployment workflow. The daily data workflow updates `data/candidates.json` and the immutable history snapshot; that commit then triggers a fresh static-site deployment.
 
-## Deployment
+## Cloud-only execution
 
-The repository is Vercel-friendly and contains a Next.js production build. Connect this public GitHub repository to Vercel to enable automatic deployments after pushes to `main`. A Vercel Cron endpoint is not required for the Python data job; GitHub Actions is the source of truth for the 18:00 data refresh.
+All production computation and builds are performed by GitHub Actions on GitHub-hosted runners. The local development machine is not a runtime dependency.
+
+- Pull requests: public quality checks run in GitHub Actions.
+- Daily data: GitHub Actions runs the 18:00 Beijing-time refresh.
+- Web build: every `main` push runs the static Next.js build and GitHub Pages deployment.
+- Data commits: refreshed snapshots trigger a new Pages build automatically.
+- The private repository is not required by any production workflow.
