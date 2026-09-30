@@ -1,0 +1,54 @@
+{
+  "validated_at": "2026-10-01T01:43:12.902820+08:00",
+  "source": "zzshare bulk daily",
+  "days": [
+    {
+      "date": "2026-09-30",
+      "rows": 5369,
+      "unique_symbols": 5369,
+      "duplicates": 0,
+      "wrong_date": 0,
+      "null_close": 0,
+      "markets": {
+        ".SH": 2238,
+        ".SZ": 2786,
+        ".BJ": 345
+      },
+      "raw_rows": 5572,
+      "filtered_rows": 5369
+    },
+    {
+      "date": "2026-09-29",
+      "rows": 5369,
+      "unique_symbols": 5369,
+      "duplicates": 0,
+      "wrong_date": 0,
+      "null_close": 0,
+      "markets": {
+        ".SH": 2238,
+        ".SZ": 2786,
+        ".BJ": 345
+      },
+      "raw_rows": 5571,
+      "filtered_rows": 5369
+    },
+    {
+      "date": "2026-09-28",
+      "rows": 5367,
+      "unique_symbols": 5367,
+      "duplicates": 0,
+      "wrong_date": 0,
+      "null_close": 0,
+      "markets": {
+        ".SH": 2238,
+        ".SZ": 2785,
+        ".BJ": 344
+      },
+      "raw_rows": 5569,
+      "filtered_rows": 5367
+    }
+  ],
+  "universe_size": 5370,
+  "bulk_limit": 6000,
+  "anonymous_mode_allowed": true
+}
