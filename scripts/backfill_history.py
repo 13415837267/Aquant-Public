@@ -11,11 +11,21 @@ ROOT=Path(__file__).resolve().parents[1]; DATA=ROOT/'data'; HISTORY=DATA/'histor
 TZ=ZoneInfo('Asia/Shanghai'); START_DAYS=1095; MAX_SYMBOLS=500; WORKERS=8
 
 def fetch_spot():
-    return ak.stock_zh_a_spot_em()
+    # GitHub runners can be rejected by Eastmoney; prefer Sina and retry.
+    for fn in (ak.stock_zh_a_spot, ak.stock_zh_a_spot_em):
+        for attempt in range(3):
+            try:
+                df = fn()
+                if df is not None and not df.empty:
+                    return df
+            except Exception as exc:
+                print(f"WARN spot {getattr(fn,'__name__',fn)} attempt {attempt+1}: {exc}")
+                time.sleep(2 ** attempt)
+    raise RuntimeError("No A-share universe source is reachable")
 
 def history_one(symbol,start,end):
     try:
-        df=ak.stock_zh_a_hist(symbol=symbol,period='daily',start_date=start,end_date=end,adjust='qfq')
+        df=ak.stock_zh_a_daily(symbol=('sh' if str(symbol).startswith(('6','68','60')) else 'sz')+str(symbol).zfill(6),start_date=start,end_date=end,adjust='qfq')
         if df.empty: return None
         code=str(symbol).zfill(6); out=pd.DataFrame({
           'date':pd.to_datetime(df['日期']).dt.strftime('%Y-%m-%d'),
@@ -36,7 +46,7 @@ def write_history(raw):
     raw=raw[raw['成交额'].fillna(0)>=2e7]
     raw=raw[~raw['名称'].astype(str).str.contains(r'ST|退',na=False)].sort_values('成交额',ascending=False).head(MAX_SYMBOLS)
     symbols=raw['代码'].tolist(); frames=[]
-    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+    with ThreadPoolExecutor(max_workers=2) as pool:
         futures={pool.submit(history_one,s,start.strftime('%Y%m%d'),end.strftime('%Y%m%d')):s for s in symbols}
         for i,f in enumerate(as_completed(futures),1):
             df=f.result()
