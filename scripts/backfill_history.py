@@ -80,6 +80,12 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     out["symbol"] = out["symbol"].astype(str).str.strip().str.upper()
     out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.strftime("%Y-%m-%d")
 
+    def first_series(name: str):
+        value = out[name]
+        if isinstance(value, pd.DataFrame):
+            value = value.iloc[:, 0]
+        return value
+
     numeric_cols = [
         "open",
         "high",
@@ -98,7 +104,12 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     ]
     for c in numeric_cols:
         if c in out.columns:
-            out[c] = pd.to_numeric(out[c], errors="coerce")
+            out[c] = pd.to_numeric(first_series(c), errors="coerce")
+
+    if "symbol" in out.columns:
+        out["symbol"] = first_series("symbol")
+    if "date" in out.columns:
+        out["date"] = first_series("date")
 
     return out.dropna(subset=["symbol", "date", "close"])
 
