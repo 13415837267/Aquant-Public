@@ -12,3 +12,8 @@ Every code change is recorded here with the corresponding Git commit or pull req
 - Added repository maintenance and architecture documentation.
 - Removed the unused Vercel Cron/refresh endpoint so GitHub Actions remains the single source of truth for daily data updates.
 - Added one immutable `data/history/YYYY-MM-DD.json` snapshot per trading day for incremental history.
+
+## Unreleased — GitHub Pages
+- Switched the Next.js runtime to static export for GitHub Pages.
+- Added GitHub Pages build/deploy workflow.
+- Removed server-only API routes; the dashboard reads the generated candidate snapshot at build time.
