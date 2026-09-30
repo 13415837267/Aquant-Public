@@ -1,0 +1,24 @@
+﻿name: Historical Data Bootstrap
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -r requirements.txt
+      - run: python scripts/backfill_history.py
+      - name: Commit history
+        run: |
+          git config user.name "aquant-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/history
+          git diff --cached --quiet && exit 0
+          git commit -m "data: bootstrap historical daily prices"
+          git push
