@@ -23,6 +23,11 @@ def fetch_spot():
                     df=df.copy()
                     df["代码"]=df["代码"].astype(str).str.extract(r"(\d+)")[0].str.zfill(6)
                     df=df[df["代码"].str.len().eq(6)]
+                    if "名称" in df.columns:
+                        name=df["名称"].astype(str).str.upper()
+                        before=len(df)
+                        df=df[~name.str.contains(r"ST|退",regex=True,na=False)].copy()
+                        print(f"UNIVERSE FILTER: removed {before-len(df)} ST/delisted-related symbols; remaining={len(df)}")
                     return df.drop_duplicates("代码")
             except Exception as exc:
                 print(f"WARN universe {getattr(fn,'__name__',fn)} attempt {attempt+1}: {exc}")
@@ -104,7 +109,7 @@ def initial_backfill(raw):
         "symbols_requested":len(symbols),"symbols_with_history":len(frames),
         "symbols_failed":len(failed),"rows":len(all_df),
         "trading_days":days,"start":str(start),"end":str(end),
-        "format":"daily CSV gzip","source":"AKShare / Sina stock_zh_a_daily"
+        "format":"daily CSV gzip","source":"AKShare / Sina stock_zh_a_daily","universe_filter":"exclude ST/*ST and delisted-related names"
     },ensure_ascii=False,indent=2),encoding="utf-8")
     if failed: print("FAILED SAMPLE:",",".join(failed[:100]))
     print(json.dumps({"mode":"initial-backfill","symbols":len(symbols),"success":len(frames),"failed":len(failed),"rows":len(all_df),"trading_days":days},ensure_ascii=False))
