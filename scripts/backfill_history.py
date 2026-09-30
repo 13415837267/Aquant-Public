@@ -8,7 +8,7 @@ import pandas as pd
 import akshare as ak
 
 ROOT=Path(__file__).resolve().parents[1]; DATA=ROOT/'data'; HISTORY=DATA/'history'; SNAP=DATA/'candidates.json'
-TZ=ZoneInfo('Asia/Shanghai'); START_DAYS=1095; MAX_SYMBOLS=500; WORKERS=8
+TZ=ZoneInfo('Asia/Shanghai'); START_DAYS=1095; MAX_SYMBOLS=500; WORKERS=2
 
 def fetch_spot():
     # GitHub runners can be rejected by Eastmoney; prefer Sina and retry.
@@ -26,15 +26,33 @@ def fetch_spot():
 def history_one(symbol,start,end):
     try:
         df=ak.stock_zh_a_daily(symbol=('sh' if str(symbol).startswith(('6','68','60')) else 'sz')+str(symbol).zfill(6),start_date=start,end_date=end,adjust='qfq')
-        if df.empty: return None
-        code=str(symbol).zfill(6); out=pd.DataFrame({
-          'date':pd.to_datetime(df['日期']).dt.strftime('%Y-%m-%d'),
+        if df is None or df.empty: return None
+        aliases = {
+            'date': ['日期', 'date'], 'open': ['开盘', 'open'], 'high': ['最高', 'high'],
+            'low': ['最低', 'low'], 'close': ['收盘', 'close'],
+            'volume': ['成交量', 'volume'], 'amount': ['成交额', 'amount'],
+            'turnover_pct': ['换手率', 'turnover']
+        }
+        def col(key):
+            for name in aliases[key]:
+                if name in df.columns:
+                    return df[name]
+            return pd.Series(index=df.index, dtype='float64')
+        dates = col('date')
+        if dates.isna().all(): return None
+        code=str(symbol).zfill(6)
+        out=pd.DataFrame({
+          'date':pd.to_datetime(dates, errors='coerce').dt.strftime('%Y-%m-%d'),
           'symbol':code,
-          'open':pd.to_numeric(df['开盘'],errors='coerce'),'high':pd.to_numeric(df['最高'],errors='coerce'),
-          'low':pd.to_numeric(df['最低'],errors='coerce'),'close':pd.to_numeric(df['收盘'],errors='coerce'),
-          'volume':pd.to_numeric(df['成交量'],errors='coerce'),'amount':pd.to_numeric(df['成交额'],errors='coerce'),
-          'turnover_pct':pd.to_numeric(df.get('换手率'),errors='coerce') if '换手率' in df else None})
-        return out.dropna(subset=['close'])
+          'open':pd.to_numeric(col('open'),errors='coerce'),
+          'high':pd.to_numeric(col('high'),errors='coerce'),
+          'low':pd.to_numeric(col('low'),errors='coerce'),
+          'close':pd.to_numeric(col('close'),errors='coerce'),
+          'volume':pd.to_numeric(col('volume'),errors='coerce'),
+          'amount':pd.to_numeric(col('amount'),errors='coerce'),
+          'turnover_pct':pd.to_numeric(col('turnover_pct'),errors='coerce')
+        })
+        return out.dropna(subset=['date','close'])
     except Exception as exc:
         print(f'WARN {symbol}: {exc}')
         return None
@@ -45,13 +63,16 @@ def write_history(raw):
     raw['成交额']=pd.to_numeric(raw.get('成交额'),errors='coerce')
     raw=raw[raw['成交额'].fillna(0)>=2e7]
     raw=raw[~raw['名称'].astype(str).str.contains(r'ST|退',na=False)].sort_values('成交额',ascending=False).head(MAX_SYMBOLS)
-    symbols=raw['代码'].tolist(); frames=[]
+    symbols=raw['代码'].tolist(); frames=[]; failed=[]
     with ThreadPoolExecutor(max_workers=2) as pool:
         futures={pool.submit(history_one,s,start.strftime('%Y%m%d'),end.strftime('%Y%m%d')):s for s in symbols}
         for i,f in enumerate(as_completed(futures),1):
             df=f.result()
             if df is not None: frames.append(df)
+            else: failed.append(futures[f])
             if i%50==0: print(f'BACKFILL {i}/{len(symbols)}')
+    print(f'BACKFILL DONE: success={len(frames)} failed={len(failed)}')
+    if failed: print('FAILED SYMBOLS:', ','.join(failed[:50]))
     if not frames: raise RuntimeError('Historical backfill returned no data')
     all_df=pd.concat(frames,ignore_index=True); HISTORY.mkdir(parents=True,exist_ok=True)
     for day,g in all_df.groupby('date'):
