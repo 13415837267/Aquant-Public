@@ -8,6 +8,7 @@ Every code change is recorded here with the corresponding Git commit or pull req
 - Added cross-sectional factors: momentum, liquidity, value, risk and activity.
 - Added daily 18:00 Beijing-time GitHub Actions refresh (`10:00 UTC`).
 - Added `/api/candidates` and `/api/health`.
-- Added a pull-request quality gate requiring changelog updates for code/workflow changes.
+- Added a pull-request quality gate requiring changelog entries for code/workflow changes.
 - Added repository maintenance and architecture documentation.
 - Removed the unused Vercel Cron/refresh endpoint so GitHub Actions remains the single source of truth for daily data updates.
+- Added one immutable `data/history/YYYY-MM-DD.json` snapshot per trading day for incremental history.
