@@ -1,0 +1,14 @@
+{
+  "status": "running",
+  "started_at": "2026-10-01T00:34:05.471838+08:00",
+  "target_start": "2021-10-01",
+  "initial_end": "2026-10-01",
+  "symbols_requested": 5369,
+  "direction": "near_to_far",
+  "chunk_days": 20,
+  "cursor_end": "2026-10-01",
+  "chunks_completed": 0,
+  "days_completed": 0,
+  "rows_written": 0,
+  "failed_symbols": {}
+}
