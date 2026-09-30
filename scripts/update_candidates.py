@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 
-DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "candidates.json"
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"\nDATA_FILE = DATA_DIR / "candidates.json"\nHISTORY_DIR = DATA_DIR / "history"
 TZ = ZoneInfo("Asia/Shanghai")
 STRATEGY_VERSION = "0.1.0"
 
