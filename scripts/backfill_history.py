@@ -42,9 +42,9 @@ def api_client() -> DataApi:
     token = os.getenv("ZZSHARE_TOKEN", "").strip()
     if token:
         print("ZZSHARE: using configured free token")
-        return DataApi(token=token)
+        return DataApi(token=token, timeout=20)
     print("ZZSHARE: using anonymous mode")
-    return DataApi()
+    return DataApi(timeout=20)
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -172,7 +172,7 @@ def request_bulk_day(api: DataApi, trade_date: str) -> pd.DataFrame:
                 trade_date=trade_date.replace("-", ""),
                 offset=0,
                 limit=BULK_LIMIT,
-                export_all=True,
+                fields="ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount",
             )
             out = normalize_columns(df)
             if out.empty:
