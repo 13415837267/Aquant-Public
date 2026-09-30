@@ -17,6 +17,11 @@ on:
         type: string
 permissions:
   contents: write
+
+concurrency:
+  group: historical-data-bootstrap
+  cancel-in-progress: true
+
 jobs:
   backfill:
     runs-on: ubuntu-latest
