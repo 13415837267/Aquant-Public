@@ -12,7 +12,7 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
         run: |
           git config user.name "aquant-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json data/history/
+          git add data/candidates.json data/history/ data/universe.json
           if git diff --cached --quiet; then
             echo "No data changes to commit."
             exit 0
