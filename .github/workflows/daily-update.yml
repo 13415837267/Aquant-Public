@@ -1,44 +1,30 @@
-﻿name: Daily Candidate Refresh
+name: Daily Data Health Check
 
 on:
-  schedule:
-    # GitHub Actions uses UTC. 10:00 UTC = 18:00 Beijing time (UTC+8).
-    - cron: "0 10 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: daily-data-health-check
+  cancel-in-progress: true
+
 jobs:
-  refresh:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
-
       - name: Install data pipeline
         run: pip install -r requirements.txt
-
-      - name: Update historical data\n        run: python scripts/backfill_history.py\r\n\r\n      - name: Refresh candidate pool\r\n        run: python scripts/update_candidates.py
-
-      - name: Commit data snapshot
-        run: |
-          git config user.name "aquant-bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json data/history/ data/universe.json
-          if git diff --cached --quiet; then
-            echo "No data changes to commit."
-            exit 0
-          fi
-          git commit -m "data: refresh daily candidate pool"
-          git push
-
+      - name: Validate latest full-field market data
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/backfill_history.py --mode validate --days 3
