@@ -2,20 +2,20 @@
 
 个人量化交易系统的**公开数据与生产运行仓库**。
 
-本仓库负责公开、可复现的量化基础设施：全沪深京 A 股历史数据库、数据采集、数据质量检查、候选股计算、回测基础设施、GitHub Actions 与 GitHub Pages。
+本仓库负责公开、可复现的量化基础设施：全沪深京 A 股历史数据库、数据采集、数据质量检查、候选股计算、回测基础设施、GitHub Actions 与 GitHub Pages。候选股计算运行时直接读取 Aquant-Private/main 的最新策略。
 
 ## 一、两个仓库的分工
 
 | 仓库 | 定位 | 主要内容 | 是否生产运行 |
 |---|---|---|---|
-| **Aquant-Private** | 私有策略研究母版 | 策略研究、因子实验、参数、未公开逻辑 | 否 |
-| **Aquant-Public** | 公开生产运行面 | 数据库、数据管线、发布版策略、候选股、回测基础设施、Pages | 是 |
+| **Aquant-Private** | 私有唯一策略源 | 策略研究、因子实验、参数、模型、策略版本 | 否 |
+| **Aquant-Public** | 公开生产运行面 | 数据库、数据管线、候选股、回测基础设施、Pages | 是 |
 
 核心原则：
 
-> **Private 负责研究和策略母版，Public 负责公开的发布版策略与全部云端运行。**
+> **Aquant-Private 是唯一策略源；Aquant-Public 每次生产运行时直接读取 Private/main 最新策略。**
 
-Public 不直接依赖 Private 仓库运行。策略经过研究、审核后，以**发布版快照**进入 Public；之后 GitHub Actions 只从 Public 自身代码和数据库计算候选股。
+Public 不维护另一套独立策略。Private 修改并提交到 `main` 后，Public 下一次候选股计算自动使用新的策略代码，并在 `data/candidates.json` 记录策略版本和 commit。
 
 ## 二、当前候选股是怎么产生的
 
@@ -41,9 +41,9 @@ Public 不直接依赖 Private 仓库运行。策略经过研究、审核后，�
 
 并执行非 ST、非退市相关、非停牌、价格和成交额等基础过滤。
 
-**重要：当前版本不是运行时跨仓库调用 Aquant-Private。**
+**重要：候选股生产任务运行时跨仓库读取 Aquant-Private/main。**
 
-Private 是策略研究母版；Public 中保存的是经过发布边界处理后的运行代码。后续如果 Private 策略升级，必须经过发布流程更新 Public，不能让生产任务隐式读取 Private。
+Public 不复制或维护独立策略版本。生产 Action 通过 `PRIVATE_REPO_TOKEN` 只读访问 Private，并将实际使用的 `strategy_version` 与 `strategy_commit` 写入候选股快照。
 
 ## 三、历史数据库
 
@@ -111,7 +111,7 @@ GitHub Actions 使用小批次 checkpoint，避免长时间任务因为单次提
 - **GitHub Actions**：唯一生产运行环境
 - **GitHub Pages**：公开静态展示
 - **本地电脑**：只用于编辑、提交和控制
-- **Aquant-Private**：不参与生产构建和生产运行
+- **Aquant-Private**：提供唯一策略源；Public 生产任务运行时只读加载最新 `main` 策略
 
 ## 八、数据质量要求
 
@@ -160,7 +160,8 @@ Pages 使用 Next.js 静态导出。
 ## 十一、维护规则
 
 - 数据提交使用 `data:` 前缀
-- 策略发布使用明确的版本号
+- 策略版本记录在 Private 的 `strategy/version.py`
+- Public 生产运行时读取 Private/main，不保存独立策略母版
 - 代码和工作流变更同步记录到 `CHANGELOG.md`
 - Public 不保存私有策略研究、账户凭证或 API 密钥
 - 生产任务不得隐式依赖 Private 仓库
@@ -173,4 +174,4 @@ Pages 使用 Next.js 静态导出。
 
 其中：
 
-> **Aquant-Private 是研究与策略母版；Aquant-Public 是数据、发布版策略和生产运行平台。**
+> **Aquant-Private 是唯一策略源；Aquant-Public 是数据与生产运行平台。**
