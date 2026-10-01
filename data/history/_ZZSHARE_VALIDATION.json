@@ -1,54 +1,129 @@
 {
-  "validated_at": "2026-10-01T01:43:12.902820+08:00",
-  "source": "zzshare bulk daily",
+  "validated_at": "2026-10-01T11:17:18.466227+08:00",
+  "source": "zzshare daily all-fields bulk",
   "days": [
     {
       "date": "2026-09-30",
-      "rows": 5369,
-      "unique_symbols": 5369,
+      "rows": 5572,
+      "unique_symbols": 5572,
       "duplicates": 0,
       "wrong_date": 0,
       "null_close": 0,
       "markets": {
-        ".SH": 2238,
-        ".SZ": 2786,
-        ".BJ": 345
+        ".SH": 2320,
+        ".SZ": 2904,
+        ".BJ": 348
+      },
+      "completeness": {
+        "amount": 1.0,
+        "amplitude_pct": 1.0,
+        "close": 1.0,
+        "date": 1.0,
+        "factor": 1.0,
+        "high": 1.0,
+        "high_limit": 1.0,
+        "is_paused": 1.0,
+        "is_st": 1.0,
+        "low": 1.0,
+        "low_limit": 1.0,
+        "open": 1.0,
+        "pct_chg": 1.0,
+        "pre_close": 1.0,
+        "symbol": 1.0,
+        "turnover_pct": 1.0,
+        "volume": 1.0
       },
       "raw_rows": 5572,
-      "filtered_rows": 5369
+      "strategy_universe_overlap": 5369
     },
     {
       "date": "2026-09-29",
-      "rows": 5369,
-      "unique_symbols": 5369,
+      "rows": 5571,
+      "unique_symbols": 5571,
       "duplicates": 0,
       "wrong_date": 0,
       "null_close": 0,
       "markets": {
-        ".SH": 2238,
-        ".SZ": 2786,
-        ".BJ": 345
+        ".SH": 2320,
+        ".SZ": 2903,
+        ".BJ": 348
+      },
+      "completeness": {
+        "amount": 1.0,
+        "amplitude_pct": 1.0,
+        "close": 1.0,
+        "date": 1.0,
+        "factor": 1.0,
+        "high": 1.0,
+        "high_limit": 1.0,
+        "is_paused": 1.0,
+        "is_st": 1.0,
+        "low": 1.0,
+        "low_limit": 1.0,
+        "open": 1.0,
+        "pct_chg": 1.0,
+        "pre_close": 1.0,
+        "symbol": 1.0,
+        "turnover_pct": 1.0,
+        "volume": 1.0
       },
       "raw_rows": 5571,
-      "filtered_rows": 5369
+      "strategy_universe_overlap": 5369
     },
     {
       "date": "2026-09-28",
-      "rows": 5367,
-      "unique_symbols": 5367,
+      "rows": 5569,
+      "unique_symbols": 5569,
       "duplicates": 0,
       "wrong_date": 0,
       "null_close": 0,
       "markets": {
-        ".SH": 2238,
-        ".SZ": 2785,
-        ".BJ": 344
+        ".SH": 2320,
+        ".SZ": 2902,
+        ".BJ": 347
+      },
+      "completeness": {
+        "amount": 1.0,
+        "amplitude_pct": 1.0,
+        "close": 1.0,
+        "date": 1.0,
+        "factor": 1.0,
+        "high": 1.0,
+        "high_limit": 1.0,
+        "is_paused": 1.0,
+        "is_st": 1.0,
+        "low": 1.0,
+        "low_limit": 1.0,
+        "open": 1.0,
+        "pct_chg": 1.0,
+        "pre_close": 1.0,
+        "symbol": 1.0,
+        "turnover_pct": 1.0,
+        "volume": 1.0
       },
       "raw_rows": 5569,
-      "filtered_rows": 5367
+      "strategy_universe_overlap": 5367
     }
   ],
   "universe_size": 5370,
   "bulk_limit": 6000,
-  "anonymous_mode_allowed": true
+  "advanced_fields": [
+    "amount",
+    "amplitude_pct",
+    "close",
+    "date",
+    "factor",
+    "high",
+    "high_limit",
+    "is_paused",
+    "is_st",
+    "low",
+    "low_limit",
+    "open",
+    "pct_chg",
+    "pre_close",
+    "symbol",
+    "turnover_pct",
+    "volume"
+  ]
 }
