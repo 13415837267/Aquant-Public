@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 255,
-  "rows_written": 1418415,
+  "days_completed": 260,
+  "rows_written": 1444418,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -268,26 +268,31 @@
     "2025-09-16",
     "2025-09-15",
     "2025-09-12",
-    "2025-09-11"
+    "2025-09-11",
+    "2025-09-10",
+    "2025-09-09",
+    "2025-09-08",
+    "2025-09-05",
+    "2025-09-04"
   ],
   "last_day": {
-    "date": "2025-09-11",
-    "rows": 5202,
-    "unique_symbols": 5202,
+    "date": "2025-09-04",
+    "rows": 5199,
+    "unique_symbols": 5199,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2190,
-      ".SZ": 2742,
-      ".BJ": 270
+      ".SH": 2189,
+      ".SZ": 2741,
+      ".BJ": 269
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.948097,
-      "circulating_cap": 0.948097,
-      "circulating_market_cap": 0.948097,
+      "capitalization": 0.948259,
+      "circulating_cap": 0.948259,
+      "circulating_market_cap": 0.948259,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -297,21 +302,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.948097,
+      "market_cap": 0.948259,
       "open": 1.0,
-      "pb_ratio": 0.948097,
-      "pcf_ratio": 0.948097,
+      "pb_ratio": 0.948259,
+      "pcf_ratio": 0.948259,
       "pct_chg": 1.0,
-      "pe_ratio": 0.948097,
-      "pe_ratio_lyr": 0.948097,
+      "pe_ratio": 0.948259,
+      "pe_ratio_lyr": 0.948259,
       "pre_close": 1.0,
-      "ps_ratio": 0.948097,
+      "ps_ratio": 0.948259,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.946943,
+      "turnover_ratio": 0.947105,
       "volume": 1.0
     },
-    "valuation_rows": 4926
+    "valuation_rows": 4924
   },
-  "last_file": "data/history/2025-09-11.csv.gz"
+  "last_file": "data/history/2025-09-04.csv.gz"
 }
