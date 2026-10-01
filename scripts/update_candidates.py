@@ -8,7 +8,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
@@ -72,11 +71,11 @@ def _read_history_window(max_files: int = 61) -> tuple[pd.DataFrame, list[str]]:
     return data.sort_values(["symbol", "date"]), dates
 
 
-def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> pd.DataFrame:
     hist = history.copy()
     numeric_cols = [
         "close", "pre_close", "volume", "amount", "turnover_pct", "pct_chg",
-        "market_cap", "circulating_market_cap", "pe_ratio", "pb_ratio",
+        "pe_ratio", "pb_ratio",
     ]
     for col in numeric_cols:
         hist[col] = pd.to_numeric(hist[col], errors="coerce")
@@ -84,7 +83,6 @@ def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> tuple[pd
     grouped = hist.groupby("symbol", sort=False)
 
     hist["ret_1d"] = grouped["close"].pct_change()
-    hist["ret_20d"] = grouped["close"].pct_change(20)
     hist["ret_60d"] = grouped["close"].pct_change(60)
     hist["volatility_proxy"] = (
         grouped["ret_1d"].rolling(20, min_periods=10).std()
@@ -123,7 +121,7 @@ def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> tuple[pd
          "pe", "pb", "ret_60d", "volatility_proxy", "volume_ratio"]
     ].copy()
     strategy_frame["momentum_60d"] = strategy_frame["ret_60d"] * 100
-    return strategy_frame, latest
+    return strategy_frame
 
 
 def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: str, strategy_commit: str) -> dict:
@@ -131,7 +129,7 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
     if not latest_date:
         raise RuntimeError("History has no valid date")
 
-    strategy_frame, latest = _prepare_strategy_frame(history, latest_date)
+    strategy_frame = _prepare_strategy_frame(history, latest_date)
     if strategy_frame.empty:
         raise RuntimeError("No usable stocks after strategy universe filters")
 
