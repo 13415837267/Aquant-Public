@@ -25,7 +25,7 @@ Public 不维护另一套独立策略。Private 修改并提交到 `main` 后，
 
 直接读取：
 
-`data/history/YYYY-MM-DD.csv.gz`
+`data/history/YYYY/YYYY-MM-DD.csv.gz`
 
 计算最近 60 个交易日的因子并生成：
 
