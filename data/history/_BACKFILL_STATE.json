@@ -1,5 +1,5 @@
 {
-  "status": "running",
+  "status": "complete",
   "started_at": "2026-10-01T00:34:05.471838+08:00",
   "target_start": "2021-10-01",
   "initial_end": "2026-10-01",
@@ -1269,5 +1269,6 @@
     },
     "valuation_rows": 4102
   },
-  "last_file": "data/history/2021-10-08.csv.gz"
+  "last_file": "data/history/2021-10-08.csv.gz",
+  "completed_at": "2026-10-02T00:41:08.385201+08:00"
 }
