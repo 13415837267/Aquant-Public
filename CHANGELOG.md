@@ -2,6 +2,13 @@
 
 Every code change is recorded here with the corresponding Git commit or pull request. Automated data-only refreshes use the `data:` commit prefix.
 
+## Unreleased — Database-driven candidate engine
+- Replaced live AKShare/Eastmoney spot input in `scripts/update_candidates.py` with the committed `data/history/YYYY-MM-DD.csv.gz` database.
+- Added 20/60 trading-day momentum, 20-day realized volatility, 20-day average traded value and 20-day average turnover features.
+- Corrected the risk-factor direction so lower realized volatility receives the stronger rank.
+- Kept the strategy universe aligned with the historical database: non-ST, non-delisted, non-paused, price above 2 yuan and recent traded value above 20 million yuan.
+- Candidate snapshots now record the database date and strategy version.
+
 ## [0.1.0] — 2026-09-30
 - Initial public runtime: Next.js 16 App Router candidate-pool dashboard.
 - Added AKShare/Eastmoney A-share spot ingestion with trading-day guard.
