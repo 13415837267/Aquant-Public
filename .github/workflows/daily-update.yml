@@ -1,4 +1,4 @@
-name: Daily Data Health Check
+﻿name: Daily Data Health Check
 
 on:
   workflow_dispatch:
