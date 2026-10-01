@@ -417,12 +417,21 @@ def git_checkpoint(paths: list[str], message: str) -> None:
     subprocess.run(["git", "config", "user.name", "aquant-bot"], check=True)
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "commit", "-m", message], check=True)
-    # Other workflows may commit unrelated data between checkpoints.
-    # Rebase before pushing so a concurrent candidate/data commit does not
-    # abort the long-running backfill.
-    subprocess.run(["git", "fetch", "origin", "main"], check=True)
-    subprocess.run(["git", "rebase", "origin/main"], check=True)
-    subprocess.run(["git", "push", "origin", "HEAD:main"], check=True)
+    # Other workflows or maintenance commits may advance main between the
+    # fetch/rebase and push. Retry the push window instead of failing the
+    # long-running backfill on a transient ref race.
+    for attempt in range(1, 4):
+        subprocess.run(["git", "fetch", "origin", "main"], check=True)
+        subprocess.run(["git", "rebase", "origin/main"], check=True)
+        try:
+            subprocess.run(["git", "push", "origin", "HEAD:main"], check=True)
+            return
+        except subprocess.CalledProcessError:
+            if attempt == 3:
+                raise
+            wait = min(10, attempt * 2)
+            print(f"WARN checkpoint push race; retrying in {wait}s")
+            time.sleep(wait)
 def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
     api = api_client()
     universe = load_universe(api)
