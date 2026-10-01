@@ -6,12 +6,11 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: historical-year-${{ matrix.year }}
-  cancel-in-progress: false
-
 jobs:
   backfill:
+    concurrency:
+      group: historical-year-${{ matrix.year }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       max-parallel: 6
