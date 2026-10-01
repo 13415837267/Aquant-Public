@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 870,
-  "rows_written": 4520451,
+  "days_completed": 875,
+  "rows_written": 4544189,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -883,26 +883,31 @@
     "2023-03-08",
     "2023-03-07",
     "2023-03-06",
-    "2023-03-03"
+    "2023-03-03",
+    "2023-03-02",
+    "2023-03-01",
+    "2023-02-28",
+    "2023-02-27",
+    "2023-02-24"
   ],
   "last_day": {
-    "date": "2023-03-03",
-    "rows": 4752,
-    "unique_symbols": 4752,
+    "date": "2023-02-24",
+    "rows": 4745,
+    "unique_symbols": 4745,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2044,
-      ".SZ": 2542,
-      ".BJ": 166
+      ".SH": 2042,
+      ".SZ": 2539,
+      ".BJ": 164
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.965067,
-      "circulating_cap": 0.965067,
-      "circulating_market_cap": 0.965067,
+      "capitalization": 0.965437,
+      "circulating_cap": 0.965437,
+      "circulating_market_cap": 0.965437,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -912,21 +917,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.965067,
+      "market_cap": 0.965437,
       "open": 1.0,
-      "pb_ratio": 0.965067,
-      "pcf_ratio": 0.965067,
+      "pb_ratio": 0.965437,
+      "pcf_ratio": 0.965437,
       "pct_chg": 1.0,
-      "pe_ratio": 0.965067,
-      "pe_ratio_lyr": 0.965067,
+      "pe_ratio": 0.965437,
+      "pe_ratio_lyr": 0.965437,
       "pre_close": 1.0,
-      "ps_ratio": 0.964857,
+      "ps_ratio": 0.965016,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.964857,
+      "turnover_ratio": 0.964805,
       "volume": 1.0
     },
-    "valuation_rows": 4584
+    "valuation_rows": 4576
   },
-  "last_file": "data/history/2023-03-03.csv.gz"
+  "last_file": "data/history/2023-02-24.csv.gz"
 }
