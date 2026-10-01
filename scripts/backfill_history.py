@@ -30,7 +30,7 @@ VALIDATION_TRADING_DAYS = 3
 REQUEST_RETRIES = 4
 MIN_VALIDATION_ROWS = 4500
 FINANCE_LIMIT = 40000
-FINANCE_CHUNK_DAYS = 7
+FINANCE_CHUNK_DAYS = 5
 FINANCIAL_START_BUFFER_YEARS = 1
 
 DAILY_REQUIRED = {
@@ -787,7 +787,7 @@ def validate_fundamentals() -> None:
     range_df = normalize_finance(
         api.finance_range(
             table="valuation",
-            start_date="2026-09-21",
+            start_date="2026-09-26",
             end_date="2026-09-30",
             limit=40000,
         )
@@ -795,7 +795,7 @@ def validate_fundamentals() -> None:
     if "trade_date" not in range_df.columns:
         raise RuntimeError("valuation range missing trade_date")
     range_dates = pd.to_datetime(range_df["trade_date"], errors="coerce")
-    checks["valuation_range_10d"] = {
+    checks["valuation_range_5d"] = {
         "rows": len(range_df),
         "unique_symbols": int(range_df["symbol"].nunique()),
         "min_date": range_dates.min().strftime("%Y-%m-%d") if range_dates.notna().any() else None,
