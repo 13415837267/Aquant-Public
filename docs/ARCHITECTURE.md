@@ -36,7 +36,7 @@ Next.js / GitHub Pages
 
 Daily market and valuation data are persisted as:
 
-`data/history/YYYY-MM-DD.csv.gz`
+`data/history/YYYY/YYYY-MM-DD.csv.gz`
 
 Quarterly financial data are persisted under:
 
