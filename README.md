@@ -164,7 +164,7 @@ Pages 使用 Next.js 静态导出。
 - Public 生产运行时读取 Private/main，不保存独立策略母版
 - 代码和工作流变更同步记录到 `CHANGELOG.md`
 - Public 不保存私有策略研究、账户凭证或 API 密钥
-- 生产任务不得隐式依赖 Private 仓库
+- 候选股生产任务显式依赖 `Aquant-Private/main`，通过 `PRIVATE_REPO_TOKEN` 只读加载策略
 
 ## 十二、系统目标
 
