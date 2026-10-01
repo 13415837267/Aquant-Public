@@ -1,22 +1,25 @@
 {
-  "validated_at": "2026-10-01T11:17:18.466227+08:00",
+  "validated_at": "2026-10-01T11:36:02.944226+08:00",
   "source": "zzshare daily all-fields bulk",
   "days": [
     {
       "date": "2026-09-30",
-      "rows": 5572,
-      "unique_symbols": 5572,
+      "rows": 5369,
+      "unique_symbols": 5369,
       "duplicates": 0,
       "wrong_date": 0,
       "null_close": 0,
       "markets": {
-        ".SH": 2320,
-        ".SZ": 2904,
-        ".BJ": 348
+        ".SH": 2238,
+        ".SZ": 2786,
+        ".BJ": 345
       },
       "completeness": {
         "amount": 1.0,
         "amplitude_pct": 1.0,
+        "capitalization": 0.935742,
+        "circulating_cap": 0.935742,
+        "circulating_market_cap": 0.935742,
         "close": 1.0,
         "date": 1.0,
         "factor": 1.0,
@@ -26,83 +29,24 @@
         "is_st": 1.0,
         "low": 1.0,
         "low_limit": 1.0,
+        "market_cap": 0.935742,
         "open": 1.0,
+        "pb_ratio": 0.935742,
+        "pcf_ratio": 0.935742,
         "pct_chg": 1.0,
+        "pe_ratio": 0.935742,
+        "pe_ratio_lyr": 0.935742,
         "pre_close": 1.0,
+        "ps_ratio": 0.935556,
         "symbol": 1.0,
         "turnover_pct": 1.0,
+        "turnover_ratio": 0.934438,
         "volume": 1.0
       },
+      "valuation_rows": 5016,
       "raw_rows": 5572,
+      "filtered_rows": 5369,
       "strategy_universe_overlap": 5369
-    },
-    {
-      "date": "2026-09-29",
-      "rows": 5571,
-      "unique_symbols": 5571,
-      "duplicates": 0,
-      "wrong_date": 0,
-      "null_close": 0,
-      "markets": {
-        ".SH": 2320,
-        ".SZ": 2903,
-        ".BJ": 348
-      },
-      "completeness": {
-        "amount": 1.0,
-        "amplitude_pct": 1.0,
-        "close": 1.0,
-        "date": 1.0,
-        "factor": 1.0,
-        "high": 1.0,
-        "high_limit": 1.0,
-        "is_paused": 1.0,
-        "is_st": 1.0,
-        "low": 1.0,
-        "low_limit": 1.0,
-        "open": 1.0,
-        "pct_chg": 1.0,
-        "pre_close": 1.0,
-        "symbol": 1.0,
-        "turnover_pct": 1.0,
-        "volume": 1.0
-      },
-      "raw_rows": 5571,
-      "strategy_universe_overlap": 5369
-    },
-    {
-      "date": "2026-09-28",
-      "rows": 5569,
-      "unique_symbols": 5569,
-      "duplicates": 0,
-      "wrong_date": 0,
-      "null_close": 0,
-      "markets": {
-        ".SH": 2320,
-        ".SZ": 2902,
-        ".BJ": 347
-      },
-      "completeness": {
-        "amount": 1.0,
-        "amplitude_pct": 1.0,
-        "close": 1.0,
-        "date": 1.0,
-        "factor": 1.0,
-        "high": 1.0,
-        "high_limit": 1.0,
-        "is_paused": 1.0,
-        "is_st": 1.0,
-        "low": 1.0,
-        "low_limit": 1.0,
-        "open": 1.0,
-        "pct_chg": 1.0,
-        "pre_close": 1.0,
-        "symbol": 1.0,
-        "turnover_pct": 1.0,
-        "volume": 1.0
-      },
-      "raw_rows": 5569,
-      "strategy_universe_overlap": 5367
     }
   ],
   "universe_size": 5370,
@@ -110,6 +54,9 @@
   "advanced_fields": [
     "amount",
     "amplitude_pct",
+    "capitalization",
+    "circulating_cap",
+    "circulating_market_cap",
     "close",
     "date",
     "factor",
@@ -119,11 +66,18 @@
     "is_st",
     "low",
     "low_limit",
+    "market_cap",
     "open",
+    "pb_ratio",
+    "pcf_ratio",
     "pct_chg",
+    "pe_ratio",
+    "pe_ratio_lyr",
     "pre_close",
+    "ps_ratio",
     "symbol",
     "turnover_pct",
+    "turnover_ratio",
     "volume"
   ]
 }
