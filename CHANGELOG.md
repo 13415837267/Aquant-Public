@@ -2,6 +2,9 @@
 
 Every code change is recorded here with the corresponding Git commit or pull request. Automated data-only refreshes use the `data:` commit prefix.
 
+## Unreleased — Checkpoint push resilience
+- Historical-data Git checkpoints now rebase onto the current remote main branch before pushing, so unrelated concurrent candidate/data commits do not abort a long backfill run.
+
 ## Unreleased — Database-driven candidate engine
 - Replaced live AKShare/Eastmoney spot input in `scripts/update_candidates.py` with the committed `data/history/YYYY-MM-DD.csv.gz` database.
 - Added 20/60 trading-day momentum, 20-day realized volatility, 20-day average traded value and 20-day average turnover features.
