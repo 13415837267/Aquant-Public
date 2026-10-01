@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 1115,
-  "rows_written": 5633811,
+  "days_completed": 1120,
+  "rows_written": 5655502,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -1128,26 +1128,31 @@
     "2022-03-04",
     "2022-03-03",
     "2022-03-02",
-    "2022-03-01"
+    "2022-03-01",
+    "2022-02-28",
+    "2022-02-25",
+    "2022-02-24",
+    "2022-02-23",
+    "2022-02-22"
   ],
   "last_day": {
-    "date": "2022-03-01",
-    "rows": 4341,
-    "unique_symbols": 4341,
+    "date": "2022-02-22",
+    "rows": 4336,
+    "unique_symbols": 4336,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
       ".SH": 1901,
-      ".SZ": 2366,
-      ".BJ": 74
+      ".SZ": 2363,
+      ".BJ": 72
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.982953,
-      "circulating_cap": 0.982953,
-      "circulating_market_cap": 0.982953,
+      "capitalization": 0.983395,
+      "circulating_cap": 0.983395,
+      "circulating_market_cap": 0.983395,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -1157,21 +1162,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.982953,
+      "market_cap": 0.983395,
       "open": 1.0,
-      "pb_ratio": 0.982723,
-      "pcf_ratio": 0.982493,
+      "pb_ratio": 0.983164,
+      "pcf_ratio": 0.982934,
       "pct_chg": 1.0,
-      "pe_ratio": 0.982493,
-      "pe_ratio_lyr": 0.982493,
+      "pe_ratio": 0.982934,
+      "pe_ratio_lyr": 0.982934,
       "pre_close": 1.0,
-      "ps_ratio": 0.982493,
+      "ps_ratio": 0.982472,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.981801,
+      "turnover_ratio": 0.982011,
       "volume": 1.0
     },
-    "valuation_rows": 4260
+    "valuation_rows": 4254
   },
-  "last_file": "data/history/2022-03-01.csv.gz"
+  "last_file": "data/history/2022-02-22.csv.gz"
 }
