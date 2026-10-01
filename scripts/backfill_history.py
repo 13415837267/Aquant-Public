@@ -163,7 +163,11 @@ def normalize_finance(df: pd.DataFrame) -> pd.DataFrame:
     for col in out.columns:
         if col not in identity:
             try:
-                out[col] = pd.to_numeric(first_series(out, col), errors="ignore")
+                series = first_series(out, col)
+                try:
+                    out[col] = pd.to_numeric(series, errors="raise")
+                except (TypeError, ValueError):
+                    out[col] = series
             except Exception:
                 pass
 
@@ -779,6 +783,23 @@ def validate_fundamentals() -> None:
         "rows": len(val),
         "columns": list(val.columns),
         "unique_symbols": int(val["symbol"].nunique()),
+    }
+    range_df = normalize_finance(
+        api.finance_range(
+            table="valuation",
+            start_date="2026-09-21",
+            end_date="2026-09-30",
+            limit=40000,
+        )
+    )
+    if "trade_date" not in range_df.columns:
+        raise RuntimeError("valuation range missing trade_date")
+    range_dates = pd.to_datetime(range_df["trade_date"], errors="coerce")
+    checks["valuation_range_10d"] = {
+        "rows": len(range_df),
+        "unique_symbols": int(range_df["symbol"].nunique()),
+        "min_date": range_dates.min().strftime("%Y-%m-%d") if range_dates.notna().any() else None,
+        "max_date": range_dates.max().strftime("%Y-%m-%d") if range_dates.notna().any() else None,
     }
 
     for table, method in FINANCE_TABLES.items():
