@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 665,
-  "rows_written": 3514328,
+  "days_completed": 670,
+  "rows_written": 3539445,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -678,26 +678,31 @@
     "2024-01-08",
     "2024-01-05",
     "2024-01-04",
-    "2024-01-03"
+    "2024-01-03",
+    "2024-01-02",
+    "2023-12-29",
+    "2023-12-28",
+    "2023-12-27",
+    "2023-12-26"
   ],
   "last_day": {
-    "date": "2024-01-03",
-    "rows": 5026,
-    "unique_symbols": 5026,
+    "date": "2023-12-26",
+    "rows": 5021,
+    "unique_symbols": 5021,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2135,
-      ".SZ": 2663,
-      ".BJ": 228
+      ".SH": 2133,
+      ".SZ": 2661,
+      ".BJ": 227
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.954636,
-      "circulating_cap": 0.954636,
-      "circulating_market_cap": 0.954636,
+      "capitalization": 0.95479,
+      "circulating_cap": 0.95479,
+      "circulating_market_cap": 0.95479,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -707,21 +712,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.954636,
+      "market_cap": 0.95479,
       "open": 1.0,
-      "pb_ratio": 0.954636,
-      "pcf_ratio": 0.954636,
+      "pb_ratio": 0.95479,
+      "pcf_ratio": 0.95479,
       "pct_chg": 1.0,
-      "pe_ratio": 0.954636,
-      "pe_ratio_lyr": 0.954636,
+      "pe_ratio": 0.95479,
+      "pe_ratio_lyr": 0.95479,
       "pre_close": 1.0,
-      "ps_ratio": 0.954636,
+      "ps_ratio": 0.95479,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.95384,
+      "turnover_ratio": 0.954192,
       "volume": 1.0
     },
-    "valuation_rows": 4794
+    "valuation_rows": 4791
   },
-  "last_file": "data/history/2024-01-03.csv.gz"
+  "last_file": "data/history/2023-12-26.csv.gz"
 }
