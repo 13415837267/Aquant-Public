@@ -413,20 +413,21 @@ def backfill_daily() -> None:
         raise RuntimeError("no trading days in target range")
 
     state = load_state()
-    completed = set(state.get("completed_dates", [])) if state else set()
+    if state is None:
+        state = {}
+    # Migrate legacy checkpoint formats created by the previous collector.
+    state.setdefault("status", "running")
+    state.setdefault("started_at", datetime.now(TZ).isoformat())
+    state.setdefault("target_start", str(target_start))
+    state.setdefault("initial_end", str(today))
+    state.setdefault("direction", "near_to_far")
+    state.setdefault("source", "zzshare daily all-fields bulk")
+    state.setdefault("bulk_limit", BULK_LIMIT)
+    state.setdefault("completed_dates", [])
+    state.setdefault("days_completed", len(state.get("completed_dates", [])))
+    state.setdefault("rows_written", 0)
 
-    state = state or {
-        "status": "running",
-        "started_at": datetime.now(TZ).isoformat(),
-        "target_start": str(target_start),
-        "initial_end": str(today),
-        "direction": "near_to_far",
-        "source": "zzshare daily all-fields bulk",
-        "bulk_limit": BULK_LIMIT,
-        "completed_dates": [],
-        "days_completed": 0,
-        "rows_written": 0,
-    }
+    completed = set(state.get("completed_dates", []))
 
     print(
         f"DAILY BACKFILL: {len(trade_days)} trading days, "
