@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 155,
-  "rows_written": 895385,
+  "days_completed": 160,
+  "rows_written": 921678,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -168,26 +168,31 @@
     "2026-02-13",
     "2026-02-12",
     "2026-02-11",
-    "2026-02-10"
+    "2026-02-10",
+    "2026-02-09",
+    "2026-02-06",
+    "2026-02-05",
+    "2026-02-04",
+    "2026-02-03"
   ],
   "last_day": {
-    "date": "2026-02-10",
-    "rows": 5262,
-    "unique_symbols": 5262,
+    "date": "2026-02-03",
+    "rows": 5258,
+    "unique_symbols": 5258,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2215,
+      ".SH": 2212,
       ".SZ": 2758,
-      ".BJ": 289
+      ".BJ": 288
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.945078,
-      "circulating_cap": 0.945078,
-      "circulating_market_cap": 0.945078,
+      "capitalization": 0.945226,
+      "circulating_cap": 0.945226,
+      "circulating_market_cap": 0.945226,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -197,21 +202,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.945078,
+      "market_cap": 0.945226,
       "open": 1.0,
-      "pb_ratio": 0.945078,
-      "pcf_ratio": 0.945078,
+      "pb_ratio": 0.945226,
+      "pcf_ratio": 0.945226,
       "pct_chg": 1.0,
-      "pe_ratio": 0.945078,
-      "pe_ratio_lyr": 0.945078,
+      "pe_ratio": 0.945226,
+      "pe_ratio_lyr": 0.945226,
       "pre_close": 1.0,
-      "ps_ratio": 0.944888,
+      "ps_ratio": 0.945036,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.943558,
+      "turnover_ratio": 0.943705,
       "volume": 1.0
     },
-    "valuation_rows": 4964
+    "valuation_rows": 4961
   },
-  "last_file": "data/history/2026-02-10.csv.gz"
+  "last_file": "data/history/2026-02-03.csv.gz"
 }
