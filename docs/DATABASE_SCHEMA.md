@@ -5,7 +5,7 @@ The public repository is the only cloud build/runtime surface. The database is b
 ## Core layers
 
 ### Daily market data
-Path: `data/history/YYYY-MM-DD.csv.gz`
+Path: `data/history/YYYY/YYYY-MM-DD.csv.gz`
 
 One row per stock and trading date. The daily collector uses zzshare's full-field market endpoint and keeps:
 
