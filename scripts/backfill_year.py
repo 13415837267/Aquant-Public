@@ -23,7 +23,7 @@ def load_universe_no_write(api):
 
 def run_year(year: int) -> None:
     start = date(year, 1, 1).strftime("%Y%m%d")
-    end = date(year, 12, 31).strftime("%Y%m%d")
+    # Never request future trading dates for the current year.\n    # The remote calendar may contain pre-published future open dates.\n    end_date = min(date(year, 12, 31), date.today())\n    end = end_date.strftime("%Y%m%d")
     api = api_client()
     universe = load_universe_no_write(api)
     trade_days = load_trade_days(api, start=start, end=end)
@@ -61,5 +61,6 @@ if __name__ == "__main__":
     if args.year < 2015 or args.year > 2026:
         raise SystemExit("year must be between 2015 and 2026")
     run_year(args.year)
+
 
 
