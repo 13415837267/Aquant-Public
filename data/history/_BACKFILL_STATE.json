@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 85,
-  "rows_written": 525713,
+  "days_completed": 90,
+  "rows_written": 552234,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -98,26 +98,31 @@
     "2026-06-05",
     "2026-06-04",
     "2026-06-03",
-    "2026-06-02"
+    "2026-06-02",
+    "2026-06-01",
+    "2026-05-29",
+    "2026-05-28",
+    "2026-05-27",
+    "2026-05-26"
   ],
   "last_day": {
-    "date": "2026-06-02",
-    "rows": 5302,
-    "unique_symbols": 5302,
+    "date": "2026-05-26",
+    "rows": 5303,
+    "unique_symbols": 5303,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2225,
-      ".SZ": 2764,
-      ".BJ": 313
+      ".SH": 2224,
+      ".SZ": 2769,
+      ".BJ": 310
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.940966,
-      "circulating_cap": 0.940966,
-      "circulating_market_cap": 0.940966,
+      "capitalization": 0.941543,
+      "circulating_cap": 0.941543,
+      "circulating_market_cap": 0.941543,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -127,21 +132,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.940966,
+      "market_cap": 0.941543,
       "open": 1.0,
-      "pb_ratio": 0.940966,
-      "pcf_ratio": 0.940966,
+      "pb_ratio": 0.941543,
+      "pcf_ratio": 0.941543,
       "pct_chg": 1.0,
-      "pe_ratio": 0.940966,
-      "pe_ratio_lyr": 0.940966,
+      "pe_ratio": 0.941543,
+      "pe_ratio_lyr": 0.941543,
       "pre_close": 1.0,
-      "ps_ratio": 0.940777,
+      "ps_ratio": 0.941354,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.940966,
+      "turnover_ratio": 0.941543,
       "volume": 1.0
     },
-    "valuation_rows": 4988
+    "valuation_rows": 4992
   },
-  "last_file": "data/history/2026-06-02.csv.gz"
+  "last_file": "data/history/2026-05-26.csv.gz"
 }
