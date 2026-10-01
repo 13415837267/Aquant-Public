@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 695,
-  "rows_written": 3664665,
+  "days_completed": 700,
+  "rows_written": 3689656,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -708,26 +708,31 @@
     "2023-11-24",
     "2023-11-23",
     "2023-11-22",
-    "2023-11-21"
+    "2023-11-21",
+    "2023-11-20",
+    "2023-11-17",
+    "2023-11-16",
+    "2023-11-15",
+    "2023-11-14"
   ],
   "last_day": {
-    "date": "2023-11-21",
-    "rows": 5000,
-    "unique_symbols": 5000,
+    "date": "2023-11-14",
+    "rows": 4996,
+    "unique_symbols": 4996,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2127,
-      ".SZ": 2653,
-      ".BJ": 220
+      ".SH": 2126,
+      ".SZ": 2652,
+      ".BJ": 218
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.956,
-      "circulating_cap": 0.956,
-      "circulating_market_cap": 0.956,
+      "capitalization": 0.956365,
+      "circulating_cap": 0.956365,
+      "circulating_market_cap": 0.956365,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -737,21 +742,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.956,
+      "market_cap": 0.956365,
       "open": 1.0,
-      "pb_ratio": 0.956,
-      "pcf_ratio": 0.956,
+      "pb_ratio": 0.956365,
+      "pcf_ratio": 0.956365,
       "pct_chg": 1.0,
-      "pe_ratio": 0.956,
-      "pe_ratio_lyr": 0.956,
+      "pe_ratio": 0.956365,
+      "pe_ratio_lyr": 0.956365,
       "pre_close": 1.0,
-      "ps_ratio": 0.956,
+      "ps_ratio": 0.956365,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.9556,
+      "turnover_ratio": 0.955765,
       "volume": 1.0
     },
-    "valuation_rows": 4778
+    "valuation_rows": 4775
   },
-  "last_file": "data/history/2023-11-21.csv.gz"
+  "last_file": "data/history/2023-11-14.csv.gz"
 }
