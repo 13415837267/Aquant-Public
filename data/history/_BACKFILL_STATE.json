@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 1210,
-  "rows_written": 6038967,
+  "days_completed": 1211,
+  "rows_written": 6043136,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -1223,26 +1223,27 @@
     "2021-10-14",
     "2021-10-13",
     "2021-10-12",
-    "2021-10-11"
+    "2021-10-11",
+    "2021-10-08"
   ],
   "last_day": {
-    "date": "2021-10-11",
-    "rows": 4170,
-    "unique_symbols": 4170,
+    "date": "2021-10-08",
+    "rows": 4169,
+    "unique_symbols": 4169,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
       ".SH": 1833,
-      ".SZ": 2282,
+      ".SZ": 2281,
       ".BJ": 55
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.986811,
-      "circulating_cap": 0.986811,
-      "circulating_market_cap": 0.986811,
+      "capitalization": 0.986807,
+      "circulating_cap": 0.986807,
+      "circulating_market_cap": 0.986807,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -1252,21 +1253,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.986811,
+      "market_cap": 0.986807,
       "open": 1.0,
-      "pb_ratio": 0.986811,
-      "pcf_ratio": 0.986571,
+      "pb_ratio": 0.986807,
+      "pcf_ratio": 0.986568,
       "pct_chg": 1.0,
-      "pe_ratio": 0.986571,
-      "pe_ratio_lyr": 0.986571,
+      "pe_ratio": 0.986568,
+      "pe_ratio_lyr": 0.986568,
       "pre_close": 1.0,
-      "ps_ratio": 0.986331,
+      "ps_ratio": 0.986328,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.984892,
+      "turnover_ratio": 0.984409,
       "volume": 1.0
     },
-    "valuation_rows": 4105
+    "valuation_rows": 4102
   },
-  "last_file": "data/history/2021-10-11.csv.gz"
+  "last_file": "data/history/2021-10-08.csv.gz"
 }
