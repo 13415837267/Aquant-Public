@@ -1,5 +1,5 @@
 {
-  "validated_at": "2026-10-01T11:19:11.393949+08:00",
+  "validated_at": "2026-10-01T11:24:22.822789+08:00",
   "source": "zzshare fundamentals",
   "checks": {
     "valuation": {
@@ -21,6 +21,12 @@
         "pub_date"
       ],
       "unique_symbols": 5224
+    },
+    "valuation_range_5d": {
+      "rows": 15669,
+      "unique_symbols": 5224,
+      "min_date": "2026-09-28",
+      "max_date": "2026-09-30"
     },
     "indicator": {
       "rows": 5209,
