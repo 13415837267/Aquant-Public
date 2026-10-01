@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 12,
-  "rows_written": 66798,
+  "days_completed": 13,
+  "rows_written": 72360,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -25,17 +25,18 @@
     "2026-09-17",
     "2026-09-16",
     "2026-09-15",
-    "2026-09-14"
+    "2026-09-14",
+    "2026-09-11"
   ],
   "last_day": {
-    "date": "2026-09-14",
-    "rows": 5561,
-    "unique_symbols": 5561,
+    "date": "2026-09-11",
+    "rows": 5562,
+    "unique_symbols": 5562,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2317,
+      ".SH": 2318,
       ".SZ": 2901,
       ".BJ": 343
     },
@@ -59,5 +60,5 @@
       "volume": 1.0
     }
   },
-  "last_file": "data/history/2026-09-14.csv.gz"
+  "last_file": "data/history/2026-09-11.csv.gz"
 }
