@@ -1,8 +1,9 @@
 ﻿from __future__ import annotations
 import argparse
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts.backfill_history import (api_client, filter_strategy_universe, git_checkpoint, load_trade_days, quality_check_daily, request_bulk_day, request_valuation_day, write_daily_file)
@@ -25,7 +26,8 @@ def run_year(year: int) -> None:
     start = date(year, 1, 1).strftime("%Y%m%d")
     # Never request future trading dates for the current year.
     # The remote calendar may contain pre-published future open dates.
-    end_date = min(date(year, 12, 31), date.today())
+    today_bj = datetime.now(ZoneInfo("Asia/Shanghai")).date()
+    end_date = min(date(year, 12, 31), today_bj)
     end = end_date.strftime("%Y%m%d")
     api = api_client()
     universe = load_universe_no_write(api)

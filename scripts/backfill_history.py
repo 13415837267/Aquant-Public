@@ -245,6 +245,10 @@ def load_trade_days(api: DataApi, start: str | None = None, end: str | None = No
         open_flag = pd.to_numeric(df["is_open"], errors="coerce")
         dates = dates.where(open_flag.reindex(df.index).fillna(1).astype(bool))
 
+    # Never expose future calendar dates to callers.
+    # Exchanges/providers may publish future open days ahead of time.
+    today_bj = datetime.now(TZ).date()
+    dates = dates.where(dates.dt.date <= today_bj)
     return sorted(set(dates.dropna().dt.strftime("%Y-%m-%d").tolist()), reverse=True)
 
 
