@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 40,
-  "rows_written": 286449,
+  "days_completed": 45,
+  "rows_written": 313110,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -53,26 +53,31 @@
     "2026-08-10",
     "2026-08-07",
     "2026-08-06",
-    "2026-08-05"
+    "2026-08-05",
+    "2026-08-04",
+    "2026-08-03",
+    "2026-07-31",
+    "2026-07-30",
+    "2026-07-29"
   ],
   "last_day": {
-    "date": "2026-08-05",
-    "rows": 5333,
-    "unique_symbols": 5333,
+    "date": "2026-07-29",
+    "rows": 5331,
+    "unique_symbols": 5331,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
       ".SH": 2228,
-      ".SZ": 2776,
-      ".BJ": 329
+      ".SZ": 2775,
+      ".BJ": 328
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.938309,
-      "circulating_cap": 0.938309,
-      "circulating_market_cap": 0.938309,
+      "capitalization": 0.938473,
+      "circulating_cap": 0.938473,
+      "circulating_market_cap": 0.938473,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -82,21 +87,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.938309,
+      "market_cap": 0.938473,
       "open": 1.0,
-      "pb_ratio": 0.938309,
-      "pcf_ratio": 0.938309,
+      "pb_ratio": 0.938473,
+      "pcf_ratio": 0.938473,
       "pct_chg": 1.0,
-      "pe_ratio": 0.938309,
-      "pe_ratio_lyr": 0.938309,
+      "pe_ratio": 0.938473,
+      "pe_ratio_lyr": 0.938473,
       "pre_close": 1.0,
-      "ps_ratio": 0.938121,
+      "ps_ratio": 0.938285,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.937559,
+      "turnover_ratio": 0.936785,
       "volume": 1.0
     },
-    "valuation_rows": 4999
+    "valuation_rows": 4993
   },
-  "last_file": "data/history/2026-08-05.csv.gz"
+  "last_file": "data/history/2026-07-29.csv.gz"
 }
