@@ -31,7 +31,7 @@ REQUEST_RETRIES = 4
 MIN_VALIDATION_ROWS = 4500
 FINANCE_LIMIT = 40000
 FINANCE_CHUNK_DAYS = 5
-DAILY_GIT_CHECKPOINT_DAYS = 1
+DAILY_GIT_CHECKPOINT_DAYS = 5
 FINANCIAL_START_BUFFER_YEARS = 1
 
 DAILY_REQUIRED = {
@@ -53,6 +53,19 @@ DAILY_REQUIRED = {
     "is_paused",
     "is_st",
 }
+
+VALUATION_COLUMNS = [
+    "capitalization",
+    "circulating_cap",
+    "market_cap",
+    "circulating_market_cap",
+    "turnover_ratio",
+    "pe_ratio",
+    "pe_ratio_lyr",
+    "pb_ratio",
+    "ps_ratio",
+    "pcf_ratio",
+]
 
 FINANCE_TABLES = {
     "indicator": "finance_indicator",
@@ -260,10 +273,86 @@ def request_bulk_day(api: DataApi, trade_date: str) -> pd.DataFrame:
     raise RuntimeError(f"zzshare bulk failed for {trade_date}: {last_exc}")
 
 
-def quality_check_daily(df: pd.DataFrame, trade_date: str, minimum_rows: int | None = None) -> dict:
-    missing = sorted(DAILY_REQUIRED - set(df.columns))
+def normalize_valuation(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        raise RuntimeError("empty valuation dataframe")
+
+    out = df.copy()
+    if "code" in out.columns and "symbol" not in out.columns:
+        out = out.rename(columns={"code": "symbol"})
+    if "trade_date" in out.columns and "date" not in out.columns:
+        out = out.rename(columns={"trade_date": "date"})
+    if "symbol" not in out.columns or "date" not in out.columns:
+        raise RuntimeError(f"valuation missing identity columns: {list(out.columns)}")
+
+    out["symbol"] = first_series(out, "symbol").astype(str).str.strip().str.upper()
+    out["date"] = pd.to_datetime(first_series(out, "date"), errors="coerce").dt.strftime("%Y-%m-%d")
+    for col in out.columns:
+        if col not in {"symbol", "date"}:
+            try:
+                out[col] = pd.to_numeric(first_series(out, col), errors="coerce")
+            except Exception:
+                pass
+
+    missing = sorted(set(VALUATION_COLUMNS) - set(out.columns))
     if missing:
-        raise RuntimeError(f"{trade_date}: missing daily columns {missing}")
+        raise RuntimeError(f"valuation missing columns {missing}")
+    keep = ["symbol", "date", *VALUATION_COLUMNS]
+    return out[keep].dropna(subset=["symbol", "date"]).drop_duplicates(["symbol", "date"]).reset_index(drop=True)
+
+
+def request_valuation_day(api: DataApi, trade_date: str) -> pd.DataFrame:
+    last_exc: Exception | None = None
+    for attempt in range(1, REQUEST_RETRIES + 1):
+        try:
+            return normalize_valuation(api.finance_valuation(trade_date))
+        except Exception as exc:
+            last_exc = exc
+            wait = min(120.0, (2 ** (attempt - 1)) + random.random())
+            print(
+                f"WARN valuation {trade_date} attempt {attempt}: "
+                f"{type(exc).__name__}: {exc}; sleep={wait:.1f}s"
+            )
+            time.sleep(wait)
+    raise RuntimeError(f"zzshare valuation failed for {trade_date}: {last_exc}")
+
+
+def filter_strategy_universe(df: pd.DataFrame, universe: pd.DataFrame) -> pd.DataFrame:
+    allowed = set(universe["ts_code"].astype(str).str.upper())
+    return df[df["symbol"].isin(allowed)].reset_index(drop=True).copy()
+
+
+def merge_daily_valuation(market: pd.DataFrame, valuation: pd.DataFrame) -> pd.DataFrame:
+    return market.merge(
+        valuation,
+        on=["symbol", "date"],
+        how="left",
+        validate="one_to_one",
+    )
+
+
+def daily_file_has_full_schema(path: Path, expected_rows: int | None = None) -> tuple[bool, int]:
+    if not path.exists():
+        return False, 0
+    try:
+        header = pd.read_csv(path, compression="gzip", nrows=0)
+        required = DAILY_REQUIRED | set(VALUATION_COLUMNS)
+        if not required.issubset(set(header.columns)):
+            return False, 0
+        if expected_rows is not None:
+            rows = len(pd.read_csv(path, compression="gzip", usecols=["symbol"]))
+            if rows > expected_rows + 50 or rows < max(1, expected_rows - 500):
+                return False, rows
+            return True, rows
+        return True, 0
+    except Exception:
+        return False, 0
+
+
+def quality_check_daily(df: pd.DataFrame, trade_date: str, minimum_rows: int | None = None) -> dict:
+    missing = sorted((DAILY_REQUIRED | set(VALUATION_COLUMNS)) - set(df.columns))
+    if missing:
+        raise RuntimeError(f"{trade_date}: missing database columns {missing}")
 
     unique_symbols = int(df["symbol"].nunique())
     duplicate_rows = int(df.duplicated(["symbol", "date"]).sum())
@@ -288,7 +377,7 @@ def quality_check_daily(df: pd.DataFrame, trade_date: str, minimum_rows: int | N
         markets[suffix] = int(df["symbol"].str.endswith(suffix).sum())
 
     completeness = {}
-    for c in sorted(DAILY_REQUIRED):
+    for c in sorted(DAILY_REQUIRED | set(VALUATION_COLUMNS)):
         completeness[c] = round(float(df[c].notna().mean()), 6)
 
     return {
@@ -300,6 +389,7 @@ def quality_check_daily(df: pd.DataFrame, trade_date: str, minimum_rows: int | N
         "null_close": null_close,
         "markets": markets,
         "completeness": completeness,
+        "valuation_rows": int(df[VALUATION_COLUMNS].notna().all(axis=1).sum()),
     }
 
 
@@ -311,6 +401,7 @@ def write_daily_file(df: pd.DataFrame, trade_date: str) -> Path:
         "volume", "amount", "pct_chg", "change", "turnover_pct",
         "amplitude_pct", "factor", "avg_price", "high_limit", "low_limit",
         "is_paused", "is_st",
+        *VALUATION_COLUMNS,
     ]
     cols = [c for c in ordered if c in df.columns]
     df[cols].sort_values("symbol").to_csv(
@@ -345,17 +436,19 @@ def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
     results = []
     for trade_date in recent:
         raw = request_bulk_day(api, trade_date)
-        result = quality_check_daily(raw, trade_date, MIN_VALIDATION_ROWS)
+        market = filter_strategy_universe(raw, universe)
+        valuation = request_valuation_day(api, trade_date)
+        combined = merge_daily_valuation(market, valuation)
+        result = quality_check_daily(combined, trade_date, MIN_VALIDATION_ROWS)
         result["raw_rows"] = len(raw)
-        result["strategy_universe_overlap"] = int(
-            raw["symbol"].isin(set(universe["ts_code"])).sum()
-        )
+        result["filtered_rows"] = len(market)
+        result["strategy_universe_overlap"] = len(market)
         results.append(result)
         print(
             f"VALIDATED {trade_date}: raw={len(raw)} "
+            f"filtered={len(market)} "
             f"symbols={result['unique_symbols']} "
-            f"markets={result['markets']} "
-            f"factor_nonnull={result['completeness']['factor']}"
+            f"valuation_complete={result['valuation_rows']}"
         )
 
     payload = {
@@ -364,7 +457,7 @@ def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
         "days": results,
         "universe_size": len(universe),
         "bulk_limit": BULK_LIMIT,
-        "advanced_fields": sorted(DAILY_REQUIRED),
+        "advanced_fields": sorted(DAILY_REQUIRED | set(VALUATION_COLUMNS)),
     }
     HISTORY.mkdir(parents=True, exist_ok=True)
     VALIDATION_FILE.write_text(
@@ -429,6 +522,18 @@ def backfill_daily() -> None:
     state.setdefault("rows_written", 0)
 
     completed = set(state.get("completed_dates", []))
+    strategy_universe_size = len(universe)
+    for existing_date in list(completed):
+        existing_path = HISTORY / f"{existing_date}.csv.gz"
+        ok, old_rows = daily_file_has_full_schema(existing_path, strategy_universe_size)
+        if not ok:
+            print(f"REBUILD REQUIRED {existing_date}: existing daily file lacks full database schema")
+            completed.discard(existing_date)
+            state["rows_written"] = max(0, int(state.get("rows_written", 0)) - old_rows)
+
+    state["completed_dates"] = sorted(completed, reverse=True)
+    state["days_completed"] = len(completed)
+    save_state(state)
 
     print(
         f"DAILY BACKFILL: {len(trade_days)} trading days, "
@@ -441,15 +546,18 @@ def backfill_daily() -> None:
             continue
 
         raw = request_bulk_day(api, trade_date)
-        result = quality_check_daily(raw, trade_date)
-        path = write_daily_file(raw, trade_date)
+        market = filter_strategy_universe(raw, universe)
+        valuation = request_valuation_day(api, trade_date)
+        combined = merge_daily_valuation(market, valuation)
+        result = quality_check_daily(combined, trade_date)
+        path = write_daily_file(combined, trade_date)
 
         state["completed_dates"].append(trade_date)
         state["completed_dates"] = sorted(
             set(state["completed_dates"]), reverse=True
         )
         state["days_completed"] = len(state["completed_dates"])
-        state["rows_written"] += len(raw)
+        state["rows_written"] += len(combined)
         state["last_day"] = result
         state["last_file"] = str(path.relative_to(ROOT))
         save_state(state)
@@ -467,7 +575,7 @@ def backfill_daily() -> None:
             )
 
         print(
-            f"CHECKPOINT {trade_date}: rows={len(raw)} "
+            f"CHECKPOINT {trade_date}: rows={len(combined)} "
             f"symbols={result['unique_symbols']} "
             f"days={state['days_completed']}/{len(trade_days)}"
         )
@@ -494,7 +602,8 @@ def backfill_daily() -> None:
                 "trading_days": len(trade_days),
                 "days_completed": state["days_completed"],
                 "symbols_strategy_universe": len(universe),
-                "source": "zzshare daily all-fields bulk",
+                "daily_fields": [*sorted(DAILY_REQUIRED), *VALUATION_COLUMNS],
+                "source": "zzshare daily bulk + daily valuation",
                 "format": "daily CSV gzip",
             },
             ensure_ascii=False,
@@ -673,59 +782,8 @@ def backfill_fundamentals() -> None:
         f"statements {finance_start} -> {today}"
     )
 
-    # 1) Daily valuation history. Seven calendar days keeps the response below
-    # the provider's practical range-limit and avoids silent 40k-row truncation.
-    valuation_dir = FUNDAMENTALS / "valuation"
-    for chunk_start, chunk_end in iter_calendar_chunks(
-        target_start, today, FINANCE_CHUNK_DAYS
-    ):
-        key = f"{chunk_start}:{chunk_end}"
-        if key in done_chunks:
-            continue
-        df = request_finance_range(
-            api,
-            "valuation",
-            str(chunk_start),
-            str(chunk_end),
-        )
+    # Daily valuation is stored inside each data/history/YYYY-MM-DD.csv.gz file.
 
-        # finance_range returns descending data; make the database canonical.
-        df = df.rename(
-            columns={
-                "trade_date": "date",
-                "market_cap": "market_cap",
-                "circulating_market_cap": "circulating_market_cap",
-            }
-        )
-        if "date" not in df.columns and "report_date" in df.columns:
-            df = df.rename(columns={"report_date": "date"})
-        if "date" in df.columns:
-            df["date"] = pd.to_datetime(
-                df["date"], errors="coerce"
-            ).dt.strftime("%Y-%m-%d")
-
-        path = valuation_dir / f"{chunk_start}_{chunk_end}.csv.gz"
-        write_finance_file(df, path, ["symbol", "date"])
-        state["completed_valuation_chunks"].append(key)
-        state["completed_valuation_chunks"] = sorted(
-            set(state["completed_valuation_chunks"])
-        )
-        state["rows_written"]["valuation"] = (
-            int(state["rows_written"].get("valuation", 0)) + len(df)
-        )
-        save_fund_state(state)
-
-        git_checkpoint(
-            ["data/fundamentals/valuation", "data/fundamentals/_FUNDAMENTALS_STATE.json"],
-            f"data: valuation checkpoint {chunk_start} {chunk_end}",
-        )
-        print(
-            f"VALUATION CHECKPOINT {chunk_start}:{chunk_end}: rows={len(df)}"
-        )
-
-    # 2) Quarterly statements/indicators. Keep raw vendor fields plus
-    # report_date/pub_date so point-in-time joins can be rebuilt without
-    # look-ahead bias.
     for year, quarter, report_end in iter_quarters(finance_start, today):
         q = f"{year}q{quarter}"
         for table in ["indicator", "income", "balance", "cash_flow"]:
@@ -770,13 +828,12 @@ def backfill_fundamentals() -> None:
                 "financial_start": str(finance_start),
                 "financial_end": str(today),
                 "tables": [
-                    "valuation",
                     "indicator",
                     "income",
                     "balance",
                     "cash_flow",
                 ],
-                "source": "zzshare fundamentals",
+                "source": "zzshare quarterly fundamentals",
                 "point_in_time_fields": ["report_date", "pub_date"],
             },
             ensure_ascii=False,
