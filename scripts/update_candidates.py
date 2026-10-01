@@ -45,9 +45,9 @@ def _load_private_strategy():
 
 
 def _history_files() -> list[Path]:
-    files = sorted(HISTORY_DIR.glob("*.csv.gz"), reverse=True)
+    files = sorted(HISTORY_DIR.glob("????/*.csv.gz"), key=lambda path: path.name[:10], reverse=True)
     if not files:
-        raise RuntimeError("No historical daily files found in data/history")
+        raise RuntimeError("No historical daily files found under data/history/YYYY/")
     return files
 
 
