@@ -92,7 +92,7 @@ def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> pd.DataF
         grouped["volume"].rolling(20, min_periods=10).mean()
         .reset_index(level=0, drop=True)
     )
-    hist["volume_ratio"] = hist["volume"] / avg_volume_20d.replace(0, np.nan)
+    hist["volume_ratio"] = hist["volume"] / avg_volume_20d.replace(0, float("nan"))
 
     latest = hist.loc[hist["date"].eq(latest_date)].copy()
     latest["name"] = latest.get("name", latest["symbol"]).astype(str)
