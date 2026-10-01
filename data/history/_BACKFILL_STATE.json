@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 1200,
-  "rows_written": 5997197,
+  "days_completed": 1205,
+  "rows_written": 6018110,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -1213,26 +1213,31 @@
     "2021-10-28",
     "2021-10-27",
     "2021-10-26",
-    "2021-10-25"
+    "2021-10-25",
+    "2021-10-22",
+    "2021-10-21",
+    "2021-10-20",
+    "2021-10-19",
+    "2021-10-18"
   ],
   "last_day": {
-    "date": "2021-10-25",
-    "rows": 4191,
-    "unique_symbols": 4191,
+    "date": "2021-10-18",
+    "rows": 4177,
+    "unique_symbols": 4177,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 1842,
-      ".SZ": 2293,
-      ".BJ": 56
+      ".SH": 1836,
+      ".SZ": 2286,
+      ".BJ": 55
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.986638,
-      "circulating_cap": 0.986638,
-      "circulating_market_cap": 0.986638,
+      "capitalization": 0.986833,
+      "circulating_cap": 0.986833,
+      "circulating_market_cap": 0.986833,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -1242,21 +1247,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.986638,
+      "market_cap": 0.986833,
       "open": 1.0,
-      "pb_ratio": 0.986638,
-      "pcf_ratio": 0.986399,
+      "pb_ratio": 0.986833,
+      "pcf_ratio": 0.986593,
       "pct_chg": 1.0,
-      "pe_ratio": 0.986399,
-      "pe_ratio_lyr": 0.986399,
+      "pe_ratio": 0.986593,
+      "pe_ratio_lyr": 0.986593,
       "pre_close": 1.0,
-      "ps_ratio": 0.986161,
+      "ps_ratio": 0.986354,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.984491,
+      "turnover_ratio": 0.985636,
       "volume": 1.0
     },
-    "valuation_rows": 4124
+    "valuation_rows": 4115
   },
-  "last_file": "data/history/2021-10-25.csv.gz"
+  "last_file": "data/history/2021-10-18.csv.gz"
 }
