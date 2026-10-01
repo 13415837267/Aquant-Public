@@ -1,4 +1,4 @@
-﻿name: Historical Year Backfill
+name: Historical Year Backfill
 
 on:
   workflow_dispatch:
@@ -16,13 +16,13 @@ jobs:
       max-parallel: 6
       matrix:
         year: [2015, 2016, 2017, 2018, 2019, 2020]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
