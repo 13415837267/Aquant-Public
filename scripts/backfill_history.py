@@ -31,6 +31,7 @@ REQUEST_RETRIES = 4
 MIN_VALIDATION_ROWS = 4500
 FINANCE_LIMIT = 40000
 FINANCE_CHUNK_DAYS = 5
+DAILY_GIT_CHECKPOINT_DAYS = 10
 FINANCIAL_START_BUFFER_YEARS = 1
 
 DAILY_REQUIRED = {
@@ -434,6 +435,7 @@ def backfill_daily() -> None:
         f"{target_start} -> {today}, completed={len(completed)}"
     )
 
+    days_since_remote_checkpoint = 0
     for trade_date in trade_days:
         if trade_date in completed:
             continue
@@ -451,15 +453,31 @@ def backfill_daily() -> None:
         state["last_day"] = result
         state["last_file"] = str(path.relative_to(ROOT))
         save_state(state)
+        days_since_remote_checkpoint += 1
 
-        git_checkpoint(
-            ["data/history", "data/universe.json"],
-            f"data: checkpoint full-market {trade_date}",
-        )
+        if days_since_remote_checkpoint >= DAILY_GIT_CHECKPOINT_DAYS:
+            git_checkpoint(
+                ["data/history", "data/universe.json"],
+                f"data: checkpoint full-market through {trade_date}",
+            )
+            days_since_remote_checkpoint = 0
+            print(
+                f"REMOTE CHECKPOINT {trade_date}: "
+                f"days={state['days_completed']}/{len(trade_days)}"
+            )
+
         print(
             f"CHECKPOINT {trade_date}: rows={len(raw)} "
             f"symbols={result['unique_symbols']} "
             f"days={state['days_completed']}/{len(trade_days)}"
+        )
+
+    # Always push the final partial batch, including when the run resumes
+    # from a legacy checkpoint.
+    if days_since_remote_checkpoint:
+        git_checkpoint(
+            ["data/history", "data/universe.json"],
+            f"data: checkpoint full-market through {state['completed_dates'][0]}",
         )
 
     state["status"] = "complete"
