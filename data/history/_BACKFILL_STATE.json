@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 925,
-  "rows_written": 4779839,
+  "days_completed": 930,
+  "rows_written": 4803139,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -938,26 +938,31 @@
     "2022-12-13",
     "2022-12-12",
     "2022-12-09",
-    "2022-12-08"
+    "2022-12-08",
+    "2022-12-07",
+    "2022-12-06",
+    "2022-12-05",
+    "2022-12-02",
+    "2022-12-01"
   ],
   "last_day": {
-    "date": "2022-12-08",
-    "rows": 4667,
-    "unique_symbols": 4667,
+    "date": "2022-12-01",
+    "rows": 4657,
+    "unique_symbols": 4657,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2020,
-      ".SZ": 2520,
-      ".BJ": 127
+      ".SH": 2017,
+      ".SZ": 2518,
+      ".BJ": 122
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.972788,
-      "circulating_cap": 0.972788,
-      "circulating_market_cap": 0.972788,
+      "capitalization": 0.973803,
+      "circulating_cap": 0.973803,
+      "circulating_market_cap": 0.973803,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -967,21 +972,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.972788,
+      "market_cap": 0.973803,
       "open": 1.0,
-      "pb_ratio": 0.972788,
-      "pcf_ratio": 0.972788,
+      "pb_ratio": 0.973803,
+      "pcf_ratio": 0.973803,
       "pct_chg": 1.0,
-      "pe_ratio": 0.972788,
-      "pe_ratio_lyr": 0.972788,
+      "pe_ratio": 0.973803,
+      "pe_ratio_lyr": 0.973803,
       "pre_close": 1.0,
-      "ps_ratio": 0.972359,
+      "ps_ratio": 0.973373,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.971716,
+      "turnover_ratio": 0.973588,
       "volume": 1.0
     },
-    "valuation_rows": 4533
+    "valuation_rows": 4532
   },
-  "last_file": "data/history/2022-12-08.csv.gz"
+  "last_file": "data/history/2022-12-01.csv.gz"
 }
