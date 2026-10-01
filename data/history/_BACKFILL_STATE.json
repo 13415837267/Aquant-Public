@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 7,
-  "rows_written": 38981,
+  "days_completed": 8,
+  "rows_written": 44546,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -20,10 +20,11 @@
     "2026-09-24",
     "2026-09-23",
     "2026-09-22",
-    "2026-09-21"
+    "2026-09-21",
+    "2026-09-18"
   ],
   "last_day": {
-    "date": "2026-09-21",
+    "date": "2026-09-18",
     "rows": 5565,
     "unique_symbols": 5565,
     "duplicates": 0,
@@ -54,5 +55,5 @@
       "volume": 1.0
     }
   },
-  "last_file": "data/history/2026-09-21.csv.gz"
+  "last_file": "data/history/2026-09-18.csv.gz"
 }
