@@ -28,3 +28,16 @@ jobs:
         env:
           ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
         run: python scripts/backfill_history.py --mode validate --days 3
+      - name: Build database-driven candidates
+        run: python scripts/update_candidates.py
+      - name: Commit candidate snapshot
+        run: |
+          git config user.name "13415837267"
+          git config user.email "13415837267@users.noreply.github.com"
+          if git diff --quiet -- data/candidates.json; then
+            echo "Candidate snapshot unchanged."
+            exit 0
+          fi
+          git add data/candidates.json
+          git commit -m "data: refresh database-driven candidates"
+          git push
