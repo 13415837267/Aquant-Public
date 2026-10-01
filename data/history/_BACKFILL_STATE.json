@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 60,
-  "rows_written": 392992,
+  "days_completed": 65,
+  "rows_written": 419579,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -73,26 +73,31 @@
     "2026-07-13",
     "2026-07-10",
     "2026-07-09",
-    "2026-07-08"
+    "2026-07-08",
+    "2026-07-07",
+    "2026-07-06",
+    "2026-07-03",
+    "2026-07-02",
+    "2026-07-01"
   ],
   "last_day": {
-    "date": "2026-07-08",
-    "rows": 5321,
-    "unique_symbols": 5321,
+    "date": "2026-07-01",
+    "rows": 5307,
+    "unique_symbols": 5307,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2226,
-      ".SZ": 2774,
-      ".BJ": 321
+      ".SH": 2221,
+      ".SZ": 2767,
+      ".BJ": 319
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.939673,
-      "circulating_cap": 0.939673,
-      "circulating_market_cap": 0.939673,
+      "capitalization": 0.939891,
+      "circulating_cap": 0.939891,
+      "circulating_market_cap": 0.939891,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -102,21 +107,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.939673,
+      "market_cap": 0.939891,
       "open": 1.0,
-      "pb_ratio": 0.939673,
-      "pcf_ratio": 0.939673,
+      "pb_ratio": 0.939891,
+      "pcf_ratio": 0.939891,
       "pct_chg": 1.0,
-      "pe_ratio": 0.939673,
-      "pe_ratio_lyr": 0.939673,
+      "pe_ratio": 0.939891,
+      "pe_ratio_lyr": 0.939891,
       "pre_close": 1.0,
-      "ps_ratio": 0.939485,
+      "ps_ratio": 0.939702,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.93817,
+      "turnover_ratio": 0.939891,
       "volume": 1.0
     },
-    "valuation_rows": 4991
+    "valuation_rows": 4987
   },
-  "last_file": "data/history/2026-07-08.csv.gz"
+  "last_file": "data/history/2026-07-01.csv.gz"
 }
