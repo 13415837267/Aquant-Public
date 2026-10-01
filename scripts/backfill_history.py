@@ -415,17 +415,14 @@ def git_checkpoint(paths: list[str], message: str) -> None:
     if subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode == 0:
         return
     subprocess.run(["git", "config", "user.name", "aquant-bot"], check=True)
-    subprocess.run(
-        [
-            "git", "config", "user.email",
-            "41898282+github-actions[bot]@users.noreply.github.com",
-        ],
-        check=True,
-    )
+    subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "commit", "-m", message], check=True)
-    subprocess.run(["git", "push"], check=True)
-
-
+    # Other workflows may commit unrelated data between checkpoints.
+    # Rebase before pushing so a concurrent candidate/data commit does not
+    # abort the long-running backfill.
+    subprocess.run(["git", "fetch", "origin", "main"], check=True)
+    subprocess.run(["git", "rebase", "origin/main"], check=True)
+    subprocess.run(["git", "push", "origin", "HEAD:main"], check=True)
 def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
     api = api_client()
     universe = load_universe(api)
