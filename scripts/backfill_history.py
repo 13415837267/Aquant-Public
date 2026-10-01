@@ -395,7 +395,9 @@ def quality_check_daily(df: pd.DataFrame, trade_date: str, minimum_rows: int | N
 
 def write_daily_file(df: pd.DataFrame, trade_date: str) -> Path:
     HISTORY.mkdir(parents=True, exist_ok=True)
-    path = HISTORY / f"{trade_date}.csv.gz"
+    year_dir = HISTORY / trade_date[:4]
+    year_dir.mkdir(parents=True, exist_ok=True)
+    path = year_dir / f"{trade_date}.csv.gz"
     ordered = [
         "date", "symbol", "open", "high", "low", "close", "pre_close",
         "volume", "amount", "pct_chg", "change", "turnover_pct",
@@ -530,7 +532,7 @@ def backfill_daily() -> None:
     completed = set(state.get("completed_dates", []))
     strategy_universe_size = len(universe)
     for existing_date in list(completed):
-        existing_path = HISTORY / f"{existing_date}.csv.gz"
+        existing_path = HISTORY / existing_date[:4] / f"{existing_date}.csv.gz"
         ok, old_rows = daily_file_has_full_schema(existing_path, strategy_universe_size)
         if not ok:
             print(f"REBUILD REQUIRED {existing_date}: existing daily file lacks full database schema")
