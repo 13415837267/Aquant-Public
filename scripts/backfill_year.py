@@ -41,14 +41,19 @@ def load_universe_no_write(api):
     return df
 
 
-def git_push_year(year: int) -> None:
+def git_push_year(year: int, batch: int | None = None) -> None:
     subprocess.run(["git", "config", "user.name", "aquant-bot"], check=True)
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "add", "--", f"data/history/{year}"], check=True)
     if subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode == 0:
         print(f"YEAR {year}: no new files to commit")
         return
-    subprocess.run(["git", "commit", "-m", f"data: backfill historical year {year}"], check=True)
+    message = (
+        f"data: backfill historical year {year} batch {batch}"
+        if batch is not None
+        else f"data: backfill historical year {year}"
+    )
+    subprocess.run(["git", "commit", "-m", message], check=True)
     for attempt in range(1, 6):
         subprocess.run(["git", "fetch", "origin", "main"], check=True)
         try:
@@ -77,6 +82,8 @@ def run_year(year: int) -> None:
 
     completed = 0
     skipped = 0
+    batch_completed = 0
+    batch = 0
     for trade_date in reversed(trade_days):
         path = __import__('pathlib').Path("data/history") / str(year) / f"{trade_date}.csv.gz"
         if path.exists():
@@ -89,10 +96,20 @@ def run_year(year: int) -> None:
         result = quality_check_daily(combined, trade_date)
         write_daily_file(combined, trade_date)
         completed += 1
+        batch_completed += 1
         print(f"YEAR {year}: {trade_date} rows={result['rows']} symbols={result['unique_symbols']} progress={completed}/{len(trade_days)}")
 
-    print(f"YEAR {year}: trading_days={len(trade_days)} new={completed} skipped={skipped}")
-    git_push_year(year)
+        # Persist every 5 newly downloaded trading days.
+        if batch_completed >= 5:
+            batch += 1
+            git_push_year(year, batch=batch)
+            batch_completed = 0
+
+    if batch_completed:
+        batch += 1
+        git_push_year(year, batch=batch)
+
+    print(f"YEAR {year}: trading_days={len(trade_days)} new={completed} skipped={skipped} commits={batch}")
 
 
 if __name__ == "__main__":
