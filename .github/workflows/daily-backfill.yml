@@ -1,0 +1,33 @@
+name: Daily Market Data Update
+
+on:
+  schedule:
+    # 18:00 Beijing time = 10:00 UTC.
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-market-data-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Update current year
+        env:
+          ZZSHARE_TOKEN: '${{ secrets.ZZSHARE_TOKEN }}'
+        run: python scripts/backfill_year.py --year $(date +%Y)
