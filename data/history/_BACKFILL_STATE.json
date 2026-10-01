@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 20,
-  "rows_written": 179580,
+  "days_completed": 25,
+  "rows_written": 206325,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -33,26 +33,31 @@
     "2026-09-07",
     "2026-09-04",
     "2026-09-03",
-    "2026-09-02"
+    "2026-09-02",
+    "2026-09-01",
+    "2026-08-31",
+    "2026-08-28",
+    "2026-08-27",
+    "2026-08-26"
   ],
   "last_day": {
-    "date": "2026-09-02",
-    "rows": 5352,
-    "unique_symbols": 5352,
+    "date": "2026-08-26",
+    "rows": 5348,
+    "unique_symbols": 5348,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2234,
-      ".SZ": 2782,
-      ".BJ": 336
+      ".SH": 2233,
+      ".SZ": 2780,
+      ".BJ": 335
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.93722,
-      "circulating_cap": 0.93722,
-      "circulating_market_cap": 0.93722,
+      "capitalization": 0.93736,
+      "circulating_cap": 0.93736,
+      "circulating_market_cap": 0.93736,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -62,21 +67,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.93722,
+      "market_cap": 0.93736,
       "open": 1.0,
-      "pb_ratio": 0.93722,
-      "pcf_ratio": 0.93722,
+      "pb_ratio": 0.93736,
+      "pcf_ratio": 0.93736,
       "pct_chg": 1.0,
-      "pe_ratio": 0.93722,
-      "pe_ratio_lyr": 0.93722,
+      "pe_ratio": 0.93736,
+      "pe_ratio_lyr": 0.93736,
       "pre_close": 1.0,
-      "ps_ratio": 0.937033,
+      "ps_ratio": 0.937173,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.936472,
+      "turnover_ratio": 0.936986,
       "volume": 1.0
     },
-    "valuation_rows": 5011
+    "valuation_rows": 5010
   },
-  "last_file": "data/history/2026-09-02.csv.gz"
+  "last_file": "data/history/2026-08-26.csv.gz"
 }
