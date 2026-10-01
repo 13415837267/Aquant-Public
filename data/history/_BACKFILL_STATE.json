@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 965,
-  "rows_written": 4965107,
+  "days_completed": 970,
+  "rows_written": 4988071,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -978,26 +978,31 @@
     "2022-10-18",
     "2022-10-17",
     "2022-10-14",
-    "2022-10-13"
+    "2022-10-13",
+    "2022-10-12",
+    "2022-10-11",
+    "2022-10-10",
+    "2022-09-30",
+    "2022-09-29"
   ],
   "last_day": {
-    "date": "2022-10-13",
-    "rows": 4600,
-    "unique_symbols": 4600,
+    "date": "2022-09-29",
+    "rows": 4588,
+    "unique_symbols": 4588,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 2002,
-      ".SZ": 2491,
-      ".BJ": 107
+      ".SH": 1997,
+      ".SZ": 2486,
+      ".BJ": 105
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.976739,
-      "circulating_cap": 0.976739,
-      "circulating_market_cap": 0.976739,
+      "capitalization": 0.977114,
+      "circulating_cap": 0.977114,
+      "circulating_market_cap": 0.977114,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -1007,21 +1012,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.976739,
+      "market_cap": 0.977114,
       "open": 1.0,
-      "pb_ratio": 0.976739,
-      "pcf_ratio": 0.976739,
+      "pb_ratio": 0.977114,
+      "pcf_ratio": 0.977114,
       "pct_chg": 1.0,
-      "pe_ratio": 0.976739,
-      "pe_ratio_lyr": 0.976739,
+      "pe_ratio": 0.977114,
+      "pe_ratio_lyr": 0.977114,
       "pre_close": 1.0,
-      "ps_ratio": 0.976304,
+      "ps_ratio": 0.976678,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.975435,
+      "turnover_ratio": 0.976024,
       "volume": 1.0
     },
-    "valuation_rows": 4485
+    "valuation_rows": 4476
   },
-  "last_file": "data/history/2022-10-13.csv.gz"
+  "last_file": "data/history/2022-09-29.csv.gz"
 }
