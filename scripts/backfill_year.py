@@ -5,6 +5,12 @@ import subprocess
 import time
 from datetime import date
 
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
 from scripts.backfill_history import (
     api_client,
     filter_strategy_universe,
@@ -28,7 +34,7 @@ def load_universe_no_write(api):
     df["ts_code"] = df["ts_code"].astype(str).str.upper()
     if "name" in df.columns:
         name = df["name"].astype(str).str.upper()
-        df = df[~name.str.contains(r"ST|?", regex=True, na=False)].copy()
+        df = df[~name.str.contains(r"ST|退", regex=True, na=False)].copy()
     df = df.drop_duplicates("ts_code").sort_values("ts_code")
     if len(df) < 4000:
         raise RuntimeError(f"universe unexpectedly small: {len(df)}")
