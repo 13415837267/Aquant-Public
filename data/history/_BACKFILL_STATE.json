@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 1015,
-  "rows_written": 5192140,
+  "days_completed": 1020,
+  "rows_written": 5214561,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -1028,26 +1028,31 @@
     "2022-08-01",
     "2022-07-29",
     "2022-07-28",
-    "2022-07-27"
+    "2022-07-27",
+    "2022-07-26",
+    "2022-07-25",
+    "2022-07-22",
+    "2022-07-21",
+    "2022-07-20"
   ],
   "last_day": {
-    "date": "2022-07-27",
-    "rows": 4489,
-    "unique_symbols": 4489,
+    "date": "2022-07-20",
+    "rows": 4481,
+    "unique_symbols": 4481,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 1960,
-      ".SZ": 2434,
-      ".BJ": 95
+      ".SH": 1956,
+      ".SZ": 2431,
+      ".BJ": 94
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.978837,
-      "circulating_cap": 0.978837,
-      "circulating_market_cap": 0.978837,
+      "capitalization": 0.979023,
+      "circulating_cap": 0.979023,
+      "circulating_market_cap": 0.979023,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -1057,21 +1062,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.978837,
+      "market_cap": 0.979023,
       "open": 1.0,
-      "pb_ratio": 0.978837,
-      "pcf_ratio": 0.978837,
+      "pb_ratio": 0.979023,
+      "pcf_ratio": 0.979023,
       "pct_chg": 1.0,
-      "pe_ratio": 0.978837,
-      "pe_ratio_lyr": 0.978837,
+      "pe_ratio": 0.979023,
+      "pe_ratio_lyr": 0.979023,
       "pre_close": 1.0,
-      "ps_ratio": 0.978392,
+      "ps_ratio": 0.978799,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.978169,
+      "turnover_ratio": 0.978353,
       "volume": 1.0
     },
-    "valuation_rows": 4389
+    "valuation_rows": 4383
   },
-  "last_file": "data/history/2022-07-27.csv.gz"
+  "last_file": "data/history/2022-07-20.csv.gz"
 }
