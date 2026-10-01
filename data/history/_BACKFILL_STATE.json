@@ -8,8 +8,8 @@
   "chunk_days": 20,
   "cursor_end": "2026-10-01",
   "chunks_completed": 0,
-  "days_completed": 315,
-  "rows_written": 1729870,
+  "days_completed": 320,
+  "rows_written": 1755770,
   "failed_symbols": {},
   "source": "zzshare daily all-fields bulk",
   "bulk_limit": 6000,
@@ -328,10 +328,15 @@
     "2025-06-24",
     "2025-06-23",
     "2025-06-20",
-    "2025-06-19"
+    "2025-06-19",
+    "2025-06-18",
+    "2025-06-17",
+    "2025-06-16",
+    "2025-06-13",
+    "2025-06-12"
   ],
   "last_day": {
-    "date": "2025-06-19",
+    "date": "2025-06-12",
     "rows": 5180,
     "unique_symbols": 5180,
     "duplicates": 0,
@@ -368,10 +373,10 @@
       "ps_ratio": 0.949421,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.948263,
+      "turnover_ratio": 0.947297,
       "volume": 1.0
     },
-    "valuation_rows": 4912
+    "valuation_rows": 4907
   },
-  "last_file": "data/history/2025-06-19.csv.gz"
+  "last_file": "data/history/2025-06-12.csv.gz"
 }
