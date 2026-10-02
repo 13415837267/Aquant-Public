@@ -97,7 +97,7 @@ jobs:
           ]
           b = baseline["overall"]
           c = constrained["overall"]
-          u = constrained["stateful_unconstrained"]["overall"]
+          u = constrained["flattened_unconstrained"]["overall"]
 
           def diff(left, right):
               return {
