@@ -1,4 +1,5 @@
 {
+  "future_function": false,
   "schema_version": 1,
   "status": "ready",
   "method": "research_only_factor_ablation_walk_forward_oos",
