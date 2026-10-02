@@ -70,13 +70,12 @@ def build_pit_snapshot(
         rename = {
             column: f"{prefix}{column}"
             for column in frame.columns
-            if column not in {"symbol", "report_date", "pub_date"}
+            if column != "symbol"
         }
         frame = frame.rename(columns=rename)
         if result is None:
             result = frame
         else:
-            frame = frame.drop(columns=["report_date", "pub_date"], errors="ignore")
             result = result.merge(frame, on="symbol", how="outer", validate="one_to_one")
     if result is None:
         return pd.DataFrame(columns=["symbol"])
