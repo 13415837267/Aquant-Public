@@ -27,7 +27,15 @@ def run_one(top_n: int, cost_bps: float, slippage_bps: float, payload: dict) -> 
         - pd.to_numeric(daily["turnover"], errors="coerce").fillna(0.0)
         * (cost_bps + slippage_bps) / 10000.0
     )
-    m = base.metrics(daily)
+    trade_start = payload.get("trade_start")
+    performance = (
+        daily[daily["date"].astype(str) >= str(trade_start)].reset_index(drop=True)
+        if trade_start
+        else daily
+    )
+    if performance.empty:
+        raise ValueError("sensitivity payload has no performance rows")
+    m = base.metrics(performance)
     return {
         "top_n": top_n, "transaction_cost_bps": cost_bps,
         "slippage_bps": slippage_bps,
@@ -41,6 +49,7 @@ def run_one(top_n: int, cost_bps: float, slippage_bps: float, payload: dict) -> 
         "strategy_version": payload["strategy_version"],
         "strategy_commit": payload["strategy_commit"],
         "future_function": payload["future_function"],
+        "performance_sessions": int(len(performance)),
     }
 def main():
     ap=argparse.ArgumentParser()
