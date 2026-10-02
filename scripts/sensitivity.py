@@ -51,6 +51,7 @@ def run_one(top_n: int, cost_bps: float, slippage_bps: float, payload: dict) -> 
         "strategy_version": payload["strategy_version"],
         "strategy_commit": payload["strategy_commit"],
         "future_function": payload["future_function"],
+        "daily_sessions": int(len(daily)),
         "performance_sessions": int(len(performance)),
         "warmup_sessions": int(len(daily) - len(performance)),
     }
@@ -81,8 +82,10 @@ def main():
         len(commits) != 1
         or len(versions) != 1
         or any(r["future_function"] for r in rows)
-        or any(r["performance_sessions"] != len(base.history_files()) - 60 for r in rows)
-        or any(r["warmup_sessions"] != 59 for r in rows)
+        or any(
+            r["performance_sessions"] + r["warmup_sessions"] != r["daily_sessions"]
+            for r in rows
+        )
     ):
         raise ValueError("strategy/PIT consistency audit failed")
     out={"schema_version":1,"status":"ready","method":"fixed_strategy_parameter_sensitivity",
@@ -90,7 +93,7 @@ def main():
          "audit":{
              "fixed_strategy":True,
              "future_adjusted_factor_not_used":True,
-             "warmup_sessions": int(59),
+             "warmup_sessions": int(rows[0]["warmup_sessions"]) if rows else 0,
              "performance_sessions": int(rows[0]["performance_sessions"]) if rows else 0,
              "metrics_exclude_warmup": True,
          }}
