@@ -1,0 +1,48 @@
+name: Parameter Sensitivity
+
+on:
+  workflow_dispatch:
+    inputs:
+      start: {description: "History start", required: true, default: "2015-01-05"}
+      end: {description: "History end", required: true, default: "2026-09-29"}
+      top_n: {description: "Comma-separated portfolio sizes", required: true, default: "10,20,30,50,100"}
+      cost_bps: {description: "Comma-separated transaction costs", required: true, default: "3,5,10"}
+      slippage_bps: {description: "Slippage bps", required: true, default: "2"}
+permissions: {contents: write}
+concurrency: {group: parameter-sensitivity, cancel-in-progress: true}
+jobs:
+  sensitivity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: 13415837267/Aquant-Private
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: .private-strategy
+          fetch-depth: 1
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements.txt
+      - name: Resolve strategy commit
+        id: strategy
+        shell: bash
+        run: echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Run sensitivity
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/sensitivity.py --start "${{ inputs.start }}" --end "${{ inputs.end }}"             --top-n "${{ inputs.top_n }}" --cost-bps "${{ inputs.cost_bps }}"             --slippage-bps "${{ inputs.slippage_bps }}" --output data/backtest/sensitivity.json
+      - name: Publish
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git rebase origin/main
+          git add data/backtest/sensitivity.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: update parameter sensitivity"
+          git push
