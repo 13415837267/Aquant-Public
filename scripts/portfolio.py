@@ -11,37 +11,46 @@ CANDIDATES = ROOT / "data" / "candidates.json"
 OUTPUT = ROOT / "data" / "portfolio.json"
 
 
-def build_portfolio(snapshot: dict, max_weight: float = 0.05, cash_buffer: float = 0.05) -> dict:
-    if snapshot.get("status") != "ready":
-        raise RuntimeError("candidate snapshot is not ready")
-    rows = pd.DataFrame(snapshot.get("candidates", []))
+def allocate_weights(
+    targets: pd.DataFrame,
+    max_weight: float = 0.05,
+    cash_buffer: float = 0.05,
+) -> dict[str, float]:
+    """Allocate deterministic inverse-volatility target weights.
+
+    This pure function is shared by production portfolio construction and
+    execution-constrained historical backtests so both layers use identical
+    position sizing assumptions.
+    """
+    rows = targets.copy()
     if rows.empty:
-        raise RuntimeError("candidate snapshot has no candidates")
+        return {}
     if not 0 < max_weight <= 1:
         raise ValueError("max_weight must be in (0, 1]")
     if not 0 <= cash_buffer < 1:
         raise ValueError("cash_buffer must be in [0, 1)")
 
     rows["volatility_proxy"] = pd.to_numeric(rows["volatility_proxy"], errors="coerce")
-    rows["score"] = pd.to_numeric(rows["score"], errors="coerce")
-    rows = rows.loc[rows["symbol"].notna() & rows["score"].notna()].copy()
+    rows["score"] = pd.to_numeric(rows.get("score", pd.Series(index=rows.index, dtype=float)), errors="coerce")
     rows["symbol"] = rows["symbol"].astype(str).str.zfill(6)
+    rows = rows.loc[rows["symbol"].notna() & rows["volatility_proxy"].notna()].copy()
+    if rows.empty:
+        return {}
 
-    # Risk-aware deterministic sizing: score ranks define selection, while
-    # inverse volatility controls position size. A hard cap prevents concentration.
-    vol = rows["volatility_proxy"].clip(lower=0.5).fillna(rows["volatility_proxy"].median())
+    vol = rows["volatility_proxy"].clip(lower=0.5)
     raw = 1.0 / vol.replace(0, np.nan)
     raw = raw.replace([np.inf, -np.inf], np.nan).fillna(0.0)
-    investable = 1.0 - cash_buffer
-    weights = raw / raw.sum() * investable
+    if raw.sum() <= 0:
+        return {}
 
-    # Iterative capped redistribution preserves full investable weight without
-    # creating leverage or relying on portfolio-order side effects.
+    investable = 1.0 - cash_buffer
+    base_weights = raw / raw.sum() * investable
+
     active = pd.Series(True, index=rows.index)
     final = pd.Series(0.0, index=rows.index)
     remaining = investable
     while active.any():
-        proposal = weights.loc[active]
+        proposal = base_weights.loc[active]
         if proposal.sum() <= 0:
             break
         scaled = proposal / proposal.sum() * remaining
@@ -56,10 +65,35 @@ def build_portfolio(snapshot: dict, max_weight: float = 0.05, cash_buffer: float
         if remaining <= 1e-12:
             break
 
-    rows["target_weight"] = final
-    rows = rows.loc[rows["target_weight"] > 0].sort_values(
-        ["target_weight", "score", "symbol"], ascending=[False, False, True]
+    return {
+        str(symbol).zfill(6): float(weight)
+        for symbol, weight in zip(rows["symbol"], final)
+        if float(weight) > 0
+    }
+
+
+def build_portfolio(snapshot: dict, max_weight: float = 0.05, cash_buffer: float = 0.05) -> dict:
+    if snapshot.get("status") != "ready":
+        raise RuntimeError("candidate snapshot is not ready")
+    rows = pd.DataFrame(snapshot.get("candidates", []))
+    if rows.empty:
+        raise RuntimeError("candidate snapshot has no candidates")
+    if not 0 < max_weight <= 1:
+        raise ValueError("max_weight must be in (0, 1]")
+    if not 0 <= cash_buffer < 1:
+        raise ValueError("cash_buffer must be in [0, 1)")
+
+    rows["score"] = pd.to_numeric(rows["score"], errors="coerce")
+    rows["symbol"] = rows["symbol"].astype(str).str.zfill(6)
+    rows = rows.loc[rows["symbol"].notna() & rows["score"].notna()].copy()
+
+    allocation = allocate_weights(
+        rows,
+        max_weight=max_weight,
+        cash_buffer=cash_buffer,
     )
+    rows["target_weight"] = rows["symbol"].map(allocation).fillna(0.0)
+
     positions = [
         {
             "rank": int(row["rank"]),
