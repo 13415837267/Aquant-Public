@@ -33,3 +33,65 @@ def test_turnover_is_l1_target_weight_change():
     prev = {"000001": 0.5, "000002": 0.5}
     target = {"000002": 0.5, "000003": 0.5}
     assert np.isclose(turnover(prev, target), 1.0)
+
+
+def test_run_backtest_executes_full_loop_on_tiny_history(tmp_path, monkeypatch):
+    import scripts.backtest as backtest
+
+    dates = pd.date_range("2026-01-05", periods=62, freq="B")
+    files = []
+    for idx, dt in enumerate(dates):
+        rows = []
+        for symbol, base in [("000001.SZ", 10.0), ("000002.SZ", 12.0)]:
+            close = base + idx * (0.10 if symbol == "000001.SZ" else 0.02)
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "date": dt.strftime("%Y-%m-%d"),
+                    "open": close,
+                    "close": close * 1.01,
+                    "volume": 1_000_000,
+                    "amount": 50_000_000,
+                    "pct_chg": 0.5,
+                    "turnover_pct": 2.0,
+                    "is_paused": 0,
+                    "is_st": 0,
+                    "pe_ratio": 15.0,
+                    "pb_ratio": 1.5,
+                }
+            )
+        frame = pd.DataFrame(rows)
+        path = tmp_path / f"{dt.strftime('%Y-%m-%d')}.csv.gz"
+        with gzip.open(path, "wt", encoding="utf-8") as fh:
+            frame.to_csv(fh, index=False)
+        files.append(path)
+
+    class FakeStrategy:
+        @staticmethod
+        def score_universe(frame):
+            out = frame.copy()
+            out["score"] = out["momentum_60d"]
+            return out.sort_values("score", ascending=False)
+
+    monkeypatch.setattr(backtest, "history_files", lambda: files)
+    monkeypatch.setattr(
+        backtest,
+        "load_strategy",
+        lambda: (FakeStrategy, "test", "tiny-commit"),
+    )
+    output_path = tmp_path / "latest.json"
+    monkeypatch.setattr(backtest, "OUT_FILE", output_path)
+
+    payload = backtest.run_backtest(
+        start=dates[0].strftime("%Y-%m-%d"),
+        end=dates[-1].strftime("%Y-%m-%d"),
+        top_n=1,
+        cost_bps=3.0,
+        slippage_bps=2.0,
+    )
+
+    assert payload["status"] == "ready"
+    assert payload["strategy_version"] == "test"
+    assert payload["overall"]["trading_days"] >= 1
+    assert payload["audit"]["performance_sessions"] == payload["overall"]["trading_days"]
+    assert output_path.exists()
