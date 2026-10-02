@@ -178,15 +178,27 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
     latest_main_board = main_board_history.loc[main_board_history["date"].eq(latest_date)].copy()
     for col in ["is_paused", "is_st", "close", "amount"]:
         latest_main_board[col] = pd.to_numeric(latest_main_board[col], errors="coerce")
+    latest_main_board["is_paused"] = latest_main_board["is_paused"].fillna(0)
+    latest_main_board["is_st"] = latest_main_board["is_st"].fillna(0)
+    current_names = _load_current_names()
+    latest_main_board["name"] = latest_main_board["symbol"].map(current_names).fillna(
+        latest_main_board.get("name", latest_main_board["symbol"]).astype(str)
+    )
+    excluded_name = latest_main_board["name"].str.contains(r"ST|退", case=False, na=False)
+    basic_eligible = (
+        ~excluded_name
+        & latest_main_board["is_st"].eq(0)
+        & latest_main_board["is_paused"].eq(0)
+        & latest_main_board["close"].gt(2)
+        & latest_main_board["amount"].ge(2e7)
+    )
 
     diagnostics = {
         "history_rows": int(len(history)),
         "main_board_history_rows": int(len(main_board_history)),
         "latest_main_board_rows": int(len(latest_main_board)),
-        "latest_st_rows": int(latest_main_board["is_st"].eq(1).sum()),
-        "latest_paused_rows": int(latest_main_board["is_paused"].eq(1).sum()),
-        "latest_price_le_2_rows": int(latest_main_board["close"].le(2).sum()),
-        "latest_amount_lt_20m_rows": int(latest_main_board["amount"].lt(2e7).sum()),
+        "latest_basic_eligible_rows": int(basic_eligible.sum()),
+        "latest_basic_filter_exclusions": int((~basic_eligible).sum()),
     }
 
     strategy_frame = _prepare_strategy_frame(history, latest_date)
@@ -196,12 +208,7 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
     diagnostics["scorable_rows"] = int(len(strategy_frame))
     diagnostics["dropped_no_60d_momentum_or_history"] = max(
         0,
-        diagnostics["latest_main_board_rows"]
-        - diagnostics["scorable_rows"]
-        - diagnostics["latest_st_rows"]
-        - diagnostics["latest_paused_rows"]
-        - diagnostics["latest_price_le_2_rows"]
-        - diagnostics["latest_amount_lt_20m_rows"],
+        diagnostics["latest_basic_eligible_rows"] - diagnostics["scorable_rows"],
     )
 
     scored = strategy_model.score_universe(strategy_frame)
