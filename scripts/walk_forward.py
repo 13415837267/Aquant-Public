@@ -184,6 +184,7 @@ def main() -> None:
     result = {
         "schema_version": 1,
         "status": "ready",
+        "future_function": False,
         "method": "rolling_calendar_walk_forward_fixed_strategy",
         "train_years": args.train_years,
         "test_years": args.test_years,
