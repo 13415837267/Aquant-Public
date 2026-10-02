@@ -177,3 +177,27 @@ def test_stateful_portfolio_keeps_limit_down_holding_and_buys_available_target()
     assert "000001" in portfolio.shares
     assert "000002" in portfolio.shares
     assert result["position_count"] == 2
+
+
+
+def test_stateful_portfolio_control_disables_price_limits_only():
+    portfolio = StatefulPortfolio(initial_cash=1.0)
+    targets = pd.DataFrame({"symbol": ["000001"]})
+    execution = pd.DataFrame(
+        {
+            "symbol": ["000001"],
+            "open": [10.0],
+            "close": [10.0],
+            "high_limit": [10.0],
+            "low_limit": [9.0],
+            "is_paused": [0],
+        }
+    )
+    result = portfolio.rebalance(
+        targets,
+        execution,
+        cost_rate=0.0005,
+        enforce_limits=False,
+    )
+    assert result["blocked_buy_count"] == 0
+    assert result["buy_count"] == 1
