@@ -359,6 +359,14 @@ def merge_daily_valuation(market: pd.DataFrame, valuation: pd.DataFrame) -> pd.D
 
 
 def daily_file_has_full_schema(path: Path, expected_rows: int | None = None) -> tuple[bool, int]:
+    """Check file integrity without tying row counts to today's universe.
+
+    Daily row counts legitimately change as listings appear, disappear, or
+    become available in the vendor history. The database layer therefore
+    validates schema and non-empty content, while candidate eligibility is
+    handled separately at scoring time.
+    """
+    del expected_rows
     if not path.exists():
         return False, 0
     try:
@@ -366,12 +374,10 @@ def daily_file_has_full_schema(path: Path, expected_rows: int | None = None) -> 
         required = DAILY_REQUIRED | set(VALUATION_COLUMNS)
         if not required.issubset(set(header.columns)):
             return False, 0
-        if expected_rows is not None:
-            rows = len(pd.read_csv(path, compression="gzip", usecols=["symbol"]))
-            if rows > expected_rows + 50 or rows < max(1, expected_rows - 500):
-                return False, rows
-            return True, rows
-        return True, 0
+        rows = len(pd.read_csv(path, compression="gzip", usecols=["symbol"]))
+        if rows <= 0:
+            return False, rows
+        return True, rows
     except Exception:
         return False, 0
 
@@ -547,7 +553,7 @@ def backfill_daily() -> None:
     state.setdefault("initial_end", str(today))
     state.setdefault("direction", "near_to_far")
     state.setdefault("source", "zzshare daily all-fields bulk")
-    state.setdefault("universe_scope", "DATABASE_SHSZBJ_STOCKS")
+    state["universe_scope"] = "DATABASE_SHSZBJ_STOCKS"
     state.setdefault("bulk_limit", BULK_LIMIT)
     state.setdefault("completed_dates", [])
     state.setdefault("days_completed", len(state.get("completed_dates", [])))
