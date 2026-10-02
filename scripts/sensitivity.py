@@ -1,5 +1,7 @@
 """Parameter sensitivity analysis for the frozen Private strategy.
 
+The workflow publishes a synchronized, warmup-excluded result snapshot.
+
 Only portfolio construction / execution-cost assumptions vary. Historical data,
 PIT rules and the Private strategy commit remain fixed.
 """
