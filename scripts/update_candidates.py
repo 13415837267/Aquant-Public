@@ -258,6 +258,13 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
         },
         "candidates": rows,
         "factor_weights": weights,
+        "future_function": False,
+        "candidate_admission_policy": "fixed_top_n_30_baseline",
+        "audit": {
+            "hard_eligibility_applied_before_scoring": True,
+            "strategy_source_locked_to_private": True,
+            "top_n_is_not_a_score_threshold": True,
+        },
     }
 
 
