@@ -5,6 +5,7 @@
   "completed_quarters": [
     "balance:2020q4",
     "balance:2021q1",
+    "balance:2021q2",
     "cash_flow:2020q4",
     "cash_flow:2021q1",
     "income:2020q4",
@@ -17,7 +18,7 @@
   "rows_written": {
     "indicator": 12891,
     "income": 13216,
-    "balance": 9712,
+    "balance": 14753,
     "cash_flow": 8466
   }
 }
