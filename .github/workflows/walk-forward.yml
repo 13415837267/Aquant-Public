@@ -1,0 +1,116 @@
+name: Walk Forward OOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Evaluation history start"
+        required: true
+        default: "2015-01-05"
+      end:
+        description: "Evaluation history end"
+        required: true
+        default: "2026-09-29"
+      train_years:
+        description: "Rolling historical window in years"
+        required: true
+        default: "3"
+      test_years:
+        description: "OOS window in years"
+        required: true
+        default: "1"
+      top_n:
+        description: "Portfolio size"
+        required: true
+        default: "30"
+      cost_bps:
+        description: "Transaction cost"
+        required: true
+        default: "3"
+      slippage_bps:
+        description: "Slippage"
+        required: true
+        default: "2"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: walk-forward-oos
+  cancel-in-progress: true
+
+jobs:
+  walk-forward:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout public repository
+        uses: actions/checkout@v6
+
+      - name: Checkout private strategy
+        uses: actions/checkout@v6
+        with:
+          repository: 13415837267/Aquant-Private
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: .private-strategy
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Resolve strategy commit
+        id: strategy
+        shell: bash
+        run: |
+          echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Run walk-forward OOS
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/walk_forward.py \
+            --start "${{ inputs.start }}" \
+            --end "${{ inputs.end }}" \
+            --train-years "${{ inputs.train_years }}" \
+            --test-years "${{ inputs.test_years }}" \
+            --top-n "${{ inputs.top_n }}" \
+            --cost-bps "${{ inputs.cost_bps }}" \
+            --slippage-bps "${{ inputs.slippage_bps }}" \
+            --output data/backtest/walk_forward.json
+
+      - name: Summarize OOS
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("data/backtest/walk_forward.json").read_text(encoding="utf-8"))
+          for f in d["folds"]:
+              m=f["overall"]
+              print(
+                  f"fold={f['fold']} oos={f['oos_start']}..{f['oos_end']} "
+                  f"return={m['total_return_pct']:.4f}% "
+                  f"sharpe={m['sharpe']:.4f} "
+                  f"mdd={m['max_drawdown_pct']:.4f}% "
+                  f"win={m['win_rate_pct']:.4f}%"
+              )
+          print("strategy_commit=", d["strategy_commit"])
+          PY
+
+      - name: Commit OOS research result
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/backtest/walk_forward.json
+          if git diff --cached --quiet; then
+            echo "No walk-forward result changes."
+            exit 0
+          fi
+          git commit -m "research: update walk-forward OOS"
+          git push
