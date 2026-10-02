@@ -86,7 +86,8 @@ def evaluate_daily(start: str, end: str, top_n: int, cost_bps: float, slippage_b
 
         current = next_day
 
-    return daily, strategy_version, strategy_commit
+    history_dates = [path.name[:10] for path in selected_files]
+    return daily, strategy_version, strategy_commit, history_dates
 
 
 def main() -> None:
@@ -101,11 +102,10 @@ def main() -> None:
     ap.add_argument("--output", default=str(ROOT / "data" / "backtest" / "factor_ablation_walk_forward.json"))
     args = ap.parse_args()
 
-    daily, version, commit = evaluate_daily(
+    daily, version, commit, history_dates = evaluate_daily(
         args.start, args.end, args.top_n, args.cost_bps, args.slippage_bps
     )
-    all_dates = sorted({row["date"] for rows in daily.values() for row in rows})
-    folds = build_folds(all_dates, train_years=3, test_years=1)
+    folds = build_folds(history_dates, train_years=3, test_years=1)
 
     baseline_wf = json.loads(Path(args.baseline_walk_forward).read_text(encoding="utf-8"))
     expected_folds = {
