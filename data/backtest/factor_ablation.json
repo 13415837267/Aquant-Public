@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "status": "ready",
+  "method": "research_only_factor_ablation",
+  "start": "2015-01-05",
+  "end": "2026-09-29",
+  "top_n": 30,
+  "transaction_cost_bps": 3.0,
+  "slippage_bps": 2.0,
+  "strategy_source": "Aquant-Private/main",
+  "strategy_version": "0.2.0",
+  "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+  "baseline_weights": {
+    "momentum": 0.3,
+    "liquidity": 0.2,
+    "value": 0.2,
+    "risk": 0.15,
+    "activity": 0.15
+  },
+  "results": [
+    {
+      "variant": "baseline",
+      "weights": {
+        "momentum": 0.3,
+        "liquidity": 0.2,
+        "value": 0.2,
+        "risk": 0.15,
+        "activity": 0.15
+      },
+      "trading_days": 2794,
+      "total_return_pct": 2070.32481901329,
+      "annualized_return_pct": 31.991370472495962,
+      "annualized_volatility_pct": 25.458967602795823,
+      "sharpe": 1.218245476123977,
+      "max_drawdown_pct": -27.578423641196792,
+      "win_rate_pct": 53.937007874015755,
+      "average_turnover_pct": 90.2720114531138,
+      "total_turnover_pct": 252219.99999999997,
+      "strategy_version": "0.2.0",
+      "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+      "future_function": false,
+      "delta_vs_baseline": {
+        "total_return_pct": 0.0,
+        "annualized_return_pct": 0.0,
+        "sharpe": 0.0,
+        "max_drawdown_pct": 0.0,
+        "average_turnover_pct": 0.0
+      }
+    },
+    {
+      "variant": "drop_momentum",
+      "weights": {
+        "liquidity": 0.28571428571428575,
+        "value": 0.28571428571428575,
+        "risk": 0.2142857142857143,
+        "activity": 0.2142857142857143
+      },
+      "trading_days": 2794,
+      "total_return_pct": 363.721793490374,
+      "annualized_return_pct": 14.839672173635353,
+      "annualized_volatility_pct": 21.47580313398548,
+      "sharpe": 0.7518213109380513,
+      "max_drawdown_pct": -28.873815682233772,
+      "win_rate_pct": 52.46957766642806,
+      "average_turnover_pct": 104.7840610832737,
+      "total_turnover_pct": 292766.6666666667,
+      "strategy_version": "0.2.0",
+      "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+      "future_function": false,
+      "delta_vs_baseline": {
+        "total_return_pct": -1706.603025522916,
+        "annualized_return_pct": -17.15169829886061,
+        "sharpe": -0.46642416518592567,
+        "max_drawdown_pct": -1.2953920410369797,
+        "average_turnover_pct": 14.512049630159893
+      }
+    },
+    {
+      "variant": "drop_liquidity",
+      "weights": {
+        "momentum": 0.37499999999999994,
+        "value": 0.25,
+        "risk": 0.18749999999999997,
+        "activity": 0.18749999999999997
+      },
+      "trading_days": 2794,
+      "total_return_pct": 755.2615755375506,
+      "annualized_return_pct": 21.358179918062525,
+      "annualized_volatility_pct": 23.937007613979738,
+      "sharpe": 0.9288463252637731,
+      "max_drawdown_pct": -27.141102656110018,
+      "win_rate_pct": 53.54330708661418,
+      "average_turnover_pct": 90.07874015748033,
+      "total_turnover_pct": 251680.00000000003,
+      "strategy_version": "0.2.0",
+      "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+      "future_function": false,
+      "delta_vs_baseline": {
+        "total_return_pct": -1315.0632434757395,
+        "annualized_return_pct": -10.633190554433437,
+        "sharpe": -0.28939915086020385,
+        "max_drawdown_pct": 0.4373209850867745,
+        "average_turnover_pct": -0.19327129563347967
+      }
+    },
+    {
+      "variant": "drop_value",
+      "weights": {
+        "momentum": 0.37499999999999994,
+        "liquidity": 0.25,
+        "risk": 0.18749999999999997,
+        "activity": 0.18749999999999997
+      },
+      "trading_days": 2794,
+      "total_return_pct": 73718.84061095162,
+      "annualized_return_pct": 81.42176351103427,
+      "annualized_volatility_pct": 31.0888072421107,
+      "sharpe": 2.073506147848404,
+      "max_drawdown_pct": -27.087798787443973,
+      "win_rate_pct": 56.22763063707945,
+      "average_turnover_pct": 105.26843235504654,
+      "total_turnover_pct": 294120.00000000006,
+      "strategy_version": "0.2.0",
+      "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+      "future_function": false,
+      "delta_vs_baseline": {
+        "total_return_pct": 71648.51579193833,
+        "annualized_return_pct": 49.43039303853831,
+        "sharpe": 0.8552606717244269,
+        "max_drawdown_pct": 0.49062485375281994,
+        "average_turnover_pct": 14.996420901932737
+      }
+    },
+    {
+      "variant": "drop_risk",
+      "weights": {
+        "momentum": 0.35294117647058826,
+        "liquidity": 0.23529411764705885,
+        "value": 0.23529411764705885,
+        "activity": 0.17647058823529413
+      },
+      "trading_days": 2794,
+      "total_return_pct": 49035.71894909576,
+      "annualized_return_pct": 74.88232892868452,
+      "annualized_volatility_pct": 31.28460726610341,
+      "sharpe": 1.944872107298183,
+      "max_drawdown_pct": -24.612974710745906,
+      "win_rate_pct": 55.762347888332144,
+      "average_turnover_pct": 78.0649009782868,
+      "total_turnover_pct": 218113.3333333333,
+      "strategy_version": "0.2.0",
+      "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+      "future_function": false,
+      "delta_vs_baseline": {
+        "total_return_pct": 46965.39413008247,
+        "annualized_return_pct": 42.89095845618856,
+        "sharpe": 0.726626631174206,
+        "max_drawdown_pct": 2.9654489304508864,
+        "average_turnover_pct": -12.207110474827005
+      }
+    },
+    {
+      "variant": "drop_activity",
+      "weights": {
+        "momentum": 0.35294117647058826,
+        "liquidity": 0.23529411764705885,
+        "value": 0.23529411764705885,
+        "risk": 0.17647058823529413
+      },
+      "trading_days": 2794,
+      "total_return_pct": 674.4033978326357,
+      "annualized_return_pct": 20.275968963562697,
+      "annualized_volatility_pct": 20.78384486719557,
+      "sharpe": 0.9927521542108411,
+      "max_drawdown_pct": -28.23401099879419,
+      "win_rate_pct": 52.254831782390845,
+      "average_turnover_pct": 41.610594130279175,
+      "total_turnover_pct": 116260.00000000001,
+      "strategy_version": "0.2.0",
+      "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+      "future_function": false,
+      "delta_vs_baseline": {
+        "total_return_pct": -1395.9214211806543,
+        "annualized_return_pct": -11.715401508933265,
+        "sharpe": -0.22549332191313587,
+        "max_drawdown_pct": -0.6555873575973976,
+        "average_turnover_pct": -48.66141732283463
+      }
+    },
+    {
+      "variant": "equal_weight",
+      "weights": {
+        "momentum": 0.2,
+        "liquidity": 0.2,
+        "value": 0.2,
+        "risk": 0.2,
+        "activity": 0.2
+      },
+      "trading_days": 2794,
+      "total_return_pct": 804.9220804128712,
+      "annualized_return_pct": 21.977546107712563,
+      "annualized_volatility_pct": 23.93441532906393,
+      "sharpe": 0.9499900229026667,
+      "max_drawdown_pct": -28.23955712693965,
+      "win_rate_pct": 53.400143163922685,
+      "average_turnover_pct": 104.5120496301599,
+      "total_turnover_pct": 292006.66666666674,
+      "strategy_version": "0.2.0",
+      "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+      "future_function": false,
+      "delta_vs_baseline": {
+        "total_return_pct": -1265.4027386004186,
+        "annualized_return_pct": -10.0138243647834,
+        "sharpe": -0.2682554532213103,
+        "max_drawdown_pct": -0.6611334857428588,
+        "average_turnover_pct": 14.240038177046088
+      }
+    }
+  ],
+  "audit": {
+    "private_strategy_modified": false,
+    "future_adjusted_factor_not_used": true,
+    "future_function": false,
+    "production_filter_reused": true,
+    "current_names_not_used_for_history": true,
+    "execution_model": "next_open_to_close",
+    "factor_score_penalties_reused": true,
+    "scored_rows": 6221928
+  }
+}
