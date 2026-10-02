@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT))
 
 from scripts.backfill_history import (
     api_client,
-    filter_historical_main_board,
+    filter_historical_stock_rows,
     git_checkpoint,
     load_trade_days,
     quality_check_daily,
@@ -42,7 +42,7 @@ def run_year(year: int, rebuild: bool = False) -> None:
             continue
 
         raw = request_bulk_day(api, trade_date)
-        market = filter_historical_main_board(raw)
+        market = filter_historical_stock_rows(raw)
         valuation = request_valuation_day(api, trade_date)
         combined = market.merge(
             valuation,
@@ -64,7 +64,7 @@ def run_year(year: int, rebuild: bool = False) -> None:
         if days_since_remote_checkpoint >= 5:
             git_checkpoint(
                 [f"data/history/{year}"],
-                f"data: checkpoint historical main-board year {year} through {trade_date}",
+                f"data: checkpoint historical database stock year {year} through {trade_date}",
             )
             days_since_remote_checkpoint = 0
             print(
@@ -75,7 +75,7 @@ def run_year(year: int, rebuild: bool = False) -> None:
     if days_since_remote_checkpoint:
         git_checkpoint(
             [f"data/history/{year}"],
-            f"data: checkpoint historical main-board year {year} final batch",
+            f"data: checkpoint historical database stock year {year} final batch",
         )
 
     print(
