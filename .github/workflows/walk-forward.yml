@@ -107,6 +107,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git rebase origin/main
           git add data/backtest/walk_forward.json
           if git diff --cached --quiet; then
             echo "No walk-forward result changes."
