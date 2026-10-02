@@ -1,0 +1,145 @@
+name: Historical Execution Constraints
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Signal start date"
+        required: true
+        default: "2015-01-05"
+      end:
+        description: "Signal end date"
+        required: true
+        default: "2026-09-29"
+      top_n:
+        description: "Equal-weight portfolio size"
+        required: true
+        default: "30"
+      cost_bps:
+        description: "Transaction cost (bps)"
+        required: true
+        default: "3"
+      slippage_bps:
+        description: "Slippage (bps)"
+        required: true
+        default: "2"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: historical-execution-constraints
+  cancel-in-progress: true
+
+jobs:
+  constrained:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout public repository
+        uses: actions/checkout@v6
+
+      - name: Checkout private strategy
+        uses: actions/checkout@v6
+        with:
+          repository: 13415837267/Aquant-Private
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: .private-strategy
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Resolve strategy commit
+        id: strategy
+        shell: bash
+        run: |
+          echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Run constrained historical backtest
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/backtest_constrained.py \
+            --start "${{ inputs.start }}" \
+            --end "${{ inputs.end }}" \
+            --top-n "${{ inputs.top_n }}" \
+            --cost-bps "${{ inputs.cost_bps }}" \
+            --slippage-bps "${{ inputs.slippage_bps }}" \
+            --output data/backtest/execution_constrained.json
+
+      - name: Compare baseline and constrained
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("data/backtest")
+          baseline = json.loads((root / "latest.json").read_text(encoding="utf-8"))
+          constrained = json.loads((root / "execution_constrained.json").read_text(encoding="utf-8"))
+
+          fields = [
+              "total_return_pct",
+              "annualized_return_pct",
+              "annualized_volatility_pct",
+              "sharpe",
+              "max_drawdown_pct",
+              "win_rate_pct",
+              "average_turnover_pct",
+              "total_turnover_pct",
+          ]
+          b = baseline["overall"]
+          c = constrained["overall"]
+          comparison = {
+              "schema_version": 1,
+              "status": "ready",
+              "comparison_note": (
+                  "baseline uses independent T+1 open-to-close equal-weight daily replay; "
+                  "constrained uses stateful close-to-close accounting with the same PIT signals. "
+                  "intraday_metrics provides the closest execution-layer sensitivity comparison."
+              ),
+              "baseline_strategy_commit": baseline["strategy_commit"],
+              "constrained_strategy_commit": constrained["strategy_commit"],
+              "baseline": {k: b.get(k) for k in fields},
+              "constrained": {k: c.get(k) for k in fields},
+              "difference_constrained_minus_baseline": {
+                  k: (
+                      float(c[k]) - float(b[k])
+                      if c.get(k) is not None and b.get(k) is not None
+                      else None
+                  )
+                  for k in fields
+              },
+              "constrained_intraday_metrics": constrained.get("intraday_metrics", {}),
+              "execution_audit": constrained.get("audit", {}),
+          }
+          if comparison["baseline_strategy_commit"] != comparison["constrained_strategy_commit"]:
+              raise SystemExit("strategy commit mismatch between baseline and constrained runs")
+          if constrained.get("future_function") is not False:
+              raise SystemExit("constrained run failed PIT audit")
+          (root / "execution_comparison.json").write_text(
+              json.dumps(comparison, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(comparison["difference_constrained_minus_baseline"], ensure_ascii=False))
+          PY
+
+      - name: Commit constrained results
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/backtest/execution_constrained.json data/backtest/execution_comparison.json
+          if git diff --cached --quiet; then
+            echo "No constrained backtest result changes."
+            exit 0
+          fi
+          git commit -m "research: update execution constrained backtest"
+          git push
