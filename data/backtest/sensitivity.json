@@ -7,8 +7,8 @@
   "results": [
     {
       "top_n": 10,
-      "transaction_cost_bps": 3.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 3,
+      "slippage_bps": 2,
       "total_return_pct": 883.8362831123874,
       "annualized_return_pct": 22.900870400449257,
       "annualized_volatility_pct": 28.302196963032706,
@@ -26,8 +26,8 @@
     },
     {
       "top_n": 10,
-      "transaction_cost_bps": 5.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 5,
+      "slippage_bps": 2,
       "total_return_pct": 436.64515372961085,
       "annualized_return_pct": 16.362455345372794,
       "annualized_volatility_pct": 28.300298529610423,
@@ -45,8 +45,8 @@
     },
     {
       "top_n": 10,
-      "transaction_cost_bps": 10.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 10,
+      "slippage_bps": 2,
       "total_return_pct": 17.849248018992505,
       "annualized_return_pct": 1.4923243782777984,
       "annualized_volatility_pct": 28.297119234447404,
@@ -64,8 +64,8 @@
     },
     {
       "top_n": 20,
-      "transaction_cost_bps": 3.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 3,
+      "slippage_bps": 2,
       "total_return_pct": 1678.9968139502218,
       "annualized_return_pct": 29.64548248040213,
       "annualized_volatility_pct": 26.213326273533212,
@@ -83,8 +83,8 @@
     },
     {
       "top_n": 20,
-      "transaction_cost_bps": 5.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 5,
+      "slippage_bps": 2,
       "total_return_pct": 935.4251542175218,
       "annualized_return_pct": 23.468700523481225,
       "annualized_volatility_pct": 26.213777316932322,
@@ -102,8 +102,8 @@
     },
     {
       "top_n": 20,
-      "transaction_cost_bps": 10.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 10,
+      "slippage_bps": 2,
       "total_return_pct": 167.46412502470824,
       "annualized_return_pct": 9.27894072701081,
       "annualized_volatility_pct": 26.215910615828967,
@@ -121,8 +121,8 @@
     },
     {
       "top_n": 30,
-      "transaction_cost_bps": 3.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 3,
+      "slippage_bps": 2,
       "total_return_pct": 2070.32481901329,
       "annualized_return_pct": 31.991370472495962,
       "annualized_volatility_pct": 25.458967602795823,
@@ -140,8 +140,8 @@
     },
     {
       "top_n": 30,
-      "transaction_cost_bps": 5.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 5,
+      "slippage_bps": 2,
       "total_return_pct": 1211.0789641555336,
       "annualized_return_pct": 26.125413192462375,
       "annualized_volatility_pct": 25.460136385854316,
@@ -159,8 +159,8 @@
     },
     {
       "top_n": 30,
-      "transaction_cost_bps": 10.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 10,
+      "slippage_bps": 2,
       "total_return_pct": 271.7120919662608,
       "annualized_return_pct": 12.571591645791802,
       "annualized_volatility_pct": 25.463838721312648,
@@ -178,8 +178,8 @@
     },
     {
       "top_n": 50,
-      "transaction_cost_bps": 3.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 3,
+      "slippage_bps": 2,
       "total_return_pct": 2186.553647230484,
       "annualized_return_pct": 32.613890549473254,
       "annualized_volatility_pct": 24.826117031100235,
@@ -197,8 +197,8 @@
     },
     {
       "top_n": 50,
-      "transaction_cost_bps": 5.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 5,
+      "slippage_bps": 2,
       "total_return_pct": 1346.0525336600074,
       "annualized_return_pct": 27.245020681544997,
       "annualized_volatility_pct": 24.82599499049804,
@@ -216,8 +216,8 @@
     },
     {
       "top_n": 50,
-      "transaction_cost_bps": 10.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 10,
+      "slippage_bps": 2,
       "total_return_pct": 359.7702441736432,
       "annualized_return_pct": 14.751065714251975,
       "annualized_volatility_pct": 24.826279733863956,
@@ -235,8 +235,8 @@
     },
     {
       "top_n": 100,
-      "transaction_cost_bps": 3.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 3,
+      "slippage_bps": 2,
       "total_return_pct": 4020.286494999892,
       "annualized_return_pct": 39.84778317119093,
       "annualized_volatility_pct": 24.328758765202473,
@@ -254,8 +254,8 @@
     },
     {
       "top_n": 100,
-      "transaction_cost_bps": 5.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 5,
+      "slippage_bps": 2,
       "total_return_pct": 2668.067832674895,
       "annualized_return_pct": 34.91947324135758,
       "annualized_volatility_pct": 24.32857444035915,
@@ -273,8 +273,8 @@
     },
     {
       "top_n": 100,
-      "transaction_cost_bps": 10.0,
-      "slippage_bps": 2.0,
+      "transaction_cost_bps": 10,
+      "slippage_bps": 2,
       "total_return_pct": 923.7351220583813,
       "annualized_return_pct": 23.34232328108119,
       "annualized_volatility_pct": 24.328521185499646,
@@ -298,5 +298,6 @@
     "performance_sessions": 2794,
     "metrics_exclude_warmup": true,
     "parameter_grid_size": 15
-  }
+  },
+  "future_function": false
 }
