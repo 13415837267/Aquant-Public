@@ -4,7 +4,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from scripts.backtest import metrics, normalize_weights, turnover
+from scripts.backtest import metrics, normalize_weights, rolling_252d_metrics, turnover
 
 
 def test_metrics_simple_path():
@@ -21,6 +21,11 @@ def test_metrics_simple_path():
     assert np.isclose(result["total_return_pct"], expected * 100)
     assert result["trading_days"] == 3
     assert result["average_turnover_pct"] > 0
+    assert 0 <= result["win_rate_pct"] <= 100
+    assert result["best_day_pct"] >= result["worst_day_pct"]
+    assert result["max_consecutive_losses"] >= 0
+    assert result["max_consecutive_gains"] >= 0
+
 
 
 def test_weights_are_equal_and_normalized():
@@ -95,3 +100,18 @@ def test_run_backtest_executes_full_loop_on_tiny_history(tmp_path, monkeypatch):
     assert payload["overall"]["trading_days"] >= 1
     assert payload["audit"]["performance_sessions"] == payload["overall"]["trading_days"]
     assert output_path.exists()
+
+
+def test_rolling_252d_metrics_samples_final_window():
+    dates = pd.date_range("2020-01-02", periods=300, freq="B")
+    daily = pd.DataFrame(
+        {
+            "date": dates.strftime("%Y-%m-%d"),
+            "net_return": np.full(300, 0.001),
+            "turnover": np.zeros(300),
+        }
+    )
+    rows = rolling_252d_metrics(daily, step=63)
+    assert rows
+    assert rows[-1]["end_date"] == dates[-1].strftime("%Y-%m-%d")
+    assert rows[-1]["window_sessions"] == 252
