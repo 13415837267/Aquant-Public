@@ -181,7 +181,7 @@ def test_stateful_portfolio_keeps_limit_down_holding_and_buys_available_target()
 
 
 def test_stateful_portfolio_control_disables_price_limits_only():
-    portfolio = StatefulPortfolio(initial_cash=1.0)
+    portfolio = FlattenedIntradayPortfolio(initial_cash=1.0)
     targets = pd.DataFrame({"symbol": ["000001"]})
     execution = pd.DataFrame(
         {
