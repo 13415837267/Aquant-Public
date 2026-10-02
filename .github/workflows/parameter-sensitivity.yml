@@ -1,6 +1,10 @@
 name: Parameter Sensitivity
 
 on:
+  push:
+    paths:
+      - "scripts/sensitivity.py"
+      - ".github/workflows/parameter-sensitivity.yml"
   workflow_dispatch:
     inputs:
       start: {description: "History start", required: true, default: "2015-01-05"}
@@ -29,6 +33,16 @@ jobs:
         id: strategy
         shell: bash
         run: echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Resolve parameters
+        id: params
+        shell: bash
+        run: |
+          echo "start=\${{ inputs.start || '2015-01-05' }}" >> "$GITHUB_OUTPUT"
+          echo "end=\${{ inputs.end || '2026-09-29' }}" >> "$GITHUB_OUTPUT"
+          echo "top_n=\${{ inputs.top_n || '10,20,30,50,100' }}" >> "$GITHUB_OUTPUT"
+          echo "cost_bps=\${{ inputs.cost_bps || '3,5,10' }}" >> "$GITHUB_OUTPUT"
+          echo "slippage_bps=\${{ inputs.slippage_bps || '2' }}" >> "$GITHUB_OUTPUT"
+
       - name: Run sensitivity
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
