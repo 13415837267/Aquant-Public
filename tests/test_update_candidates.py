@@ -59,3 +59,4 @@ def test_build_candidates_uses_database_history_and_strategy_output():
     assert snapshot["strategy_version"] == "test"
     assert snapshot["strategy_commit"] == "abc123"
     assert snapshot["lookback_trading_days"] == 60
+    assert snapshot["market_scope"].startswith("沪深主板")
