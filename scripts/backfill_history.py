@@ -651,11 +651,15 @@ def backfill_daily() -> None:
     )
 
 
-def latest_complete_financial_quarter_end(today: date) -> date:
-    """Return the last quarter-end whose reporting period is fully in the past."""
-    current_quarter_start_month = ((today.month - 1) // 3) * 3 + 1
-    current_quarter_start = date(today.year, current_quarter_start_month, 1)
-    return current_quarter_start - timedelta(days=1)
+def latest_reliable_financial_quarter_end(today: date) -> date:
+    """Return a fully completed quarter with one-quarter publication buffer."""
+    current_quarter = (today.month - 1) // 3 + 1
+    safe_quarter = current_quarter - 2
+    year = today.year
+    if safe_quarter <= 0:
+        safe_quarter += 4
+        year -= 1
+    return quarter_end_for(year, safe_quarter)
 
 
 def quarter_end_for(year: int, quarter: int) -> date:
@@ -813,7 +817,7 @@ def backfill_fundamentals() -> None:
     finance_start = target_start.replace(
         year=target_start.year - FINANCIAL_START_BUFFER_YEARS
     )
-    finance_end = latest_complete_financial_quarter_end(today)
+    finance_end = latest_reliable_financial_quarter_end(today)
 
     state = load_fund_state()
     done_chunks = set(state["completed_valuation_chunks"])
@@ -928,7 +932,7 @@ def validate_fundamentals() -> None:
         "max_date": range_dates.max().strftime("%Y-%m-%d") if range_dates.notna().any() else None,
     }
 
-    sample_quarter_end = latest_complete_financial_quarter_end(validation_ts.date())
+    sample_quarter_end = latest_reliable_financial_quarter_end(validation_ts.date())
     sample_quarter = f"{sample_quarter_end.year}q{(sample_quarter_end.month - 1) // 3 + 1}"
     for table, method in FINANCE_TABLES.items():
         df = normalize_finance(getattr(api, method)(sample_quarter))
