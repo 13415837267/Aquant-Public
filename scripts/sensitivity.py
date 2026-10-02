@@ -16,10 +16,17 @@ from scripts import backtest as base
 ROOT = base.ROOT
 OUT_FILE = ROOT / "data" / "backtest" / "sensitivity.json"
 
-def run_one(top_n: int, cost_bps: float, slippage_bps: float, start: str, end: str) -> dict:
-    p = base.run_backtest(start=start, end=end, top_n=top_n,
-                          cost_bps=cost_bps, slippage_bps=slippage_bps)
-    m = p["overall"]
+def run_one(top_n: int, cost_bps: float, slippage_bps: float, payload: dict) -> dict:
+    daily = pd.DataFrame(payload["daily"])
+    if daily.empty:
+        raise ValueError("sensitivity payload has no daily rows")
+    daily = daily.copy()
+    daily["net_return"] = (
+        pd.to_numeric(daily["gross_return"], errors="coerce").fillna(0.0)
+        - pd.to_numeric(daily["turnover"], errors="coerce").fillna(0.0)
+        * (cost_bps + slippage_bps) / 10000.0
+    )
+    m = base.metrics(daily)
     return {
         "top_n": top_n, "transaction_cost_bps": cost_bps,
         "slippage_bps": slippage_bps,
@@ -30,11 +37,10 @@ def run_one(top_n: int, cost_bps: float, slippage_bps: float, start: str, end: s
         "win_rate_pct": m["win_rate_pct"],
         "average_turnover_pct": m["average_turnover_pct"],
         "total_turnover_pct": m["total_turnover_pct"],
-        "strategy_version": p["strategy_version"],
-        "strategy_commit": p["strategy_commit"],
-        "future_function": p["future_function"],
+        "strategy_version": payload["strategy_version"],
+        "strategy_commit": payload["strategy_commit"],
+        "future_function": payload["future_function"],
     }
-
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--start",default="2015-01-05")
@@ -48,11 +54,14 @@ def main():
     costs=[float(x) for x in a.cost_bps.split(",") if x]
     slips=[float(x) for x in a.slippage_bps.split(",") if x]
     rows=[]
-    for c in costs:
-        for s in slips:
-            for n in top_ns:
-                print(f"[sensitivity] top_n={n} cost={c} slip={s}")
-                rows.append(run_one(n,c,s,a.start,a.end))
+    for n in top_ns:
+        print(f"[sensitivity] replay top_n={n} once")
+        payload = base.run_backtest(start=a.start, end=a.end, top_n=n,
+                                    cost_bps=0.0, slippage_bps=0.0)
+        for c in costs:
+            for sl in slips:
+                print(f"[sensitivity] derive top_n={n} cost={c} slip={sl}")
+                rows.append(run_one(n, c, sl, payload))
     commits={r["strategy_commit"] for r in rows}
     versions={r["strategy_version"] for r in rows}
     if len(commits)!=1 or len(versions)!=1 or any(r["future_function"] for r in rows):
