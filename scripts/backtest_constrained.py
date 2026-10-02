@@ -24,12 +24,22 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts import backtest as base
+from scripts.portfolio import allocate_weights
 
 ROOT = base.ROOT
 OUT_FILE = ROOT / "data" / "backtest" / "execution_constrained.json"
 DEFAULT_TOP_N = base.DEFAULT_TOP_N
 DEFAULT_COST_BPS = base.DEFAULT_COST_BPS
 DEFAULT_SLIPPAGE_BPS = base.DEFAULT_SLIPPAGE_BPS
+DEFAULT_TURNOVER_CAP = 0.30
+DEFAULT_CASH_BUFFER = 0.05
+LOT_SIZE = 100
+
+
+def round_lot(shares: float) -> int:
+    if shares <= 0:
+        return 0
+    return int(np.floor((shares + 1e-9) / LOT_SIZE) * LOT_SIZE)
 
 
 def valid_price(value: object) -> bool:
@@ -102,10 +112,18 @@ class FlattenedIntradayPortfolio:
         cost_rate: float,
         *,
         enforce_limits: bool = True,
+        turnover_cap: float = DEFAULT_TURNOVER_CAP,
     ) -> dict:
         execution = execution_df.set_index("symbol", drop=False)
         target_symbols = [str(x).zfill(6) for x in targets.get("symbol", pd.Series(dtype=str)).tolist()]
-        target_weights = base.normalize_weights(target_symbols)
+        if "target_weight" in targets.columns:
+            target_weights = {
+                str(row.symbol).zfill(6): float(row.target_weight)
+                for row in targets.itertuples(index=False)
+                if np.isfinite(float(row.target_weight)) and float(row.target_weight) > 0
+            }
+        else:
+            target_weights = base.normalize_weights(target_symbols)
 
         prior_equity = float(self.prev_close_equity)
         equity_open = self.open_equity(execution)
@@ -301,10 +319,12 @@ def validate_constrained_payload(payload: dict) -> None:
     daily = payload.get("daily", [])
     overall = payload.get("overall", {})
     audit = payload.get("audit", {})
-    if int(audit.get("performance_sessions", -1)) != len(daily):
-        raise ValueError("performance_sessions does not match daily rows")
-    if int(overall.get("trading_days", -1)) != len(daily):
-        raise ValueError("overall trading_days does not match daily rows")
+    trade_start = payload.get("trade_start")
+    performance_daily = [row for row in daily if trade_start and row.get("date", "") >= trade_start] if trade_start else daily
+    if int(audit.get("performance_sessions", -1)) != len(performance_daily):
+        raise ValueError("performance_sessions does not match performance daily rows")
+    if int(overall.get("trading_days", -1)) != len(performance_daily):
+        raise ValueError("overall trading_days does not match performance sessions")
 
     dates = [row["date"] for row in daily]
     if dates != sorted(dates) or len(dates) != len(set(dates)):
@@ -320,6 +340,7 @@ def validate_constrained_payload(payload: dict) -> None:
             "equity_close",
             "overnight_return",
             "cash",
+            "cash_floor",
         ):
             value = float(row[key])
             if not np.isfinite(value):
@@ -328,6 +349,10 @@ def validate_constrained_payload(payload: dict) -> None:
             raise ValueError("non-positive portfolio equity")
         if float(row["turnover"]) < -1e-12:
             raise ValueError("negative turnover")
+        if float(row["turnover"]) > float(payload["turnover_cap"]) + 1e-8:
+            raise ValueError("daily turnover cap violated")
+        if float(row["cash"]) + 1e-9 < float(row["cash_floor"]):
+            raise ValueError("cash floor violated")
         if float(row["cost"]) < -1e-12:
             raise ValueError("negative cost")
 
@@ -348,6 +373,209 @@ def validate_constrained_payload(payload: dict) -> None:
         raise ValueError("strategy commit audit is missing")
 
 
+
+class StatefulPortfolio:
+    """Persistent long-only portfolio: rebalance at T+1 open and hold overnight."""
+
+    def __init__(self, initial_cash: float = 1.0, cash_buffer: float = DEFAULT_CASH_BUFFER) -> None:
+        if not 0 <= cash_buffer < 1:
+            raise ValueError("cash_buffer must be in [0, 1)")
+        self.cash = float(initial_cash)
+        self.prev_close_equity = float(initial_cash)
+        self.cash_buffer = float(cash_buffer)
+        self.shares: dict[str, float] = {}
+        self.last_close: dict[str, float] = {}
+
+    def open_equity(self, execution: pd.DataFrame) -> float:
+        value = self.cash
+        for symbol, shares in self.shares.items():
+            price = row_value(execution, symbol, "open", self.last_close.get(symbol, np.nan))
+            if valid_price(price):
+                value += shares * float(price)
+            elif valid_price(self.last_close.get(symbol)):
+                value += shares * float(self.last_close[symbol])
+        return float(value)
+
+    def rebalance(
+        self,
+        targets: pd.DataFrame,
+        execution_df: pd.DataFrame,
+        cost_rate: float,
+        *,
+        enforce_limits: bool = True,
+        turnover_cap: float = DEFAULT_TURNOVER_CAP,
+    ) -> dict:
+        execution = execution_df.set_index("symbol", drop=False)
+        target_symbols = [str(x).zfill(6) for x in targets.get("symbol", pd.Series(dtype=str)).tolist()]
+        target_weights = (
+            {str(r.symbol).zfill(6): float(r.target_weight) for r in targets.itertuples(index=False)
+             if "target_weight" in targets.columns and np.isfinite(float(r.target_weight)) and float(r.target_weight) > 0}
+            if "target_weight" in targets.columns else base.normalize_weights(target_symbols)
+        )
+        if not 0 < turnover_cap <= 1:
+            raise ValueError("turnover_cap must be in (0, 1]")
+        prior_equity = float(self.prev_close_equity)
+        equity_open = self.open_equity(execution)
+        if not valid_price(equity_open) or equity_open <= 0:
+            equity_open = prior_equity
+
+        def open_price(symbol: str) -> float:
+            return row_value(execution, symbol, "open", self.last_close.get(symbol, np.nan))
+
+        open_values = {s: sh * open_price(s) for s, sh in self.shares.items() if valid_price(open_price(s))}
+        current_weights = {s: v / equity_open for s, v in open_values.items()} if equity_open > 0 else {}
+        trade_keys = set(current_weights) | set(target_weights)
+        requested_l1 = sum(abs(target_weights.get(s, 0.0) - current_weights.get(s, 0.0)) for s in trade_keys)
+        trade_scale = min(1.0, turnover_cap / requested_l1) if requested_l1 > 0 else 1.0
+        effective_targets = {
+            s: current_weights.get(s, 0.0) + trade_scale * (target_weights.get(s, 0.0) - current_weights.get(s, 0.0))
+            for s in trade_keys
+        }
+        sell_notional = 0.0
+        blocked_sell = 0
+        sold_symbols = []
+
+        for symbol in list(self.shares):
+            px = open_price(symbol)
+            if not valid_price(px):
+                blocked_sell += 1
+                continue
+            current_value = open_values.get(symbol, 0.0)
+            desired_value = equity_open * effective_targets.get(symbol, 0.0)
+            delta = current_value - desired_value
+            if delta <= 1e-12:
+                continue
+            row = execution.loc[symbol] if symbol in execution.index else None
+            if row is None or blocked_for_side(row, "sell", enforce_limits):
+                blocked_sell += 1
+                continue
+            shares_to_sell = min(self.shares[symbol], round_lot(delta / px))
+            notional = shares_to_sell * px
+            if shares_to_sell <= 0:
+                continue
+            self.shares[symbol] -= shares_to_sell
+            if self.shares[symbol] <= 1e-12:
+                del self.shares[symbol]
+            self.cash += notional * (1.0 - cost_rate)
+            sell_notional += notional
+            sold_symbols.append(symbol)
+
+        current_open_values = {
+            s: sh * open_price(s) for s, sh in self.shares.items() if valid_price(open_price(s))
+        }
+        buy_orders = {}
+        blocked_buy = 0
+        for symbol, weight in effective_targets.items():
+            px = open_price(symbol)
+            current_value = current_open_values.get(symbol, 0.0)
+            desired_value = equity_open * weight
+            deficit = desired_value - current_value
+            if deficit <= 1e-12:
+                continue
+            row = execution.loc[symbol] if symbol in execution.index else None
+            if row is None or blocked_for_side(row, "buy", enforce_limits):
+                blocked_buy += 1
+                continue
+            buy_orders[symbol] = deficit
+
+        total_buy = float(sum(buy_orders.values()))
+        cash_floor = equity_open * self.cash_buffer
+        affordable_cash = max(0.0, self.cash - cash_floor)
+        affordable = affordable_cash / (1.0 + cost_rate)
+        ratio = min(1.0, affordable / total_buy) if total_buy > 0 else 0.0
+        buy_notional = 0.0
+        bought_symbols = []
+        for symbol, deficit in buy_orders.items():
+            px = open_price(symbol)
+            notional = deficit * ratio
+            shares = round_lot(notional / px)
+            if shares <= 0:
+                continue
+            notional = shares * px
+            total_cash = notional * (1.0 + cost_rate)
+            if total_cash > self.cash + 1e-12:
+                shares = round_lot(self.cash / ((1.0 + cost_rate) * px))
+                notional = shares * px
+                total_cash = notional * (1.0 + cost_rate)
+            if shares <= 0:
+                continue
+            self.shares[symbol] = self.shares.get(symbol, 0.0) + shares
+            self.cash -= total_cash
+            buy_notional += notional
+            bought_symbols.append(symbol)
+
+        # Clean small non-target residuals only with unused turnover capacity.
+        residual_cleanup_count = 0
+        turnover_room = max(0.0, equity_open * turnover_cap - sell_notional - buy_notional)
+        for symbol in list(self.shares):
+            if symbol in target_weights:
+                continue
+            px = open_price(symbol)
+            if not valid_price(px) or self.shares[symbol] > 3 * LOT_SIZE:
+                continue
+            row = execution.loc[symbol] if symbol in execution.index else None
+            if row is None or blocked_for_side(row, "sell", enforce_limits):
+                continue
+            shares_to_sell = min(round_lot(self.shares[symbol]), round_lot(turnover_room / px))
+            if shares_to_sell <= 0:
+                continue
+            notional = shares_to_sell * px
+            self.shares[symbol] -= shares_to_sell
+            self.cash += notional * (1.0 - cost_rate)
+            sell_notional += notional
+            turnover_room -= notional
+            residual_cleanup_count += 1
+            sold_symbols.append(symbol)
+            if self.shares[symbol] <= 1e-12:
+                del self.shares[symbol]
+
+        mark_close_equity = self.cash
+        close_missing = 0
+        for symbol, shares in self.shares.items():
+            close_price = row_value(execution, symbol, "close", self.last_close.get(symbol, np.nan))
+            if not valid_price(close_price):
+                close_missing += 1
+                continue
+            self.last_close[symbol] = float(close_price)
+            mark_close_equity += shares * float(close_price)
+
+        end_equity = mark_close_equity
+        traded = sell_notional + buy_notional
+        total_cost = traded * cost_rate
+        net_return = end_equity / prior_equity - 1.0
+        gross_return = net_return + total_cost
+        self.prev_close_equity = float(end_equity)
+        return {
+            "net_return": float(net_return),
+            "gross_return": float(gross_return),
+            "intraday_return": float(end_equity / equity_open - 1.0) if equity_open > 0 else 0.0,
+            "turnover": float(traded / equity_open) if equity_open > 0 else 0.0,
+            "turnover_cap": float(turnover_cap),
+            "turnover_scale": float(trade_scale),
+            "cash_buffer": float(self.cash_buffer),
+            "cash_floor": float(cash_floor),
+            "cash_floor_enforced": True,
+            "cost": float(total_cost),
+            "equity_open": float(equity_open),
+            "equity_close": float(end_equity),
+            "mark_close_equity": float(mark_close_equity),
+            "overnight_return": float(equity_open / prior_equity - 1.0) if prior_equity > 0 else 0.0,
+            "sell_count": len(sold_symbols),
+            "buy_count": len(bought_symbols),
+            "close_sell_count": 0,
+            "blocked_buy_count": blocked_buy,
+            "blocked_sell_count": blocked_sell,
+            "blocked_close_sell_count": 0,
+            "residual_cleanup_count": residual_cleanup_count,
+            "close_missing_count": close_missing,
+            "cash": float(self.cash),
+            "position_count": len(self.shares),
+            "forced_overnight_positions": len(self.shares),
+            "sold_symbols": sold_symbols,
+            "bought_symbols": bought_symbols,
+            "close_sold_symbols": [],
+        }
+
 def run_constrained(
     *,
     start: str | None,
@@ -355,6 +583,7 @@ def run_constrained(
     top_n: int,
     cost_bps: float,
     slippage_bps: float,
+    turnover_cap: float,
     output: Path = OUT_FILE,
 ) -> dict:
     files = base.history_files()
@@ -364,8 +593,9 @@ def run_constrained(
 
     strategy_model, strategy_version, strategy_commit = base.load_strategy()
     states = base.RollingFeatureState()
-    portfolio = FlattenedIntradayPortfolio(initial_cash=1.0)
-    unconstrained = FlattenedIntradayPortfolio(initial_cash=1.0)
+    # Use realistic capital so A-share 100-share lots are representable.
+    portfolio = StatefulPortfolio(initial_cash=1_000_000.0, cash_buffer=DEFAULT_CASH_BUFFER)
+    unconstrained = StatefulPortfolio(initial_cash=1_000_000.0, cash_buffer=DEFAULT_CASH_BUFFER)
 
     daily_rows = []
     unconstrained_rows = []
@@ -389,6 +619,8 @@ def run_constrained(
 
         frame = base.build_strategy_frame(current, states)
         targets = base.select_targets(frame, strategy_model, top_n)
+        allocation = allocate_weights(targets, max_weight=0.05, cash_buffer=0.05)
+        targets["target_weight"] = targets["symbol"].map(allocation).fillna(0.0)
         selected_symbols = targets["symbol"].astype(str).tolist()
         selected_total += len(selected_symbols)
 
@@ -412,12 +644,14 @@ def run_constrained(
             next_day,
             cost_rate,
             enforce_limits=True,
+            turnover_cap=turnover_cap,
         )
         unconstrained_result = unconstrained.rebalance(
             targets,
             next_day,
             cost_rate,
             enforce_limits=False,
+            turnover_cap=turnover_cap,
         )
         blocked_buy_total += result["blocked_buy_count"]
         blocked_sell_total += result["blocked_sell_count"]
@@ -458,14 +692,21 @@ def run_constrained(
 
     daily = pd.DataFrame(daily_rows)
     warmup_sessions = min(59, len(selected_files) - 1)
-    performance = daily.reset_index(drop=True)
+    active = daily.loc[daily["target_count"] > 0].reset_index(drop=True)
+    performance = active
+    trade_start = performance["date"].min() if not performance.empty else None
 
     overall = base.metrics(performance)
     annual = base.period_metrics(performance, "Y")
     monthly = base.period_metrics(performance, "M")
     rolling_252d = base.rolling_252d_metrics(performance)
-    intraday_metrics = base.metrics(pd.DataFrame(intraday_rows))
+    intraday_frame = pd.DataFrame(intraday_rows)
+    if trade_start:
+        intraday_frame = intraday_frame.loc[intraday_frame["date"] >= trade_start].reset_index(drop=True)
+    intraday_metrics = base.metrics(intraday_frame)
     unconstrained_daily = pd.DataFrame(unconstrained_rows)
+    if trade_start:
+        unconstrained_daily = unconstrained_daily.loc[unconstrained_daily["date"] >= trade_start].reset_index(drop=True)
     unconstrained_overall = base.metrics(unconstrained_daily)
     unconstrained_annual = base.period_metrics(unconstrained_daily, "Y")
     unconstrained_monthly = base.period_metrics(unconstrained_daily, "M")
@@ -474,15 +715,16 @@ def run_constrained(
     payload = {
         "schema_version": 1,
         "status": "ready",
-        "method": "strict_point_in_time_stateful_execution",
+        "method": "strict_point_in_time_stateful_execution_production_weights",
         "future_function": False,
         "market_scope": (
             "沪深主板：000001-004999.SZ（排除001001-001199 CDR）"
             "+ 600/601/603/605.SH"
         ),
         "selection_rule": (
-            "与基准回测完全相同：T日收盘后使用历史截面和Aquant-Private/main打分，取Top-N。"
+            "T日收盘后使用历史截面和Aquant-Private/main打分，取Top-N；组合权重与生产portfolio.py完全一致。"
         ),
+        "portfolio_rule": "shared scripts.portfolio.allocate_weights: inverse volatility, 5% single-name cap, 5% cash buffer",
         "execution_rule": (
             "T+1开盘进行持仓再平衡；涨停买入、跌停卖出、停牌和无有效价格均视为不可成交；"
             "无法成交的旧持仓继续持有；未成交买单保留现金。"
@@ -493,17 +735,20 @@ def run_constrained(
         "transaction_cost_bps": cost_bps,
         "slippage_bps": slippage_bps,
         "execution_cost_total_bps": cost_bps + slippage_bps,
+        "turnover_cap": turnover_cap,
+        "lot_size": LOT_SIZE,
+        "cash_buffer": DEFAULT_CASH_BUFFER,
         "warmup_sessions": warmup_sessions,
         "backtest_start": start or selected_files[0].name[:10],
         "backtest_end": end or selected_files[-1].name[:10],
-        "trade_start": daily["date"].min() if not daily.empty else None,
+        "trade_start": trade_start,
         "trade_end": daily["date"].max() if not daily.empty else None,
         "strategy_source": "Aquant-Private/main",
         "strategy_version": strategy_version,
         "strategy_commit": strategy_commit,
         "overall": overall,
         "intraday_metrics": intraday_metrics,
-        "flattened_unconstrained": {
+        "unconstrained_persistent": {
             "overall": unconstrained_overall,
             "annual": unconstrained_annual,
             "monthly": unconstrained_monthly,
@@ -525,14 +770,17 @@ def run_constrained(
             "blocked_close_sell_orders": int(sum(r["blocked_close_sell_count"] for r in daily_rows)),
             "forced_overnight_sessions": int(sum(r["forced_overnight_positions"] > 0 for r in daily_rows)),
             "forced_overnight_position_observations": int(sum(r["forced_overnight_positions"] for r in daily_rows)),
-            "flattened_daily_execution": True,
-            "overnight_gaps_included_only_when_close_sale_blocked": True,
+            "persistent_positions": True,
+            "overnight_gaps_included": True,
             "current_universe_not_used_for_history": True,
             "current_names_not_used_for_history": True,
             "future_adjusted_factor_not_used": True,
             "pit_fundamentals_required": False,
             "intraday_return_definition": "T+1 close equity / T+1 pre-trade open equity - 1",
-            "constraint_comparison": "same stateful portfolio and PIT signals, limits disabled vs enabled; paused/missing-price restrictions remain",
+            "constraint_comparison": "same persistent portfolio and PIT signals, price limits enabled vs disabled; paused/missing-price restrictions remain",
+            "turnover_cap_enforced": True,
+            "lot_size_enforced": True,
+            "cash_floor_enforced": True,
         },
         "daily": daily.to_dict(orient="records"),
         "selection_audit": selection_rows,
@@ -555,6 +803,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-n", type=int, default=DEFAULT_TOP_N)
     parser.add_argument("--cost-bps", type=float, default=DEFAULT_COST_BPS)
     parser.add_argument("--slippage-bps", type=float, default=DEFAULT_SLIPPAGE_BPS)
+    parser.add_argument("--turnover-cap", type=float, default=DEFAULT_TURNOVER_CAP)
     parser.add_argument("--output", default=str(OUT_FILE))
     return parser.parse_args()
 
@@ -572,6 +821,7 @@ def main() -> None:
         top_n=args.top_n,
         cost_bps=args.cost_bps,
         slippage_bps=args.slippage_bps,
+        turnover_cap=args.turnover_cap,
         output=Path(args.output),
     )
     print(json.dumps(payload["overall"], ensure_ascii=False))
