@@ -651,6 +651,13 @@ def backfill_daily() -> None:
     )
 
 
+def latest_complete_financial_quarter_end(today: date) -> date:
+    """Return the last quarter-end whose reporting period is fully in the past."""
+    current_quarter_start_month = ((today.month - 1) // 3) * 3 + 1
+    current_quarter_start = date(today.year, current_quarter_start_month, 1)
+    return current_quarter_start - timedelta(days=1)
+
+
 def quarter_end_for(year: int, quarter: int) -> date:
     return {
         1: date(year, 3, 31),
@@ -806,6 +813,7 @@ def backfill_fundamentals() -> None:
     finance_start = target_start.replace(
         year=target_start.year - FINANCIAL_START_BUFFER_YEARS
     )
+    finance_end = latest_complete_financial_quarter_end(today)
 
     state = load_fund_state()
     done_chunks = set(state["completed_valuation_chunks"])
@@ -813,12 +821,12 @@ def backfill_fundamentals() -> None:
 
     print(
         f"FUNDAMENTALS: valuation {target_start} -> {today}; "
-        f"statements {finance_start} -> {today}"
+        f"statements {finance_start} -> {finance_end}"
     )
 
     # Daily valuation is stored inside each data/history/YYYY-MM-DD.csv.gz file.
 
-    for year, quarter, report_end in iter_quarters(finance_start, today):
+    for year, quarter, report_end in iter_quarters(finance_start, finance_end):
         if report_end > today:
             continue
         q = f"{year}q{quarter}"
@@ -853,6 +861,7 @@ def backfill_fundamentals() -> None:
     state["completed_at"] = datetime.now(TZ).isoformat()
     state["target_start"] = str(target_start)
     state["financial_start"] = str(finance_start)
+    state["financial_end"] = str(finance_end)
     save_fund_state(state)
 
     (FUNDAMENTALS / "_FUNDAMENTALS_COMPLETE").write_text(
@@ -862,7 +871,7 @@ def backfill_fundamentals() -> None:
                 "valuation_start": str(target_start),
                 "valuation_end": str(today),
                 "financial_start": str(finance_start),
-                "financial_end": str(today),
+                "financial_end": str(finance_end),
                 "tables": [
                     "indicator",
                     "income",
@@ -890,7 +899,12 @@ def validate_fundamentals() -> None:
     api = api_client()
     checks = {}
 
-    val = normalize_finance(api.finance_valuation("2026-09-30"))
+    recent_days = load_trade_days(api)[:1]
+    if not recent_days:
+        raise RuntimeError("no recent trading day for fundamentals validation")
+    validation_date = recent_days[0]
+    validation_ts = pd.Timestamp(validation_date)
+    val = normalize_finance(api.finance_valuation(validation_date))
     checks["valuation"] = {
         "rows": len(val),
         "columns": list(val.columns),
@@ -899,8 +913,8 @@ def validate_fundamentals() -> None:
     range_df = normalize_finance(
         api.finance_range(
             table="valuation",
-            start_date="2026-09-26",
-            end_date="2026-09-30",
+            start_date=(validation_ts - pd.Timedelta(days=4)).strftime("%Y-%m-%d"),
+            end_date=validation_date,
             limit=40000,
         )
     )
@@ -914,8 +928,10 @@ def validate_fundamentals() -> None:
         "max_date": range_dates.max().strftime("%Y-%m-%d") if range_dates.notna().any() else None,
     }
 
+    sample_quarter_end = latest_complete_financial_quarter_end(validation_ts.date())
+    sample_quarter = f"{sample_quarter_end.year}q{(sample_quarter_end.month - 1) // 3 + 1}"
     for table, method in FINANCE_TABLES.items():
-        df = normalize_finance(getattr(api, method)("2026q2"))
+        df = normalize_finance(getattr(api, method)(sample_quarter))
         checks[table] = {
             "rows": len(df),
             "columns": list(df.columns)[:30],
