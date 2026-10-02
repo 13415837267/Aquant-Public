@@ -493,11 +493,12 @@ class StatefulPortfolio:
                 continue
             notional = shares * px
             total_cash = notional * (1.0 + cost_rate)
-            if total_cash > self.cash + 1e-12:
-                shares = round_lot(self.cash / ((1.0 + cost_rate) * px))
+            available_for_buy = max(0.0, self.cash - cash_floor)
+            if total_cash > available_for_buy + 1e-12:
+                shares = round_lot(available_for_buy / ((1.0 + cost_rate) * px))
                 notional = shares * px
                 total_cash = notional * (1.0 + cost_rate)
-            if shares <= 0:
+            if shares <= 0 or total_cash > max(0.0, self.cash - cash_floor) + 1e-12:
                 continue
             self.shares[symbol] = self.shares.get(symbol, 0.0) + shares
             self.cash -= total_cash
