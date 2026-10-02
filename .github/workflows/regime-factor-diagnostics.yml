@@ -1,0 +1,94 @@
+name: Regime Factor Diagnostics
+
+on:
+  push:
+    paths:
+      - "scripts/regime_factor_diagnostics.py"
+      - ".github/workflows/regime-factor-diagnostics.yml"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Historical start date"
+        required: false
+        default: "2015-01-05"
+      end:
+        description: "Historical end date"
+        required: false
+        default: "2026-09-29"
+      top_n:
+        description: "Baseline selection top-N"
+        required: false
+        default: "30"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: regime-factor-diagnostics
+  cancel-in-progress: true
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Checkout Private strategy
+        uses: actions/checkout@v6
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: .private-strategy
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install requirements
+        run: pip install -r requirements.txt
+
+      - name: Resolve strategy commit
+        id: strategy
+        shell: bash
+        run: echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve parameters
+        id: params
+        env:
+          WF_START: '${{ inputs.start }}'
+          WF_END: '${{ inputs.end }}'
+          WF_TOP_N: '${{ inputs.top_n }}'
+        run: |
+          echo "start=${WF_START:-2015-01-05}" >> "$GITHUB_OUTPUT"
+          echo "end=${WF_END:-2026-09-29}" >> "$GITHUB_OUTPUT"
+          echo "top_n=${WF_TOP_N:-30}" >> "$GITHUB_OUTPUT"
+
+      - name: Run diagnostics
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/regime_factor_diagnostics.py             --start "${{ steps.params.outputs.start }}"             --end "${{ steps.params.outputs.end }}"             --top-n "${{ steps.params.outputs.top_n }}"             --baseline data/backtest/latest.json             --output data/backtest/regime_factor_diagnostics.json
+
+      - name: Publish
+        shell: bash
+        env:
+          RESULT_FILE: data/backtest/regime_factor_diagnostics.json
+        run: |
+          set -euo pipefail
+          cp "$RESULT_FILE" "$RUNNER_TEMP/regime_factor_diagnostics.json"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$RUNNER_TEMP/regime_factor_diagnostics.json" "$RESULT_FILE"
+            git add "$RESULT_FILE"
+            if git diff --cached --quiet; then
+              exit 0
+            fi
+            git commit -m "research: update regime factor diagnostics"
+            if git push; then
+              exit 0
+            fi
+            git reset --hard origin/main
+          done
+          exit 1
