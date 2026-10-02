@@ -14,6 +14,8 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 from zzshare.client import DataApi
 
+from scripts.market_scope import is_main_board_symbol
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 HISTORY = DATA / "history"
@@ -28,7 +30,7 @@ TARGET_YEARS = 5
 BULK_LIMIT = 6000
 VALIDATION_TRADING_DAYS = 3
 REQUEST_RETRIES = 4
-MIN_VALIDATION_ROWS = 4500
+MIN_VALIDATION_ROWS = 3000
 FINANCE_LIMIT = 40000
 FINANCE_CHUNK_DAYS = 5
 DAILY_GIT_CHECKPOINT_DAYS = 5
@@ -199,6 +201,8 @@ def load_universe(api: DataApi) -> pd.DataFrame:
 
     df = df.copy()
     df["ts_code"] = df["ts_code"].astype(str).str.upper()
+    df = df[df["ts_code"].map(is_main_board_symbol)].copy()
+    print(f"STRATEGY UNIVERSE: main-board candidates={len(df)}")
     if "name" in df.columns:
         name = df["name"].astype(str).str.upper()
         before = len(df)
@@ -206,8 +210,8 @@ def load_universe(api: DataApi) -> pd.DataFrame:
         print(f"STRATEGY UNIVERSE: removed {before - len(df)} ST/delisted-related names")
 
     df = df.drop_duplicates("ts_code").sort_values("ts_code")
-    if len(df) < 4000:
-        raise RuntimeError(f"universe unexpectedly small: {len(df)}")
+    if len(df) < 3000:
+        raise RuntimeError(f"main-board universe unexpectedly small: {len(df)}")
 
     DATA.mkdir(parents=True, exist_ok=True)
     df.to_json(
@@ -218,6 +222,20 @@ def load_universe(api: DataApi) -> pd.DataFrame:
     )
     print(f"STRATEGY UNIVERSE: {len(df)} active non-ST symbols")
     return df
+
+
+def filter_historical_main_board(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep all Shanghai/Shenzhen main-board rows present in the source day.
+
+    This deliberately avoids the current active-list filter so later ST or
+    delisted main-board stocks can remain in historical research data.
+    """
+    if df is None or df.empty:
+        raise RuntimeError("cannot filter empty historical daily dataframe")
+    out = df[df["symbol"].map(is_main_board_symbol)].reset_index(drop=True).copy()
+    if out.empty:
+        raise RuntimeError("historical daily contains no Shanghai/Shenzhen main-board rows")
+    return out
 
 
 def load_trade_days(api: DataApi, start: str | None = None, end: str | None = None) -> list[str]:
@@ -528,6 +546,7 @@ def backfill_daily() -> None:
     state.setdefault("initial_end", str(today))
     state.setdefault("direction", "near_to_far")
     state.setdefault("source", "zzshare daily all-fields bulk")
+    state.setdefault("universe_scope", "CN_A_MAINBOARD")
     state.setdefault("bulk_limit", BULK_LIMIT)
     state.setdefault("completed_dates", [])
     state.setdefault("days_completed", len(state.get("completed_dates", [])))
@@ -558,7 +577,7 @@ def backfill_daily() -> None:
             continue
 
         raw = request_bulk_day(api, trade_date)
-        market = filter_strategy_universe(raw, universe)
+        market = filter_historical_main_board(raw)
         valuation = request_valuation_day(api, trade_date)
         combined = merge_daily_valuation(market, valuation)
         result = quality_check_daily(combined, trade_date)
@@ -616,6 +635,7 @@ def backfill_daily() -> None:
                 "symbols_strategy_universe": len(universe),
                 "daily_fields": [*sorted(DAILY_REQUIRED), *VALUATION_COLUMNS],
                 "source": "zzshare daily bulk + daily valuation",
+                "universe_scope": "CN_A_MAINBOARD",
                 "format": "daily CSV gzip",
             },
             ensure_ascii=False,
