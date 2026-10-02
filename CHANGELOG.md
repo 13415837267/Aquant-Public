@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased — Shanghai/Shenzhen main-board scope
+- Added a metadata reconciliation script and manual finalizer workflow so the historical coverage manifest is rebuilt from the actual Git-tracked daily files after a multi-year rebuild.
 - Standardized the production universe to Shanghai/Shenzhen main-board A shares (000/001/002/003.SZ and 600/601/603/605.SH).
 - Historical yearly backfill no longer filters by the current active stock list, reducing survivorship bias for later-delisted main-board stocks.
 - Added --rebuild and a workflow input so existing historical files can be re-downloaded under the corrected scope.
