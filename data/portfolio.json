@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "status": "ready",
+  "as_of": "2026-09-30T18:00:00+08:00",
+  "strategy_source": "Aquant-Private/main",
+  "strategy_version": "0.2.0",
+  "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+  "construction": "inverse_volatility_with_position_cap",
+  "max_position_weight": 0.05,
+  "cash_buffer": 0.05,
+  "gross_target_weight": 0.95000001,
+  "position_count": 30,
+  "positions": [
+    {
+      "rank": 8,
+      "symbol": "000001",
+      "name": "平安银行",
+      "score": 80.161,
+      "volatility_proxy": 1.037,
+      "target_weight": 0.05
+    },
+    {
+      "rank": 19,
+      "symbol": "601998",
+      "name": "中信银行",
+      "score": 78.413,
+      "volatility_proxy": 0.88,
+      "target_weight": 0.05
+    },
+    {
+      "rank": 20,
+      "symbol": "601988",
+      "name": "中国银行",
+      "score": 78.257,
+      "volatility_proxy": 1.027,
+      "target_weight": 0.05
+    },
+    {
+      "rank": 28,
+      "symbol": "601398",
+      "name": "工商银行",
+      "score": 77.359,
+      "volatility_proxy": 0.914,
+      "target_weight": 0.05
+    },
+    {
+      "rank": 11,
+      "symbol": "601939",
+      "name": "建设银行",
+      "score": 79.643,
+      "volatility_proxy": 1.073,
+      "target_weight": 0.04917261
+    },
+    {
+      "rank": 9,
+      "symbol": "600027",
+      "name": "华电国际",
+      "score": 79.956,
+      "volatility_proxy": 1.076,
+      "target_weight": 0.04903551
+    },
+    {
+      "rank": 1,
+      "symbol": "601328",
+      "name": "交通银行",
+      "score": 84.426,
+      "volatility_proxy": 1.077,
+      "target_weight": 0.04898998
+    },
+    {
+      "rank": 22,
+      "symbol": "601169",
+      "name": "北京银行",
+      "score": 78.068,
+      "volatility_proxy": 1.077,
+      "target_weight": 0.04898998
+    },
+    {
+      "rank": 17,
+      "symbol": "603939",
+      "name": "益丰药房",
+      "score": 78.505,
+      "volatility_proxy": 1.129,
+      "target_weight": 0.04673357
+    },
+    {
+      "rank": 21,
+      "symbol": "002948",
+      "name": "青岛银行",
+      "score": 78.25,
+      "volatility_proxy": 1.172,
+      "target_weight": 0.04501895
+    },
+    {
+      "rank": 2,
+      "symbol": "600064",
+      "name": "南京高科",
+      "score": 83.108,
+      "volatility_proxy": 1.264,
+      "target_weight": 0.04174225
+    },
+    {
+      "rank": 13,
+      "symbol": "601665",
+      "name": "齐鲁银行",
+      "score": 79.382,
+      "volatility_proxy": 1.27,
+      "target_weight": 0.04154504
+    },
+    {
+      "rank": 24,
+      "symbol": "002142",
+      "name": "宁波银行",
+      "score": 77.792,
+      "volatility_proxy": 1.3,
+      "target_weight": 0.04058631
+    },
+    {
+      "rank": 4,
+      "symbol": "002252",
+      "name": "上海莱士",
+      "score": 81.728,
+      "volatility_proxy": 1.335,
+      "target_weight": 0.03952225
+    },
+    {
+      "rank": 27,
+      "symbol": "600000",
+      "name": "浦发银行",
+      "score": 77.498,
+      "volatility_proxy": 1.353,
+      "target_weight": 0.03899646
+    },
+    {
+      "rank": 12,
+      "symbol": "600848",
+      "name": "上海临港",
+      "score": 79.573,
+      "volatility_proxy": 1.607,
+      "target_weight": 0.03283274
+    },
+    {
+      "rank": 18,
+      "symbol": "002382",
+      "name": "蓝帆医疗",
+      "score": 78.488,
+      "volatility_proxy": 1.666,
+      "target_weight": 0.03166999
+    },
+    {
+      "rank": 15,
+      "symbol": "000090",
+      "name": "天健集团",
+      "score": 78.888,
+      "volatility_proxy": 1.894,
+      "target_weight": 0.02785755
+    },
+    {
+      "rank": 3,
+      "symbol": "600048",
+      "name": "保利发展",
+      "score": 82.022,
+      "volatility_proxy": 2.599,
+      "target_weight": 0.02030096
+    },
+    {
+      "rank": 5,
+      "symbol": "000498",
+      "name": "山东路桥",
+      "score": 81.436,
+      "volatility_proxy": 2.63,
+      "target_weight": 0.02006168
+    },
+    {
+      "rank": 23,
+      "symbol": "601155",
+      "name": "新城控股",
+      "score": 77.933,
+      "volatility_proxy": 2.872,
+      "target_weight": 0.01837124
+    },
+    {
+      "rank": 14,
+      "symbol": "002440",
+      "name": "闰土股份",
+      "score": 78.896,
+      "volatility_proxy": 3.167,
+      "target_weight": 0.01666
+    },
+    {
+      "rank": 10,
+      "symbol": "600383",
+      "name": "金地集团",
+      "score": 79.766,
+      "volatility_proxy": 3.719,
+      "target_weight": 0.0141872
+    },
+    {
+      "rank": 6,
+      "symbol": "002244",
+      "name": "滨江集团",
+      "score": 80.745,
+      "volatility_proxy": 3.881,
+      "target_weight": 0.013595
+    },
+    {
+      "rank": 26,
+      "symbol": "002212",
+      "name": "天融信",
+      "score": 77.568,
+      "volatility_proxy": 4.059,
+      "target_weight": 0.01299882
+    },
+    {
+      "rank": 7,
+      "symbol": "000002",
+      "name": "万科Ａ",
+      "score": 80.251,
+      "volatility_proxy": 4.346,
+      "target_weight": 0.01214041
+    },
+    {
+      "rank": 30,
+      "symbol": "002614",
+      "name": "奥佳华",
+      "score": 77.147,
+      "volatility_proxy": 4.714,
+      "target_weight": 0.01119266
+    },
+    {
+      "rank": 29,
+      "symbol": "600657",
+      "name": "信达地产",
+      "score": 77.16,
+      "volatility_proxy": 5.251,
+      "target_weight": 0.01004803
+    },
+    {
+      "rank": 25,
+      "symbol": "601811",
+      "name": "新华文轩",
+      "score": 77.714,
+      "volatility_proxy": 5.34,
+      "target_weight": 0.00988056
+    },
+    {
+      "rank": 16,
+      "symbol": "000560",
+      "name": "我爱我家",
+      "score": 78.538,
+      "volatility_proxy": 6.704,
+      "target_weight": 0.00787026
+    }
+  ],
+  "audit": {
+    "long_only": true,
+    "leverage": false,
+    "future_function": false,
+    "source_candidates": 30
+  }
+}
