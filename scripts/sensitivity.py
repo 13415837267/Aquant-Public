@@ -52,6 +52,7 @@ def run_one(top_n: int, cost_bps: float, slippage_bps: float, payload: dict) -> 
         "strategy_commit": payload["strategy_commit"],
         "future_function": payload["future_function"],
         "performance_sessions": int(len(performance)),
+        "warmup_sessions": int(len(daily) - len(performance)),
     }
 def main():
     ap=argparse.ArgumentParser()
@@ -76,7 +77,13 @@ def main():
                 rows.append(run_one(n, c, sl, payload))
     commits={r["strategy_commit"] for r in rows}
     versions={r["strategy_version"] for r in rows}
-    if len(commits)!=1 or len(versions)!=1 or any(r["future_function"] for r in rows):
+    if (
+        len(commits) != 1
+        or len(versions) != 1
+        or any(r["future_function"] for r in rows)
+        or any(r["performance_sessions"] != len(base.history_files()) - 60 for r in rows)
+        or any(r["warmup_sessions"] != 59 for r in rows)
+    ):
         raise ValueError("strategy/PIT consistency audit failed")
     out={"schema_version":1,"status":"ready","method":"fixed_strategy_parameter_sensitivity",
          "start":a.start,"end":a.end,"results":rows,
