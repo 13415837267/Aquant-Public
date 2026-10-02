@@ -58,6 +58,8 @@ REQUIRED_COLUMNS = {
     "is_st",
     "pe_ratio",
     "pb_ratio",
+    "high_limit",
+    "low_limit",
 }
 
 DEFAULT_TOP_N = 30
@@ -106,6 +108,8 @@ def read_daily(path: Path) -> pd.DataFrame:
         "turnover_pct",
         "pe_ratio",
         "pb_ratio",
+        "high_limit",
+        "low_limit",
         "is_paused",
         "is_st",
     ]
@@ -382,6 +386,32 @@ def select_targets(frame: pd.DataFrame, strategy_model: object, top_n: int) -> p
     return scored.head(top_n).reset_index(drop=True)
 
 
+def execution_limit_diagnostics(
+    selected: pd.DataFrame,
+    execution_df: pd.DataFrame,
+) -> tuple[int, int]:
+    """Count target opens at provider-reported daily limit prices."""
+    if selected.empty:
+        return 0, 0
+    execution = execution_df.set_index("symbol", drop=False)
+    limit_up = 0
+    limit_down = 0
+    for symbol in selected["symbol"].astype(str).str.zfill(6):
+        if symbol not in execution.index:
+            continue
+        row = execution.loc[symbol]
+        open_price = pd.to_numeric(getattr(row, "open", np.nan), errors="coerce")
+        high_limit = pd.to_numeric(getattr(row, "high_limit", np.nan), errors="coerce")
+        low_limit = pd.to_numeric(getattr(row, "low_limit", np.nan), errors="coerce")
+        if pd.notna(open_price) and pd.notna(high_limit) and float(high_limit) > 0:
+            if float(open_price) >= float(high_limit) - 1e-8:
+                limit_up += 1
+        if pd.notna(open_price) and pd.notna(low_limit) and float(low_limit) > 0:
+            if float(open_price) <= float(low_limit) + 1e-8:
+                limit_down += 1
+    return limit_up, limit_down
+
+
 def next_session_return(
     selected: pd.DataFrame,
     execution_df: pd.DataFrame,
@@ -469,6 +499,8 @@ def validate_backtest_payload(payload: dict) -> None:
         "target_count",
         "executed_count",
         "missing_execution_count",
+        "limit_up_open_count",
+        "limit_down_open_count",
     ]
     for row in daily:
         for field in numeric_fields:
@@ -638,6 +670,8 @@ def run_backtest(
     prev_target: dict[str, float] = {}
     missing_execution_total = 0
     selected_total = 0
+    limit_up_open_total = 0
+    limit_down_open_total = 0
 
     # Read each historical session once. The next session becomes the current
     # session on the following iteration, eliminating duplicate CSV reads.
@@ -657,6 +691,13 @@ def run_backtest(
         target_weights = normalize_weights(target_symbols)
 
         selected_total += len(target_symbols)
+        limit_up_open, limit_down_open = execution_limit_diagnostics(
+            targets,
+            next_day,
+        )
+        limit_up_open_total += limit_up_open
+        limit_down_open_total += limit_down_open
+
         gross_return, executed, missing = next_session_return(
             targets,
             next_day,
@@ -687,6 +728,8 @@ def run_backtest(
                 "executed_count": len(executed),
                 "missing_execution_count": len(missing),
                 "missing_execution_symbols": ",".join(missing[:20]),
+                "limit_up_open_count": limit_up_open,
+                "limit_down_open_count": limit_down_open,
             }
         )
         selection_rows.append(
@@ -696,6 +739,8 @@ def run_backtest(
                 "candidate_count": len(target_symbols),
                 "executed_count": len(executed),
                 "missing_execution_count": len(missing),
+                "limit_up_open_count": limit_up_open,
+                "limit_down_open_count": limit_down_open,
                 "symbols": target_symbols,
                 "scores": [
                     round(float(x), 6)
@@ -768,6 +813,8 @@ def run_backtest(
             "performance_sessions": len(performance),
             "selected_stock_observations": selected_total,
             "missing_execution_observations": missing_execution_total,
+            "limit_up_open_observations": limit_up_open_total,
+            "limit_down_open_observations": limit_down_open_total,
             "production_filter_reused": True,
             "current_universe_not_used_for_history": True,
             "current_names_not_used_for_history": True,
