@@ -1,0 +1,253 @@
+{
+  "schema_version": 1,
+  "status": "ready",
+  "method": "frozen_strategy_regime_factor_diagnostics",
+  "start": "2015-01-05",
+  "end": "2026-09-29",
+  "top_n": 30,
+  "strategy_source": "Aquant-Private/main",
+  "strategy_version": "0.2.0",
+  "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+  "strategy_weights": {
+    "momentum": 0.3,
+    "liquidity": 0.2,
+    "value": 0.2,
+    "risk": 0.15,
+    "activity": 0.15
+  },
+  "overall_market": {
+    "sessions": 2794,
+    "average_breadth_pct": 48.74678585661002,
+    "bull_sessions": 551,
+    "neutral_sessions": 1871,
+    "bear_sessions": 313,
+    "high_vol_sessions": 361,
+    "normal_vol_sessions": 2163
+  },
+  "regime_performance": [
+    {
+      "dimension": "trend_regime",
+      "regime": "bear",
+      "sessions": 313,
+      "total_return_pct": 186.88278665985587,
+      "mean_daily_return_pct": 0.3534274326181496,
+      "win_rate_pct": 59.7444089456869,
+      "max_drawdown_pct": -13.458333961250169
+    },
+    {
+      "dimension": "trend_regime",
+      "regime": "bull",
+      "sessions": 551,
+      "total_return_pct": 6.435607595788184,
+      "mean_daily_return_pct": 0.03158339771336147,
+      "win_rate_pct": 50.635208711433755,
+      "max_drawdown_pct": -25.425528037831835
+    },
+    {
+      "dimension": "trend_regime",
+      "regime": "neutral",
+      "sessions": 1871,
+      "total_return_pct": 478.62950144714614,
+      "mean_daily_return_pct": 0.10338015067010886,
+      "win_rate_pct": 53.714591127739176,
+      "max_drawdown_pct": -27.57842364119657
+    },
+    {
+      "dimension": "trend_regime",
+      "regime": "unknown",
+      "sessions": 59,
+      "total_return_pct": 22.837998063497977,
+      "mean_daily_return_pct": 0.3801046649186827,
+      "win_rate_pct": 61.016949152542374,
+      "max_drawdown_pct": -12.168994603676953
+    },
+    {
+      "dimension": "volatility_regime",
+      "regime": "high_vol",
+      "sessions": 361,
+      "total_return_pct": 130.81646795825782,
+      "mean_daily_return_pct": 0.2473184454134561,
+      "win_rate_pct": 57.06371191135734,
+      "max_drawdown_pct": -14.848467401143461
+    },
+    {
+      "dimension": "volatility_regime",
+      "regime": "normal_vol",
+      "sessions": 2163,
+      "total_return_pct": 518.9498847497779,
+      "mean_daily_return_pct": 0.09365637453686225,
+      "win_rate_pct": 53.02820157189089,
+      "max_drawdown_pct": -35.40031009983055
+    },
+    {
+      "dimension": "volatility_regime",
+      "regime": "unknown",
+      "sessions": 270,
+      "total_return_pct": 51.91563015753229,
+      "mean_daily_return_pct": 0.1926480695038085,
+      "win_rate_pct": 57.03703703703704,
+      "max_drawdown_pct": -22.182227237377226
+    }
+  ],
+  "factor_exposure": {
+    "momentum": {
+      "selected_mean_rank": 0.8491033379083257,
+      "universe_mean_rank": 0.5002245284741321,
+      "selected_mean_weighted_contribution_pct": 25.47310013724977
+    },
+    "liquidity": {
+      "selected_mean_rank": 0.8852148177705649,
+      "universe_mean_rank": 0.5002245284741321,
+      "selected_mean_weighted_contribution_pct": 17.704296355411298
+    },
+    "value": {
+      "selected_mean_rank": 0.7793017708549046,
+      "universe_mean_rank": 0.5002245284741321,
+      "selected_mean_weighted_contribution_pct": 15.586035417098092
+    },
+    "risk": {
+      "selected_mean_rank": 0.561516284813197,
+      "universe_mean_rank": 0.5002245284741321,
+      "selected_mean_weighted_contribution_pct": 8.422744272197956
+    },
+    "activity": {
+      "selected_mean_rank": 0.7459910701375633,
+      "universe_mean_rank": 0.5002245284741321,
+      "selected_mean_weighted_contribution_pct": 11.189866052063447
+    }
+  },
+  "factor_ic": {
+    "momentum": {
+      "sessions": 2794,
+      "mean_ic": -0.013698615085787676,
+      "median_ic": -0.014992269014467133,
+      "ic_positive_rate_pct": 46.528274874731565,
+      "yearly_mean_ic": {
+        "2015": -0.028624167941507413,
+        "2016": -0.01212865070824429,
+        "2017": 0.011897829895846673,
+        "2018": -0.005540072963922805,
+        "2019": -0.025322185857655992,
+        "2020": -0.013242179789186292,
+        "2021": -0.01914400558343985,
+        "2022": -0.012234039077239108,
+        "2023": -0.008174360353184057,
+        "2024": -0.012929215602219322,
+        "2025": -0.025436860515305915,
+        "2026": -0.018316118067701666
+      }
+    },
+    "liquidity": {
+      "sessions": 2794,
+      "mean_ic": -0.01979148382675807,
+      "median_ic": -0.02409143323180439,
+      "ic_positive_rate_pct": 43.55762347888332,
+      "yearly_mean_ic": {
+        "2015": -0.060576594192110145,
+        "2016": -0.04324874936165485,
+        "2017": 0.007322913767754379,
+        "2018": -0.006007741090290802,
+        "2019": -0.01545132292035293,
+        "2020": -0.016959610868829692,
+        "2021": -0.013291111258500538,
+        "2022": -0.012475566338450783,
+        "2023": -0.02582229334868363,
+        "2024": -0.011552921655582271,
+        "2025": -0.028770298414870922,
+        "2026": -0.020607994677714302
+      }
+    },
+    "value": {
+      "sessions": 2794,
+      "mean_ic": 0.009468875022439286,
+      "median_ic": 0.0044332777886654535,
+      "ic_positive_rate_pct": 51.145311381531855,
+      "yearly_mean_ic": {
+        "2015": -0.024963999545619956,
+        "2016": 0.010328197359267103,
+        "2017": 0.020269252538935034,
+        "2018": -0.0013371164304616177,
+        "2019": 0.007125643092723175,
+        "2020": 0.0028770616642947514,
+        "2021": 0.013058297199987039,
+        "2022": 0.021514082565085395,
+        "2023": 0.021090962246465582,
+        "2024": 0.01878879725428289,
+        "2025": 0.0025978075032973566,
+        "2026": 0.015832358235742614
+      }
+    },
+    "risk": {
+      "sessions": 2794,
+      "mean_ic": 0.011567081172400455,
+      "median_ic": 0.016996843187524986,
+      "ic_positive_rate_pct": 53.79384395132427,
+      "yearly_mean_ic": {
+        "2015": -0.026093886533342502,
+        "2016": 0.003135179279140048,
+        "2017": 0.0005943379176316938,
+        "2018": -0.0027041972604861454,
+        "2019": 0.017003489132070566,
+        "2020": 0.02226763784804492,
+        "2021": 0.01860426771709566,
+        "2022": 0.016084984116467936,
+        "2023": 0.02157429868156551,
+        "2024": 0.020365001206935823,
+        "2025": 0.020531677882663118,
+        "2026": 0.021123534566463608
+      }
+    },
+    "activity": {
+      "sessions": 2794,
+      "mean_ic": -0.011161649068015119,
+      "median_ic": -0.016799887166911713,
+      "ic_positive_rate_pct": 45.63350035790981,
+      "yearly_mean_ic": {
+        "2015": 0.032406685518771135,
+        "2016": -0.002920038201637876,
+        "2017": -0.0004085212021953047,
+        "2018": 0.002136857231296989,
+        "2019": -0.021066864372116658,
+        "2020": -0.023992699861871827,
+        "2021": -0.00885981225899354,
+        "2022": -0.017445022438147415,
+        "2023": -0.020672022193121066,
+        "2024": -0.01763805093152055,
+        "2025": -0.02489588290218873,
+        "2026": -0.02358695031331404
+      }
+    },
+    "score": {
+      "sessions": 2794,
+      "mean_ic": -0.015167365356906798,
+      "median_ic": -0.018873294691518227,
+      "ic_positive_rate_pct": 44.846098783106655,
+      "yearly_mean_ic": {
+        "2015": -0.05642954639098546,
+        "2016": -0.023022773343783134,
+        "2017": 0.017176090961638402,
+        "2018": -0.0059269927117174305,
+        "2019": -0.024194405673164047,
+        "2020": -0.017354299727775448,
+        "2021": -0.012140283833393823,
+        "2022": -0.007498816942299114,
+        "2023": -0.009008426109801178,
+        "2024": -0.0065172068484295196,
+        "2025": -0.03157930077432472,
+        "2026": -0.01539104603893493
+      }
+    }
+  },
+  "audit": {
+    "future_function": false,
+    "baseline_strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+    "baseline_score_reconstruction_max_abs_error": 4.999994445142875e-07,
+    "baseline_score_reconstruction_rows": 83820,
+    "future_adjusted_factor_not_used": true,
+    "current_names_not_used_for_history": true,
+    "production_filter_reused": true,
+    "market_regime_proxy": "main-board eligible universe equal-weight daily pct_chg breadth",
+    "trend_regime_rule": "60-session proxy return >= +10% bull, <= -10% bear, otherwise neutral",
+    "volatility_regime_rule": "20-session annualized volatility > 1.5x trailing 252-session median = high_vol"
+  }
+}
