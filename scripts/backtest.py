@@ -49,6 +49,7 @@ OUT_FILE = DATA_DIR / "backtest" / "latest.json"
 REQUIRED_COLUMNS = {
     "symbol",
     "date",
+    "open",
     "close",
     "volume",
     "amount",
