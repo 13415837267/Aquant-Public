@@ -4,9 +4,13 @@ Only portfolio construction / execution-cost assumptions vary. Historical data,
 PIT rules and the Private strategy commit remain fixed.
 """
 from __future__ import annotations
-import argparse, json
+import argparse, json, sys
 from pathlib import Path
 import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
 from scripts import backtest as base
 
 ROOT = base.ROOT
