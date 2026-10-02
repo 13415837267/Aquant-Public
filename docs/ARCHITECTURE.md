@@ -62,6 +62,8 @@ Quarterly financial data are persisted under:
 
 `data/fundamentals/{indicator,income,balance,cash_flow}/`
 
+`scripts/pit_fundamentals.py` provides the canonical point-in-time read path: only publications with `pub_date <= trade_date` can enter a historical information set, and the latest available publication is selected per security.
+
 Candidate generation reads the persisted database rather than rebuilding five years of history from the provider on every run.
 
 ## Strategy loading
