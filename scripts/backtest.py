@@ -79,7 +79,7 @@ def history_files() -> list[Path]:
 def read_daily(path: Path) -> pd.DataFrame:
     try:
         with gzip.open(path, "rt", encoding="utf-8") as fh:
-            df = pd.read_csv(fh)
+            df = pd.read_csv(fh, usecols=sorted(REQUIRED_COLUMNS))
     except Exception as exc:
         raise RuntimeError(f"failed to read {path}: {exc}") from exc
 
