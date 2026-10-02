@@ -5,6 +5,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+
 ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_READY = [
@@ -49,6 +51,23 @@ def main() -> None:
         raise RuntimeError("fundamentals database is not complete")
     if fund_complete.get("point_in_time_fields") != ["report_date", "pub_date"]:
         raise RuntimeError("fundamentals PIT metadata is invalid")
+
+    finance_start = pd.Timestamp(fund_complete["financial_start"])
+    finance_end = pd.Timestamp(fund_complete["financial_end"])
+    expected_quarters = set()
+    cursor = finance_start
+    while cursor <= finance_end:
+        expected_quarters.add(f"{cursor.year}q{(cursor.month - 1) // 3 + 1}")
+        cursor = cursor + pd.offsets.QuarterEnd(1)
+    for table in fund_complete.get("tables", []):
+        table_dir = ROOT / "data" / "fundamentals" / table
+        actual = {p.name[:-7] for p in table_dir.glob("????q?.csv.gz")}
+        if actual != expected_quarters:
+            raise RuntimeError(f"fundamentals quarter coverage mismatch for {table}: expected={len(expected_quarters)} actual={len(actual)}")
+        for path in sorted(table_dir.glob("????q?.csv.gz")):
+            header = pd.read_csv(path, compression="gzip", nrows=0)
+            if not {"symbol", "report_date", "pub_date"}.issubset(header.columns):
+                raise RuntimeError(f"PIT fields missing in {path}")
 
     candidates = load("data/candidates.json")
     portfolio = load("data/portfolio.json")
