@@ -431,10 +431,14 @@ def run_backtest(
         )
         missing_execution_total += len(missing)
 
-        # Use equal-weight intended targets for turnover. Missing T+1 execution
-        # is a visible execution-quality event, not silently removed from the
-        # portfolio definition.
-        turn = turnover(prev_target, target_weights)
+        # Missing executions remain cash. Turnover is charged on positions
+        # that were actually executable at T+1 open.
+        actual_target = {
+            symbol: target_weights[symbol]
+            for symbol in executed
+            if symbol in target_weights
+        }
+        turn = turnover(prev_target, actual_target)
         total_cost = turn * (cost_bps + slippage_bps) / 10000.0
         net_return = (1.0 + gross_return) - 1.0 - total_cost
 
