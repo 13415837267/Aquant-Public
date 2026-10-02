@@ -86,10 +86,11 @@
     "indicator:2025q1",
     "indicator:2025q2",
     "indicator:2025q3",
-    "indicator:2025q4"
+    "indicator:2025q4",
+    "indicator:2026q1"
   ],
   "rows_written": {
-    "indicator": 102644,
+    "indicator": 107849,
     "income": 103512,
     "balance": 106528,
     "cash_flow": 102646
