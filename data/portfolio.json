@@ -257,5 +257,6 @@
     "leverage": false,
     "future_function": false,
     "source_candidates": 30
-  }
+  },
+  "future_function": false
 }
