@@ -97,26 +97,33 @@ jobs:
           ]
           b = baseline["overall"]
           c = constrained["overall"]
-          comparison = {
-              "schema_version": 1,
-              "status": "ready",
-              "comparison_note": (
-                  "baseline uses independent T+1 open-to-close equal-weight daily replay; "
-                  "constrained uses stateful close-to-close accounting with the same PIT signals. "
-                  "intraday_metrics provides the closest execution-layer sensitivity comparison."
-              ),
-              "baseline_strategy_commit": baseline["strategy_commit"],
-              "constrained_strategy_commit": constrained["strategy_commit"],
-              "baseline": {k: b.get(k) for k in fields},
-              "constrained": {k: c.get(k) for k in fields},
-              "difference_constrained_minus_baseline": {
+          u = constrained["stateful_unconstrained"]["overall"]
+
+          def diff(left, right):
+              return {
                   k: (
-                      float(c[k]) - float(b[k])
-                      if c.get(k) is not None and b.get(k) is not None
+                      float(left[k]) - float(right[k])
+                      if left.get(k) is not None and right.get(k) is not None
                       else None
                   )
                   for k in fields
-              },
+              }
+
+          comparison = {
+              "schema_version": 2,
+              "status": "ready",
+              "comparison_note": (
+                  "The primary execution-constraint comparison is stateful constrained "
+                  "vs stateful unconstrained, using identical PIT signals and accounting. "
+                  "The production baseline remains separately recorded; its return definition "
+                  "is independent T+1 open-to-close replay."
+              ),
+              "baseline_strategy_commit": baseline["strategy_commit"],
+              "constrained_strategy_commit": constrained["strategy_commit"],
+              "baseline_production": {k: b.get(k) for k in fields},
+              "stateful_unconstrained": {k: u.get(k) for k in fields},
+              "stateful_constrained": {k: c.get(k) for k in fields},
+              "limit_constraint_impact": diff(c, u),
               "constrained_intraday_metrics": constrained.get("intraday_metrics", {}),
               "execution_audit": constrained.get("audit", {}),
           }
@@ -128,7 +135,7 @@ jobs:
               json.dumps(comparison, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8",
           )
-          print(json.dumps(comparison["difference_constrained_minus_baseline"], ensure_ascii=False))
+          print(json.dumps(comparison["limit_constraint_impact"], ensure_ascii=False))
           PY
 
       - name: Commit constrained results
