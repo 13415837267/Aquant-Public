@@ -63,7 +63,7 @@ def history_files() -> list[Path]:
 
 def read_day(path: Path) -> pd.DataFrame:
     cols = [
-        "symbol", "date", "close", "volume", "amount", "pct_chg",
+        "symbol", "date", "open", "close", "volume", "amount", "pct_chg",
         "turnover_pct", "is_paused", "is_st", "pe_ratio", "pb_ratio",
     ]
     with gzip.open(path, "rt", encoding="utf-8") as fh:
@@ -233,7 +233,9 @@ def run(start: str, end: str) -> dict:
             previous_date, previous_frame, previous_split = pending
             execution = day.set_index("symbol")
             returns = execution["close"].div(execution["open"]).sub(1.0)
-            universe_return = float(returns.loc[returns.notna()].mean()) if returns.notna().any() else 0.0
+            eligible_symbols = previous_frame["symbol"].astype(str).tolist()
+            eligible_returns = returns.reindex(eligible_symbols).dropna()
+            universe_return = float(eligible_returns.mean()) if not eligible_returns.empty else 0.0
 
             for threshold in THRESHOLDS:
                 selected = previous_frame.loc[previous_frame["score"] >= threshold, "symbol"]
