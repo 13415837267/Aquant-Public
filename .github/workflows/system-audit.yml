@@ -1,6 +1,15 @@
 name: System Layer Audit
 
 on:
+  push:
+    paths:
+      - "data/history/_BACKFILL_COMPLETE"
+      - "data/history/_BACKFILL_STATE.json"
+      - "data/fundamentals/**"
+      - "data/candidates.json"
+      - "data/portfolio.json"
+      - "data/execution_plan.json"
+      - "data/backtest/*.json"
   workflow_dispatch:
   schedule:
     - cron: "30 12 * * 1-5"
