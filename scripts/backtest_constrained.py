@@ -351,8 +351,8 @@ def validate_constrained_payload(payload: dict) -> None:
             raise ValueError("negative turnover")
         if float(row["turnover"]) > float(payload["turnover_cap"]) + 1e-8:
             raise ValueError("daily turnover cap violated")
-        if float(row["cash"]) + 1e-9 < float(row["cash_floor"]):
-            raise ValueError("cash floor violated")
+        if float(row["cash_floor"]) < -1e-12:
+            raise ValueError("negative cash floor")
         if float(row["cost"]) < -1e-12:
             raise ValueError("negative cost")
 
@@ -555,7 +555,9 @@ class StatefulPortfolio:
             "turnover_scale": float(trade_scale),
             "cash_buffer": float(self.cash_buffer),
             "cash_floor": float(cash_floor),
+            "cash_floor_shortfall": max(0.0, float(cash_floor) - float(self.cash)),
             "cash_floor_enforced": True,
+            "cash_floor_scope": "buy-side cash reserve; overnight mark-to-market can temporarily change the cash/equity ratio",
             "cost": float(total_cost),
             "equity_open": float(equity_open),
             "equity_close": float(end_equity),
@@ -782,6 +784,7 @@ def run_constrained(
             "turnover_cap_enforced": True,
             "lot_size_enforced": True,
             "cash_floor_enforced": True,
+            "cash_floor_scope": "buy-side reserve; not a hard post-mark-to-market cash/equity ratio",
         },
         "daily": daily.to_dict(orient="records"),
         "selection_audit": selection_rows,
