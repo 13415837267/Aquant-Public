@@ -6,6 +6,7 @@ import pandas as pd
 
 from scripts.backtest import execution_limit_diagnostics, metrics, normalize_weights, rolling_252d_metrics, turnover
 from scripts.backtest_constrained import FlattenedIntradayPortfolio
+from scripts.walk_forward import build_folds
 
 
 def test_metrics_simple_path():
@@ -201,3 +202,16 @@ def test_stateful_portfolio_control_disables_price_limits_only():
     )
     assert result["blocked_buy_count"] == 0
     assert result["buy_count"] == 1
+
+
+
+def test_walk_forward_fold_snaps_calendar_date_to_next_trading_day():
+    dates = [
+        x.strftime("%Y-%m-%d")
+        for x in pd.date_range("2015-01-05", "2020-12-31", freq="B")
+        if x.strftime("%Y-%m-%d") != "2018-01-05"
+    ]
+    folds = build_folds(dates, train_years=3, test_years=1)
+    assert folds
+    assert folds[0]["oos_start"] == "2018-01-08"
+    assert folds[0]["train_end"] == "2018-01-07"
