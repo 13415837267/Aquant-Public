@@ -1,5 +1,6 @@
 import pandas as pd
 
+from scripts.market_scope import is_main_board_symbol
 from scripts.update_candidates import build_candidates
 
 
@@ -19,6 +20,9 @@ def _history():
     for symbol, start, step in [
         ("000001", 10.0, 0.15),
         ("000002", 10.0, 0.0),
+        ("688001.SH", 10.0, 0.20),
+        ("300001.SZ", 10.0, 0.25),
+        ("920001.BJ", 10.0, 0.30),
     ]:
         for i, dt in enumerate(dates):
             close = start + step * i
@@ -39,13 +43,35 @@ def _history():
                     "circulating_market_cap": 8e8,
                     "pe_ratio": 15.0,
                     "pb_ratio": 1.5,
-                    "name": "测试A" if symbol == "000001" else "测试B",
                 }
             )
     return pd.DataFrame(rows)
 
 
-def test_build_candidates_uses_database_history_and_strategy_output():
+def test_main_board_scope():
+    accepted = [
+        "000001.SZ",
+        "001200.SZ",
+        "002594.SZ",
+        "003816.SZ",
+        "004001.SZ",
+        "600000.SH",
+        "601398.SH",
+        "603019.SH",
+        "605499.SH",
+    ]
+    rejected = [
+        "001001.SZ",  # main-board CDR range
+        "300001.SZ",  # ChiNext
+        "688001.SH",  # STAR Market
+        "920001.BJ",  # Beijing
+        "900901.SH",  # Shanghai B-share
+    ]
+    assert all(is_main_board_symbol(code) for code in accepted)
+    assert not any(is_main_board_symbol(code) for code in rejected)
+
+
+def test_build_candidates_filters_to_main_board_and_metadata():
     snapshot = build_candidates(
         _history(),
         FakeStrategy,
@@ -54,7 +80,7 @@ def test_build_candidates_uses_database_history_and_strategy_output():
     )
 
     assert len(snapshot["candidates"]) == 2
-    assert snapshot["candidates"][0]["symbol"] == "000001"
+    assert {row["symbol"] for row in snapshot["candidates"]} == {"000001", "000002"}
     assert snapshot["strategy_source"] == "Aquant-Private/main"
     assert snapshot["strategy_version"] == "test"
     assert snapshot["strategy_commit"] == "abc123"
