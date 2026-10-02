@@ -169,6 +169,7 @@ def main() -> None:
         slippage_bps=args.slippage_bps,
     )
     results = []
+    aggregate_frames = []
     for fold in folds:
         print(
             f"[walk-forward] fold={fold['fold']} "
@@ -176,7 +177,10 @@ def main() -> None:
             f"oos={fold['oos_start']}..{fold['oos_end']}"
         )
         results.append(run_fold(fold, full_payload))
+        aggregate_frames.append(filter_oos(full_payload, fold["oos_start"], fold["oos_end"]))
 
+    aggregate_oos = pd.concat(aggregate_frames, ignore_index=True)
+    aggregate_metrics = base.metrics(aggregate_oos)
     result = {
         "schema_version": 1,
         "status": "ready",
@@ -192,6 +196,17 @@ def main() -> None:
         "start": args.start,
         "end": args.end,
         "fold_count": len(results),
+        "aggregate_oos": {
+            **aggregate_metrics,
+            "start_date": aggregate_oos["date"].min() if not aggregate_oos.empty else None,
+            "end_date": aggregate_oos["date"].max() if not aggregate_oos.empty else None,
+            "positive_fold_count": sum(
+                1 for x in results if float(x["overall"]["total_return_pct"]) > 0
+            ),
+            "negative_fold_count": sum(
+                1 for x in results if float(x["overall"]["total_return_pct"]) <= 0
+            ),
+        },
         "folds": results,
         "audit": {
             "fixed_strategy_no_retraining": True,
