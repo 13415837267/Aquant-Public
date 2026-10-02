@@ -100,6 +100,9 @@ def _read_history_window(max_files: int = 61) -> tuple[pd.DataFrame, list[str]]:
 
 def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> pd.DataFrame:
     hist = history.copy()
+    hist = hist.loc[hist["symbol"].map(is_main_board_symbol)].copy()
+    if hist.empty:
+        raise RuntimeError("No Shanghai/Shenzhen main-board rows in candidate input")
     numeric_cols = [
         "close", "pre_close", "volume", "amount", "turnover_pct", "pct_chg",
         "pe_ratio", "pb_ratio",
@@ -210,7 +213,7 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
         "strategy_source": "Aquant-Private/main",
         "strategy_version": strategy_version,
         "strategy_commit": strategy_commit,
-        "market_scope": "沪深主板：000/001/002/003.SZ + 600/601/603/605.SH",
+        "market_scope": "沪深主板：000001-004999.SZ（排除001001-001199 CDR）+ 600/601/603/605.SH",
         "universe": "沪深主板；排除 ST/退市相关标的、停牌、价格≤2元、最近交易日成交额<2000万元；60日动量必须有完整窗口",
         "lookback_trading_days": 60,
         "candidates": rows,
