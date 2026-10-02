@@ -32,6 +32,11 @@ jobs:
           ZZSHARE_TOKEN: '${{ secrets.ZZSHARE_TOKEN }}'
         run: python scripts/backfill_year.py --year $(date +%Y)
 
+      - name: Refresh main-board universe
+        env:
+          ZZSHARE_TOKEN: '${{ secrets.ZZSHARE_TOKEN }}'
+        run: python scripts/refresh_universe.py
+
       - name: Checkout private strategy
         uses: actions/checkout@v5
         with:
@@ -51,7 +56,7 @@ jobs:
           set -euo pipefail
           git config user.name "aquant-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json
+          git add data/candidates.json data/universe.json
           if git diff --cached --quiet; then
             echo "Candidate snapshot unchanged"
             exit 0
