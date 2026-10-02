@@ -3,11 +3,13 @@
   "started_at": "2026-10-03T01:25:26.383519+08:00",
   "completed_valuation_chunks": [],
   "completed_quarters": [
+    "balance:2020q4",
     "income:2020q4",
     "indicator:2020q4"
   ],
   "rows_written": {
     "indicator": 4192,
-    "income": 4272
+    "income": 4272,
+    "balance": 5223
   }
 }
