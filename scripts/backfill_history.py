@@ -819,6 +819,8 @@ def backfill_fundamentals() -> None:
     # Daily valuation is stored inside each data/history/YYYY-MM-DD.csv.gz file.
 
     for year, quarter, report_end in iter_quarters(finance_start, today):
+        if report_end > today:
+            continue
         q = f"{year}q{quarter}"
         for table in ["indicator", "income", "balance", "cash_flow"]:
             unit = f"{table}:{q}"
