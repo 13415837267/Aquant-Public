@@ -5,6 +5,7 @@ import json
 import os
 import random
 import subprocess
+import sys
 import time
 from calendar import monthrange
 from datetime import date, datetime, timedelta
@@ -14,9 +15,10 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 from zzshare.client import DataApi
 
-from scripts.market_scope import is_main_board_symbol
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from scripts.market_scope import is_main_board_symbol
 DATA = ROOT / "data"
 HISTORY = DATA / "history"
 FUNDAMENTALS = DATA / "fundamentals"
