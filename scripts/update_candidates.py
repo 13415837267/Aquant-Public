@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import gzip
-import numpy as np
 import importlib
 import json
 import os
@@ -9,11 +8,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from scripts.market_scope import is_main_board_symbol
 
-DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+DATA_DIR = ROOT / "data"
 HISTORY_DIR = DATA_DIR / "history"
 DATA_FILE = DATA_DIR / "candidates.json"
 PRIVATE_STRATEGY_PATH = os.environ.get("AQUANT_PRIVATE_STRATEGY_PATH")
