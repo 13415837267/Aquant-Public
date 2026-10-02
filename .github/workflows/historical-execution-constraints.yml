@@ -38,7 +38,7 @@ permissions:
 
 concurrency:
   group: historical-execution-constraints
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   constrained:
@@ -107,7 +107,7 @@ jobs:
           ]
           b = baseline["overall"]
           c = constrained["overall"]
-          u = constrained["flattened_unconstrained"]["overall"]
+          u = constrained["unconstrained_persistent"]["overall"]
 
           def diff(left, right):
               return {
@@ -148,12 +148,38 @@ jobs:
           print(json.dumps(comparison["limit_constraint_impact"], ensure_ascii=False))
           PY
 
+      - name: Record cloud provenance
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          result = json.loads(Path("data/backtest/execution_constrained.json").read_text(encoding="utf-8"))
+          marker = {
+              "schema_version": 1,
+              "status": "success",
+              "generated_by": "github-actions",
+              "runner": "ubuntu-24.04",
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_number": int(os.environ["GITHUB_RUN_NUMBER"]),
+              "head_sha": os.environ["GITHUB_SHA"],
+              "strategy_commit": result["strategy_commit"],
+          }
+          Path("data/backtest/_CONSTRAINED_CLOUD_RUN.json").write_text(
+              json.dumps(marker, ensure_ascii=False, indent=2) + "\\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(marker, ensure_ascii=False))
+          PY
+
       - name: Commit constrained results
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/backtest/execution_constrained.json data/backtest/execution_comparison.json
+          git add data/backtest/execution_constrained.json data/backtest/execution_comparison.json data/backtest/_CONSTRAINED_CLOUD_RUN.json
           if git diff --cached --quiet; then
             echo "No constrained backtest result changes."
             exit 0
