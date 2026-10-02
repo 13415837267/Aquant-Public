@@ -5,8 +5,8 @@
   "start": "2015-01-05",
   "end": "2026-09-29",
   "top_n": 30,
-  "transaction_cost_bps": 3.0,
-  "slippage_bps": 2.0,
+  "transaction_cost_bps": 3,
+  "slippage_bps": 2,
   "strategy_source": "Aquant-Private/main",
   "strategy_version": "0.2.0",
   "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
@@ -40,11 +40,11 @@
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
       "delta_vs_baseline": {
-        "total_return_pct": 0.0,
-        "annualized_return_pct": 0.0,
-        "sharpe": 0.0,
-        "max_drawdown_pct": 0.0,
-        "average_turnover_pct": 0.0
+        "total_return_pct": 0,
+        "annualized_return_pct": 0,
+        "sharpe": 0,
+        "max_drawdown_pct": 0,
+        "average_turnover_pct": 0
       }
     },
     {
@@ -226,5 +226,6 @@
     "execution_model": "next_open_to_close",
     "factor_score_penalties_reused": true,
     "scored_rows": 6221928
-  }
+  },
+  "future_function": false
 }
