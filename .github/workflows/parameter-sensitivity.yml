@@ -58,6 +58,83 @@ jobs:
             --slippage-bps "${{ steps.params.outputs.slippage_bps }}" --output data/backtest/sensitivity.json
       - name: Publish
         shell: bash
+        run: |
+          set -euo pipefail
+          TMP_RESULT="$RUNNER_TEMP/sensitivity.json"
+          cp data/backtest/sensitivity.json "$TMP_RESULT"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$TMP_RESULT" data/backtest/sensitivity.json
+            git add data/backtest/sensitivity.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m "research: update parameter sensitivity"
+            if git push origin HEAD:main; then exit 0; fi
+            git reset --hard origin/main
+          done
+          echo "failed to publish sensitivity result after retries" >&2
+          exit 1
+
+on:
+  push:
+    paths:
+      - "scripts/sensitivity.py"
+  workflow_dispatch:
+    inputs:
+      start: {description: "History start", required: true, default: "2015-01-05"}
+      end: {description: "History end", required: true, default: "2026-09-29"}
+      top_n: {description: "Comma-separated portfolio sizes", required: true, default: "10,20,30,50,100"}
+      cost_bps: {description: "Comma-separated transaction costs", required: true, default: "3,5,10"}
+      slippage_bps: {description: "Slippage bps", required: true, default: "2"}
+permissions: {contents: write}
+concurrency: {group: parameter-sensitivity, cancel-in-progress: true}
+jobs:
+  sensitivity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: 13415837267/Aquant-Private
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: .private-strategy
+          fetch-depth: 1
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements.txt
+      - name: Resolve strategy commit
+        id: strategy
+        shell: bash
+        run: echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Resolve parameters
+        id: params
+        shell: bash
+        env:
+          WF_START: '${{ inputs.start }}'
+          WF_END: '${{ inputs.end }}'
+          WF_TOP_N: '${{ inputs.top_n }}'
+          WF_COST_BPS: '${{ inputs.cost_bps }}'
+          WF_SLIPPAGE_BPS: '${{ inputs.slippage_bps }}'
+        run: |
+          echo "start=${WF_START:-2015-01-05}" >> "$GITHUB_OUTPUT"
+          echo "end=${WF_END:-2026-09-29}" >> "$GITHUB_OUTPUT"
+          echo "top_n=${WF_TOP_N:-10,20,30,50,100}" >> "$GITHUB_OUTPUT"
+          echo "cost_bps=${WF_COST_BPS:-3,5,10}" >> "$GITHUB_OUTPUT"
+          echo "slippage_bps=${WF_SLIPPAGE_BPS:-2}" >> "$GITHUB_OUTPUT"
+
+      - name: Run sensitivity
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/sensitivity.py --start "${{ steps.params.outputs.start }}" --end "${{ steps.params.outputs.end }}" \
+            --top-n "${{ steps.params.outputs.top_n }}" --cost-bps "${{ steps.params.outputs.cost_bps }}" \
+            --slippage-bps "${{ steps.params.outputs.slippage_bps }}" --output data/backtest/sensitivity.json
+      - name: Publish
+        shell: bash
         env:
           RESULT_FILE: data/backtest/sensitivity.json
         run: |
