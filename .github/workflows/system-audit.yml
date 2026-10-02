@@ -9,6 +9,8 @@ on:
       - "data/portfolio.json"
       - "data/execution_plan.json"
       - "data/backtest/execution_constrained.json"
+      - ".github/workflows/system-audit.yml"
+      - "scripts/system_audit.py"
   workflow_dispatch:
   schedule:
     - cron: "30 12 * * 1-5"
