@@ -1,10 +1,10 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "status": "ready",
-  "comparison_note": "baseline uses independent T+1 open-to-close equal-weight daily replay; constrained uses stateful close-to-close accounting with the same PIT signals. intraday_metrics provides the closest execution-layer sensitivity comparison.",
+  "comparison_note": "The primary execution-constraint comparison is stateful constrained vs stateful unconstrained, using identical PIT signals and accounting. The production baseline remains separately recorded; its return definition is independent T+1 open-to-close replay.",
   "baseline_strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
   "constrained_strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
-  "baseline": {
+  "baseline_production": {
     "total_return_pct": 2070.324819013491,
     "annualized_return_pct": 31.99137047249705,
     "annualized_volatility_pct": 25.458967602795816,
@@ -14,7 +14,17 @@
     "average_turnover_pct": 90.2720114531138,
     "total_turnover_pct": 252219.99999999997
   },
-  "constrained": {
+  "stateful_unconstrained": {
+    "total_return_pct": -98.02422347239394,
+    "annualized_return_pct": -29.2924480494829,
+    "annualized_volatility_pct": 26.75884185023619,
+    "sharpe": -1.1598088952777308,
+    "max_drawdown_pct": -98.31389928605432,
+    "win_rate_pct": 47.03820539782685,
+    "average_turnover_pct": 85.32077773757617,
+    "total_turnover_pct": 243420.17888530478
+  },
+  "stateful_constrained": {
     "total_return_pct": -98.58437266898086,
     "annualized_return_pct": -31.344255990535085,
     "annualized_volatility_pct": 26.662173316087877,
@@ -24,15 +34,15 @@
     "average_turnover_pct": 84.89420290160669,
     "total_turnover_pct": 242203.16087828387
   },
-  "difference_constrained_minus_baseline": {
-    "total_return_pct": -2168.909191682472,
-    "annualized_return_pct": -63.335626463032135,
-    "annualized_volatility_pct": 1.2032057132920606,
-    "sharpe": -2.4935323715498496,
-    "max_drawdown_pct": -71.21027032371171,
-    "win_rate_pct": -7.144158242049407,
-    "average_turnover_pct": -5.3778085515071155,
-    "total_turnover_pct": -10016.839121716097
+  "limit_constraint_impact": {
+    "total_return_pct": -0.5601491965869201,
+    "annualized_return_pct": -2.0518079410521857,
+    "annualized_volatility_pct": -0.09666853414831422,
+    "sharpe": -0.11547800014814147,
+    "max_drawdown_pct": -0.47479467885396787,
+    "win_rate_pct": -0.24535576586050212,
+    "average_turnover_pct": -0.42657483596947543,
+    "total_turnover_pct": -1217.0180070209026
   },
   "constrained_intraday_metrics": {
     "trading_days": 2853,
@@ -65,6 +75,7 @@
     "current_names_not_used_for_history": true,
     "future_adjusted_factor_not_used": true,
     "pit_fundamentals_required": false,
-    "intraday_return_definition": "T+1 close equity / T+1 pre-trade open equity - 1"
+    "intraday_return_definition": "T+1 close equity / T+1 pre-trade open equity - 1",
+    "constraint_comparison": "same stateful portfolio and PIT signals, limits disabled vs enabled; paused/missing-price restrictions remain"
   }
 }
