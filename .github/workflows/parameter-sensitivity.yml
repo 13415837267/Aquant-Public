@@ -36,19 +36,27 @@ jobs:
       - name: Resolve parameters
         id: params
         shell: bash
+        env:
+          WF_START: '${{ inputs.start }}'
+          WF_END: '${{ inputs.end }}'
+          WF_TOP_N: '${{ inputs.top_n }}'
+          WF_COST_BPS: '${{ inputs.cost_bps }}'
+          WF_SLIPPAGE_BPS: '${{ inputs.slippage_bps }}'
         run: |
-          echo "start=${{ inputs.start || '2015-01-05' }}" >> "$GITHUB_OUTPUT"
-          echo "end=${{ inputs.end || '2026-09-29' }}" >> "$GITHUB_OUTPUT"
-          echo "top_n=${{ inputs.top_n || '10,20,30,50,100' }}" >> "$GITHUB_OUTPUT"
-          echo "cost_bps=${{ inputs.cost_bps || '3,5,10' }}" >> "$GITHUB_OUTPUT"
-          echo "slippage_bps=${{ inputs.slippage_bps || '2' }}" >> "$GITHUB_OUTPUT"
+          echo "start=${WF_START:-2015-01-05}" >> "$GITHUB_OUTPUT"
+          echo "end=${WF_END:-2026-09-29}" >> "$GITHUB_OUTPUT"
+          echo "top_n=${WF_TOP_N:-10,20,30,50,100}" >> "$GITHUB_OUTPUT"
+          echo "cost_bps=${WF_COST_BPS:-3,5,10}" >> "$GITHUB_OUTPUT"
+          echo "slippage_bps=${WF_SLIPPAGE_BPS:-2}" >> "$GITHUB_OUTPUT"
 
       - name: Run sensitivity
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
         run: |
-          python scripts/sensitivity.py --start "${{ inputs.start }}" --end "${{ inputs.end }}"             --top-n "${{ inputs.top_n }}" --cost-bps "${{ inputs.cost_bps }}"             --slippage-bps "${{ inputs.slippage_bps }}" --output data/backtest/sensitivity.json
+          python scripts/sensitivity.py --start "${{ steps.params.outputs.start }}" --end "${{ steps.params.outputs.end }}" \
+            --top-n "${{ steps.params.outputs.top_n }}" --cost-bps "${{ steps.params.outputs.cost_bps }}" \
+            --slippage-bps "${{ steps.params.outputs.slippage_bps }}" --output data/backtest/sensitivity.json
       - name: Publish
         shell: bash
         run: |
