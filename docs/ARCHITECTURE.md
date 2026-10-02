@@ -6,7 +6,7 @@
 zzshare
    |
    v
-Historical database (Aquant-Public)
+Shanghai/Shenzhen main-board historical database
    |
    +--> daily incremental data
    |
@@ -15,9 +15,13 @@ Historical database (Aquant-Public)
    v
 scripts/update_candidates.py
    |
-   +--> reads the latest database window
+   +--> reads the latest 61 trading-day window
+   |
+   +--> builds 60-day return and 20-day volatility features
    |
    +--> loads Aquant-Private/main at runtime
+   |
+   +--> outputs main-board candidates
    |
    v
 data/candidates.json
