@@ -1,0 +1,98 @@
+name: Factor Ablation
+
+on:
+  push:
+    paths:
+      - "scripts/factor_ablation.py"
+      - "scripts/backtest.py"
+      - ".github/workflows/factor-ablation.yml"
+  workflow_dispatch:
+    inputs:
+      start: {required: false, default: "2015-01-05"}
+      end: {required: false, default: "2026-09-29"}
+      top_n: {required: false, default: "30"}
+      cost_bps: {required: false, default: "3"}
+      slippage_bps: {required: false, default: "2"}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: factor-ablation
+  cancel-in-progress: true
+
+jobs:
+  ablation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: .private-strategy
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Resolve strategy commit
+        id: strategy
+        shell: bash
+        run: echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Resolve parameters
+        id: params
+        shell: bash
+        env:
+          WF_START: '${{ inputs.start }}'
+          WF_END: '${{ inputs.end }}'
+          WF_TOP_N: '${{ inputs.top_n }}'
+          WF_COST_BPS: '${{ inputs.cost_bps }}'
+          WF_SLIPPAGE_BPS: '${{ inputs.slippage_bps }}'
+        run: |
+          echo "start=${WF_START:-2015-01-05}" >> "$GITHUB_OUTPUT"
+          echo "end=${WF_END:-2026-09-29}" >> "$GITHUB_OUTPUT"
+          echo "top_n=${WF_TOP_N:-30}" >> "$GITHUB_OUTPUT"
+          echo "cost_bps=${WF_COST_BPS:-3}" >> "$GITHUB_OUTPUT"
+          echo "slippage_bps=${WF_SLIPPAGE_BPS:-2}" >> "$GITHUB_OUTPUT"
+      - name: Run factor ablation
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/factor_ablation.py             --start "${{ steps.params.outputs.start }}"             --end "${{ steps.params.outputs.end }}"             --top-n "${{ steps.params.outputs.top_n }}"             --cost-bps "${{ steps.params.outputs.cost_bps }}"             --slippage-bps "${{ steps.params.outputs.slippage_bps }}"             --output data/backtest/factor_ablation.json
+      - name: Cross-check baseline
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, math
+          a=json.load(open("data/backtest/factor_ablation.json", encoding="utf-8"))
+          b=json.load(open("data/backtest/latest.json", encoding="utf-8"))
+          r=next(x for x in a["results"] if x["variant"]=="baseline")
+          for k in ["total_return_pct","annualized_return_pct","annualized_volatility_pct","sharpe","max_drawdown_pct","win_rate_pct"]:
+              if not math.isclose(float(r[k]), float(b["overall"][k]), rel_tol=0, abs_tol=1e-8):
+                  raise SystemExit(f"baseline mismatch: {k}: {r[k]} vs {b['overall'][k]}")
+          if r["strategy_commit"] != b["strategy_commit"]:
+              raise SystemExit("strategy commit mismatch")
+          print("factor ablation baseline cross-check passed")
+          PY
+      - name: Publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          result_file="$RUNNER_TEMP/factor_ablation.json"
+          cp data/backtest/factor_ablation.json "$result_file"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$result_file" data/backtest/factor_ablation.json
+            git add data/backtest/factor_ablation.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m "research: update factor ablation"
+            if git push; then exit 0; fi
+            git reset --hard origin/main
+          done
+          echo "Failed to publish factor ablation output." >&2
+          exit 1
