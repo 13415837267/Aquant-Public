@@ -107,7 +107,7 @@ def validate(result: dict) -> None:
         raise ValueError("strategy version/commit changed across folds")
     if commits.pop() != result["strategy_commit"]:
         raise ValueError("top-level strategy commit mismatch")
-    if any(not x["future_function"] for x in result["folds"]) is False:
+    if not all(x["future_function"] is False for x in result["folds"]):
         raise ValueError("PIT audit failed")
     for fold in result["folds"]:
         metrics = fold["overall"]
