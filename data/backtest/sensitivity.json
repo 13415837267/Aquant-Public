@@ -20,7 +20,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 10,
@@ -37,7 +39,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 10,
@@ -54,7 +58,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 20,
@@ -71,7 +77,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 20,
@@ -88,7 +96,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 20,
@@ -105,7 +115,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 30,
@@ -122,7 +134,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 30,
@@ -139,7 +153,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 30,
@@ -156,7 +172,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 50,
@@ -173,7 +191,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 50,
@@ -190,7 +210,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 50,
@@ -207,7 +229,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 100,
@@ -224,7 +248,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 100,
@@ -241,7 +267,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     },
     {
       "top_n": 100,
@@ -258,7 +286,9 @@
       "strategy_version": "0.2.0",
       "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
       "future_function": false,
-      "performance_sessions": 2794
+      "daily_sessions": 2853,
+      "performance_sessions": 2794,
+      "warmup_sessions": 59
     }
   ],
   "audit": {
@@ -266,6 +296,7 @@
     "future_adjusted_factor_not_used": true,
     "warmup_sessions": 59,
     "performance_sessions": 2794,
-    "metrics_exclude_warmup": true
+    "metrics_exclude_warmup": true,
+    "parameter_grid_size": 15
   }
 }
