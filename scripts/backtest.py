@@ -490,6 +490,9 @@ def validate_backtest_payload(payload: dict) -> None:
         "max_drawdown_pct",
         "average_turnover_pct",
         "total_turnover_pct",
+        "win_rate_pct",
+        "best_day_pct",
+        "worst_day_pct",
     ):
         if overall.get(key) is not None and not np.isfinite(float(overall[key])):
             raise ValueError(f"non-finite overall metric: {key}")
@@ -512,6 +515,11 @@ def metrics(daily: pd.DataFrame) -> dict:
             "max_drawdown_pct": None,
             "average_turnover_pct": None,
             "total_turnover_pct": None,
+            "win_rate_pct": None,
+            "best_day_pct": None,
+            "worst_day_pct": None,
+            "max_consecutive_losses": 0,
+            "max_consecutive_gains": 0,
         }
 
     returns = pd.to_numeric(daily["net_return"], errors="coerce").fillna(0.0)
@@ -524,6 +532,13 @@ def metrics(daily: pd.DataFrame) -> dict:
     sharpe = float(returns.mean() / std * np.sqrt(252.0)) if std > 0 else None
 
     drawdown = equity / equity.cummax() - 1.0
+
+    def max_streak(mask: pd.Series) -> int:
+        groups = (~mask).cumsum()
+        return int(mask.groupby(groups).sum().max()) if bool(mask.any()) else 0
+
+    positive = returns > 0
+    negative = returns < 0
     return {
         "trading_days": int(len(daily)),
         "total_return_pct": total_return * 100.0,
@@ -533,7 +548,56 @@ def metrics(daily: pd.DataFrame) -> dict:
         "max_drawdown_pct": float(drawdown.min() * 100.0),
         "average_turnover_pct": float(daily["turnover"].mean() * 100.0),
         "total_turnover_pct": float(daily["turnover"].sum() * 100.0),
+        "win_rate_pct": float(positive.mean() * 100.0),
+        "best_day_pct": float(returns.max() * 100.0),
+        "worst_day_pct": float(returns.min() * 100.0),
+        "max_consecutive_losses": max_streak(negative),
+        "max_consecutive_gains": max_streak(positive),
     }
+
+
+def rolling_252d_metrics(daily: pd.DataFrame, step: int = 63) -> list[dict]:
+    """Quarterly sampled rolling one-year stability metrics."""
+    if len(daily) < 252:
+        return []
+
+    frame = daily.reset_index(drop=True)
+    frame_dates = pd.to_datetime(frame["date"])
+    rows = []
+    end_indices = list(range(251, len(frame), max(1, step)))
+    if end_indices[-1] != len(frame) - 1:
+        end_indices.append(len(frame) - 1)
+
+    for end_idx in end_indices:
+        window = pd.to_numeric(
+            frame.loc[end_idx - 251 : end_idx, "net_return"],
+            errors="coerce",
+        ).fillna(0.0)
+        equity = (1.0 + window).cumprod()
+        total = float(equity.iloc[-1] - 1.0)
+        std_window = float(window.std(ddof=1)) if len(window) > 1 else np.nan
+        sharpe_window = (
+            float(window.mean() / std_window * np.sqrt(252.0))
+            if std_window > 0
+            else None
+        )
+        drawdown = equity / equity.cummax() - 1.0
+        rows.append(
+            {
+                "window_sessions": 252,
+                "end_date": frame_dates.iloc[end_idx].strftime("%Y-%m-%d"),
+                "start_date": frame_dates.iloc[end_idx - 251].strftime("%Y-%m-%d"),
+                "return_pct": total * 100.0,
+                "annualized_volatility_pct": (
+                    std_window * np.sqrt(252.0) * 100.0
+                    if np.isfinite(std_window)
+                    else None
+                ),
+                "sharpe": sharpe_window,
+                "max_drawdown_pct": float(drawdown.min() * 100.0),
+            }
+        )
+    return rows
 
 
 def period_metrics(daily: pd.DataFrame, freq: str) -> list[dict]:
@@ -659,6 +723,7 @@ def run_backtest(
     overall = metrics(performance)
     annual = period_metrics(performance, "Y")
     monthly = period_metrics(performance, "M")
+    rolling_252d = rolling_252d_metrics(performance)
 
     warmup_days = min(59, len(selected_files) - 1)
     trade_start = performance["date"].min() if not performance.empty else None
@@ -696,6 +761,7 @@ def run_backtest(
         "overall": overall,
         "annual": annual,
         "monthly": monthly,
+        "rolling_252d": rolling_252d,
         "audit": {
             "historical_files_used": len(selected_files),
             "selected_sessions": len(selected_files) - 1,
