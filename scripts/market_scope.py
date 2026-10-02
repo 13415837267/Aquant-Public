@@ -29,12 +29,18 @@ def is_main_board_symbol(value: object) -> bool:
     digits, exchange = match.groups()
     number = int(digits)
 
+    is_sh_main = digits.startswith(_SH_MAIN_BOARD_PREFIXES)
+    is_sz_main = (
+        _SZ_MAIN_BOARD_MIN <= number <= _SZ_MAIN_BOARD_MAX
+        and not (_SZ_MAIN_BOARD_CDR_MIN <= number <= _SZ_MAIN_BOARD_CDR_MAX)
+    )
+
     if exchange == "SH":
-        return digits.startswith(_SH_MAIN_BOARD_PREFIXES)
+        return is_sh_main
     if exchange == "SZ":
-        return (
-            _SZ_MAIN_BOARD_MIN <= number <= _SZ_MAIN_BOARD_MAX
-            and not (_SZ_MAIN_BOARD_CDR_MIN <= number <= _SZ_MAIN_BOARD_CDR_MAX)
-        )
+        return is_sz_main
+    if exchange is None:
+        # The candidate builder normalizes ts_code to a bare six-digit symbol.
+        return is_sh_main or is_sz_main
 
     return False
