@@ -457,7 +457,7 @@ def run_backtest(
                 "symbols": target_symbols,
                 "scores": [
                     round(float(x), 6)
-                    for x in targets["score"].tolist()
+                    for x in targets.get("score", pd.Series(dtype=float)).tolist()
                 ],
             }
         )
