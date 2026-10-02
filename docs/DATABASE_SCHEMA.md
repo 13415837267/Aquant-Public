@@ -7,7 +7,7 @@ The public repository is the only cloud build/runtime surface. The database is b
 ### Daily market data
 Path: `data/history/YYYY/YYYY-MM-DD.csv.gz`
 
-One row per stock and trading date. The daily collector uses zzshare's full-field market endpoint and keeps:
+One row per stock and trading date. The daily collector uses zzshare's full-field market endpoint and keeps Shanghai/Shenzhen main-board symbols only:
 
 - OHLCV and turnover amount
 - percentage change and price change
@@ -19,7 +19,7 @@ One row per stock and trading date. The daily collector uses zzshare's full-fiel
 - paused flag
 - ST flag
 
-This is the raw full-market layer. Strategy universe exclusion of ST/delisted securities is kept separately in `data/universe.json` so historical state is not silently rewritten into survivorship-biased data.
+The historical daily layer is scoped to Shanghai/Shenzhen main-board A shares. Historical filtering is based on board code, not current `list_status='L'`, so stocks that later became ST or delisted are not silently removed from the historical research layer.
 
 ### Daily valuation
 Path: `data/fundamentals/valuation/YYYY-MM-DD_YYYY-MM-DD.csv.gz`
@@ -49,8 +49,8 @@ Every completed daily file and fundamentals batch updates a state file and creat
 
 ## Strategy universe
 
-`data/universe.json` is the current active, non-ST strategy universe. It is not used as a filter for the raw daily layer; historical data may contain securities that later became ST or were later delisted. Strategy code should use historical `is_st` and lifecycle/status data when constructing a tradable universe.
+`data/universe.json` is the current active, non-ST main-board strategy universe. It is not used as the historical daily filter. Historical data is scoped by board code and may contain stocks that later became ST or were later delisted.
 
 ## Look-ahead protection
 
-Do not join quarterly financial values using `report_date` alone. Use `pub_date <= trade_date` and the latest available publication for each security. This convention is encoded in the stored schema so a later PIT feature layer can be generated deterministically.
+Do not join quarterly financial values using `report_date` alone. Use `pub_date <= trade_date` and the latest available publication for each security. For price-based momentum and volatility, use the provider `pct_chg` return series rather than applying a future-adjusted factor to historical close prices.
