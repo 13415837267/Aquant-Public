@@ -233,7 +233,7 @@
   "audit": {
     "future_function": false,
     "baseline_strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
-    "baseline_score_reconstruction_max_abs_error": 4.999994445142875e-07,
+    "baseline_score_reconstruction_max_abs_error": 4.999994445142875e-7,
     "baseline_score_reconstruction_rows": 83820,
     "baseline_selection_sessions": 2794,
     "factor_ic_keys": [
@@ -250,5 +250,6 @@
     "market_regime_proxy": "main-board eligible universe equal-weight daily pct_chg breadth",
     "trend_regime_rule": "60-session proxy return >= +10% bull, <= -10% bear, otherwise neutral",
     "volatility_regime_rule": "20-session annualized volatility > 1.5x trailing 252-session median = high_vol"
-  }
+  },
+  "future_function": false
 }
