@@ -51,7 +51,9 @@ def build_folds(dates: list[str], train_years: int, test_years: int) -> list[dic
             break
         train_start = prior_calendar_years(cursor, train_years)
         # Include the immediately preceding history for the 60-session feature warm-up.
-        warmup_idx = max(0, dates.index(cursor) - 60) if cursor.isoformat() in dates else 0
+        cursor_text = cursor.isoformat()
+        cursor_idx = next((idx for idx, value in enumerate(dates) if value >= cursor_text), len(dates) - 1)
+        warmup_idx = max(0, cursor_idx - 60)
         warmup_start = dates[warmup_idx]
         folds.append(
             {
