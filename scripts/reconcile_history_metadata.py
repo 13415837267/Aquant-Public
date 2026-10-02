@@ -42,7 +42,7 @@ def main() -> None:
         "completed_at": now,
         "target_start": dates[-1],
         "end": dates[0],
-        "universe_scope": "CN_A_MAINBOARD",
+        "database_scope": "DATABASE_STOCK_ROWS",\n        "candidate_scope": "CN_A_MAINBOARD",
         "years": sorted(int(year) for year in years),
         "year_count": len(years),
         "trading_days": len(dates),
