@@ -67,3 +67,34 @@ def test_execution_plan_enforces_lots_and_cash_floor(tmp_path):
     assert payload["summary"]["turnover"] <= 0.30 + 1e-8
     assert all(order["shares"] % 100 == 0 for order in payload["orders"])
     assert payload["summary"]["estimated_cash_after"] >= 50000 - 1e-6
+
+
+def test_stateful_portfolio_never_spends_cash_floor_after_lot_rounding():
+    from scripts.backtest_constrained import StatefulPortfolio
+
+    execution = pd.DataFrame(
+        {
+            "symbol": ["000001"],
+            "open": [1.0],
+            "close": [1.0],
+            "high_limit": [1.1],
+            "low_limit": [0.9],
+            "is_paused": [0],
+            "is_st": [0],
+        }
+    )
+    targets = pd.DataFrame(
+        {"symbol": ["000001"], "target_weight": [0.95]}
+    )
+    portfolio = StatefulPortfolio(initial_cash=1000.0, cash_buffer=0.05)
+    result = portfolio.rebalance(
+        targets,
+        execution,
+        cost_rate=0.001,
+        enforce_limits=True,
+        turnover_cap=1.0,
+    )
+
+    assert result["cash"] + 1e-9 >= result["cash_floor"]
+    assert result["turnover"] <= 1.0 + 1e-12
+    assert all(shares % 100 == 0 for shares in portfolio.shares.values())
