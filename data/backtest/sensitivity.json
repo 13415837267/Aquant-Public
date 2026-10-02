@@ -1,4 +1,5 @@
 {
+  "future_function": false,
   "schema_version": 1,
   "status": "ready",
   "method": "fixed_strategy_parameter_sensitivity",
