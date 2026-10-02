@@ -306,6 +306,8 @@ def run_diagnostics(
             "baseline_strategy_commit": baseline.get("strategy_commit"),
             "baseline_score_reconstruction_max_abs_error": score_audit_max_abs_error,
             "baseline_score_reconstruction_rows": score_audit_rows,
+            "baseline_selection_sessions": int(len(selection_map)),
+            "factor_ic_keys": sorted(factor_ic_summary),
             "future_adjusted_factor_not_used": True,
             "current_names_not_used_for_history": True,
             "production_filter_reused": True,
