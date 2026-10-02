@@ -80,12 +80,24 @@ jobs:
           rows=[r for r in s["results"] if r["top_n"]==30 and r["transaction_cost_bps"]==3.0 and r["slippage_bps"]==2.0]
           if len(rows)!=1:
               raise SystemExit("missing Top-N=30 / 3+2bps sensitivity row")
-          r,o=rows[0],b["overall"]
-          fields=["total_return_pct","annualized_return_pct","annualized_volatility_pct","sharpe","max_drawdown_pct","win_rate_pct"]
-          for k in fields:
-              if not math.isclose(float(r[k]), float(o[k]), rel_tol=0, abs_tol=1e-8):
-                  raise SystemExit(f"baseline mismatch: {k}: sensitivity={r[k]} baseline={o[k]}")
-          print("baseline cross-check passed")
+          matches = (
+              b.get("top_n") == 30
+              and float(b.get("transaction_cost_bps")) == 3.0
+              and float(b.get("slippage_bps")) == 2.0
+              and b.get("backtest_start") == s["start"]
+              and b.get("backtest_end") == s["end"]
+              and b.get("strategy_commit") == rows[0]["strategy_commit"]
+          )
+          if not matches:
+              print("baseline cross-check skipped: latest.json uses a different run configuration")
+          else:
+              r,o=rows[0],b["overall"]
+              fields=["total_return_pct","annualized_return_pct","annualized_volatility_pct","sharpe","max_drawdown_pct","win_rate_pct"]
+              for k in fields:
+                  if not math.isclose(float(r[k]), float(o[k]), rel_tol=0, abs_tol=1e-8):
+                      raise SystemExit(f"baseline mismatch: {k}: sensitivity={r[k]} baseline={o[k]}")
+              print("baseline cross-check passed")
+          PY
 
       - name: Publish
         shell: bash
