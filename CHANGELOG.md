@@ -1,11 +1,11 @@
 # Changelog
 
-## Unreleased — Shanghai/Shenzhen main-board scope
+## Unreleased — Database scope and Shanghai/Shenzhen main-board candidates
 - Added a metadata reconciliation script and manual finalizer workflow so the historical coverage manifest is rebuilt from the actual Git-tracked daily files after a multi-year rebuild.
-- Standardized the production universe to Shanghai/Shenzhen main-board A shares (000/001/002/003.SZ and 600/601/603/605.SH).
-- Historical yearly backfill no longer filters by the current active stock list, reducing survivorship bias for later-delisted main-board stocks.
-- Added --rebuild and a workflow input so existing historical files can be re-downloaded under the corrected scope.
-- Candidate generation now filters the history window to the main board.
+- Kept the database broader than the production candidate pool so Shanghai/Shenzhen/Beijing stock rows can remain available for research.
+- Historical yearly backfill no longer uses the current active strategy universe as the database row filter; candidate generation is the production boundary for the Shanghai/Shenzhen main-board scope.
+- Added --rebuild and a workflow input so existing historical files can be re-downloaded under the database stock scope.
+- Candidate generation enforces the main-board scope both while reading the history window and inside the candidate builder.
 - 60-day momentum and 20-day volatility now use the provider daily pct_chg return series; the future-sensitive adjustment factor is retained as data but is not used to construct the signal.
 - Candidate generation excludes stocks without a complete 60-trading-day momentum window.
 
