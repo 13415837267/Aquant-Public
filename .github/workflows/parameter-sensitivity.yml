@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "scripts/sensitivity.py"
+      - ".github/workflows/parameter-sensitivity.yml"
   workflow_dispatch:
     inputs:
       start: {description: "History start", required: true, default: "2015-01-05"}
@@ -85,108 +86,6 @@ jobs:
               if not math.isclose(float(r[k]), float(o[k]), rel_tol=0, abs_tol=1e-8):
                   raise SystemExit(f"baseline mismatch: {k}: sensitivity={r[k]} baseline={o[k]}")
           print("baseline cross-check passed")
-          PY
-
-      - name: Publish
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          cp data/backtest/sensitivity.json /tmp/sensitivity.json
-          git fetch origin main
-          git reset --hard origin/main
-          cp /tmp/sensitivity.json data/backtest/sensitivity.json
-          git add data/backtest/sensitivity.json
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m "research: update parameter sensitivity"
-          git push
-
-on:
-  push:
-    paths:
-      - "scripts/sensitivity.py"
-  workflow_dispatch:
-    inputs:
-      start: {description: "History start", required: true, default: "2015-01-05"}
-      end: {description: "History end", required: true, default: "2026-09-29"}
-      top_n: {description: "Comma-separated portfolio sizes", required: true, default: "10,20,30,50,100"}
-      cost_bps: {description: "Comma-separated transaction costs", required: true, default: "3,5,10"}
-      slippage_bps: {description: "Slippage bps", required: true, default: "2"}
-
-permissions:
-  contents: write
-
-concurrency:
-  group: parameter-sensitivity
-  cancel-in-progress: true
-
-jobs:
-  sensitivity:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 180
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/checkout@v6
-        with:
-          repository: 13415837267/Aquant-Private
-          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-          path: .private-strategy
-          fetch-depth: 1
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      - run: pip install -r requirements.txt
-
-      - name: Resolve strategy commit
-        id: strategy
-        shell: bash
-        run: echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve parameters
-        id: params
-        shell: bash
-        env:
-          WF_START: '${{ inputs.start }}'
-          WF_END: '${{ inputs.end }}'
-          WF_TOP_N: '${{ inputs.top_n }}'
-          WF_COST_BPS: '${{ inputs.cost_bps }}'
-          WF_SLIPPAGE_BPS: '${{ inputs.slippage_bps }}'
-        run: |
-          echo "start=${WF_START:-2015-01-05}" >> "$GITHUB_OUTPUT"
-          echo "end=${WF_END:-2026-09-29}" >> "$GITHUB_OUTPUT"
-          echo "top_n=${WF_TOP_N:-10,20,30,50,100}" >> "$GITHUB_OUTPUT"
-          echo "cost_bps=${WF_COST_BPS:-3,5,10}" >> "$GITHUB_OUTPUT"
-          echo "slippage_bps=${WF_SLIPPAGE_BPS:-2}" >> "$GITHUB_OUTPUT"
-
-      - name: Run sensitivity
-        env:
-          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
-        run: |
-          python scripts/sensitivity.py --start "${{ steps.params.outputs.start }}" --end "${{ steps.params.outputs.end }}" \
-            --top-n "${{ steps.params.outputs.top_n }}" --cost-bps "${{ steps.params.outputs.cost_bps }}" \
-            --slippage-bps "${{ steps.params.outputs.slippage_bps }}" --output data/backtest/sensitivity.json
-
-      - name: Cross-check baseline
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json, math
-          s=json.load(open("data/backtest/sensitivity.json", encoding="utf-8"))
-          b=json.load(open("data/backtest/latest.json", encoding="utf-8"))
-          rows=[r for r in s["results"] if r["top_n"]==30 and r["transaction_cost_bps"]==3.0 and r["slippage_bps"]==2.0]
-          if len(rows)!=1:
-              raise SystemExit("missing Top-N=30 / 3+2bps sensitivity row")
-          r,o=rows[0],b["overall"]
-          fields=["total_return_pct","annualized_return_pct","annualized_volatility_pct","sharpe","max_drawdown_pct","win_rate_pct"]
-          for k in fields:
-              if not math.isclose(float(r[k]), float(o[k]), rel_tol=0, abs_tol=1e-8):
-                  raise SystemExit(f"baseline mismatch: {k}: sensitivity={r[k]} baseline={o[k]}")
-          print("baseline cross-check passed")
-          PY
 
       - name: Publish
         shell: bash
