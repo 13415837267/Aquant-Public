@@ -78,8 +78,10 @@ def main():
                 rows.append(run_one(n, c, sl, payload))
     commits={r["strategy_commit"] for r in rows}
     versions={r["strategy_version"] for r in rows}
+    expected_rows = len(top_ns) * len(costs) * len(slips)
     if (
-        len(commits) != 1
+        len(rows) != expected_rows
+        or len(commits) != 1
         or len(versions) != 1
         or any(r["future_function"] for r in rows)
         or any(
@@ -96,6 +98,7 @@ def main():
              "warmup_sessions": int(rows[0]["warmup_sessions"]) if rows else 0,
              "performance_sessions": int(rows[0]["performance_sessions"]) if rows else 0,
              "metrics_exclude_warmup": True,
+             "parameter_grid_size": int(expected_rows),
          }}
     Path(a.output).write_text(json.dumps(out,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({"rows":len(rows),"strategy_commit":next(iter(commits))}))
