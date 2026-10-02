@@ -287,7 +287,7 @@ class RollingFeatureState:
 
         volume_ratio = np.full(len(idx), np.nan, dtype=float)
         enough_volume = (
-            self.volume_valid20[idx] >= 10
+            (self.volume_valid20[idx] >= 10)
             & np.isfinite(volumes)
             & (volumes > 0)
         )
