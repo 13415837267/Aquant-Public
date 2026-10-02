@@ -15,16 +15,32 @@ Shanghai/Shenzhen main-board historical database
    v
 scripts/update_candidates.py
    |
-   +--> reads the latest 61 trading-day window
-   |
-   +--> builds 60-day return and 20-day volatility features
-   |
-   +--> loads Aquant-Private/main at runtime
-   |
-   +--> outputs main-board candidates
+   +--> hard eligibility filters
+   +--> cross-sectional factor scoring from Aquant-Private/main
+   +--> candidate admission policy
    |
    v
 data/candidates.json
+   |
+   v
+scripts/portfolio.py
+   |
+   +--> deterministic inverse-volatility allocation
+   +--> 5% single-name cap / 5% cash buffer
+   |
+   v
+data/portfolio.json
+   |
+   v
+scripts/execution_plan.py
+   |
+   +--> lot/T+1/cash/turnover checks
+   +--> next-open recheck gate
+   |
+   v
+data/execution_plan.json
+   |
+   +--> historical backtest / constrained execution research
    |
    v
 Next.js / GitHub Pages
@@ -59,4 +75,4 @@ The generated `data/candidates.json` records both `strategy_version` and `strate
 
 ## Runtime boundary
 
-The current production boundary stops at candidate generation. Broker/OMS execution remains a separate future service.
+Production computation covers data collection, candidate generation, portfolio construction, execution-plan preparation, and historical execution-constrained research. Broker/OMS submission remains a separate external service; `data/execution_plan.json` is an auditable plan and not a broker fill.
