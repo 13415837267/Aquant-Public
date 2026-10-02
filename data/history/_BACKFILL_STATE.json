@@ -1,9 +1,10 @@
 {
   "status": "complete",
-  "completed_at": "2026-10-02T12:04:42.879080+08:00",
+  "completed_at": "2026-10-02T12:08:10.285966+08:00",
   "target_start": "2015-01-05",
   "end": "2026-09-30",
   "database_scope": "DATABASE_STOCK_ROWS",
+  "history_storage_scope": "CN_A_MAINBOARD_CURRENT; DATABASE_STOCK_ROWS_ON_REBUILD",
   "candidate_scope": "CN_A_MAINBOARD",
   "years": [
     2015,
