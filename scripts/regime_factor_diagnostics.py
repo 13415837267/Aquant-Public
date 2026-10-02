@@ -1,4 +1,5 @@
 """Market-regime and factor diagnostics for the frozen Private strategy."""
+# Public diagnostics layer; the Private strategy remains the source of truth.
 from __future__ import annotations
 
 import argparse
