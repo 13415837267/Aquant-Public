@@ -4,7 +4,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from scripts.backtest import metrics, normalize_weights, rolling_252d_metrics, turnover
+from scripts.backtest import execution_limit_diagnostics, metrics, normalize_weights, rolling_252d_metrics, turnover
 
 
 def test_metrics_simple_path():
@@ -27,6 +27,19 @@ def test_metrics_simple_path():
     assert result["max_consecutive_gains"] >= 0
 
 
+
+
+def test_execution_limit_diagnostics_counts_limit_opens():
+    selected = pd.DataFrame({"symbol": ["000001", "000002", "000003"]})
+    execution = pd.DataFrame(
+        {
+            "symbol": ["000001", "000002", "000003"],
+            "open": [10.0, 9.0, 8.0],
+            "high_limit": [10.0, 10.0, 8.0],
+            "low_limit": [9.0, 9.0, 7.0],
+        }
+    )
+    assert execution_limit_diagnostics(selected, execution) == (2, 1)
 
 def test_weights_are_equal_and_normalized():
     weights = normalize_weights(["000002", "000001", "000001"])
@@ -63,6 +76,8 @@ def test_run_backtest_executes_full_loop_on_tiny_history(tmp_path, monkeypatch):
                     "is_st": 0,
                     "pe_ratio": 15.0,
                     "pb_ratio": 1.5,
+                    "high_limit": close * 1.10,
+                    "low_limit": close * 0.90,
                 }
             )
         frame = pd.DataFrame(rows)
