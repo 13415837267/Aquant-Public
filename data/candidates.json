@@ -105,7 +105,7 @@
       "turnover_pct": 6.5,
       "pb": 1.028,
       "pe": 17.39,
-      "amount": 1689372530.0,
+      "amount": 1689372530,
       "volatility_proxy": 3.881,
       "score": 80.745,
       "flags": []
@@ -150,7 +150,7 @@
       "turnover_pct": 1.026,
       "pb": 1.155,
       "pe": 10.904,
-      "amount": 469055722.0,
+      "amount": 469055722,
       "volatility_proxy": 1.076,
       "score": 79.956,
       "flags": []
@@ -210,7 +210,7 @@
       "turnover_pct": 0.755,
       "pb": 0.844,
       "pe": 7.131,
-      "amount": 329045618.0,
+      "amount": 329045618,
       "volatility_proxy": 1.27,
       "score": 79.382,
       "flags": []
@@ -235,7 +235,7 @@
       "symbol": "000090",
       "name": "天健集团",
       "price": 3.64,
-      "change_pct": 0.0,
+      "change_pct": 0,
       "momentum_60d": 19.737,
       "turnover_pct": 3.833,
       "pb": 0.616,
@@ -480,5 +480,12 @@
   },
   "history_files_used": 61,
   "history_window_start": "2026-07-07",
-  "history_window_end": "2026-09-30"
+  "history_window_end": "2026-09-30",
+  "future_function": false,
+  "candidate_admission_policy": "fixed_top_n_30_baseline",
+  "audit": {
+    "hard_eligibility_applied_before_scoring": true,
+    "strategy_source_locked_to_private": true,
+    "top_n_is_not_a_score_threshold": true
+  }
 }
