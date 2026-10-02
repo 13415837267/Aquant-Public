@@ -8,6 +8,12 @@
 
 # Changelog
 
+## Unreleased — Production-weight constrained backtest
+- Added a shared inverse-volatility allocator in `scripts/portfolio.py` so production portfolio construction and the constrained backtest use identical 5% single-name caps and 5% cash buffers.
+- Reworked `scripts/backtest_constrained.py` to persistent T+1 holdings instead of forced end-of-day flattening.
+- Added 100-share lot handling, a configurable 30% daily turnover cap, cash-floor enforcement, and small non-target residual cleanup within unused turnover capacity.
+- Corrected performance statistics to exclude the feature warm-up period while retaining it in the full daily audit trail.
+
 ## Unreleased — Portfolio execution planning
 - Added `scripts/execution_plan.py` to convert the production portfolio into a next-open execution plan.
 - Enforced 100-share lot rounding, T+1 available-share limits, paused/ST checks, aggregate turnover caps, cash-floor checks, and configurable commission/stamp-duty/slippage assumptions.
