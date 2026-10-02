@@ -8,6 +8,7 @@
     "balance:2021q2",
     "balance:2021q3",
     "balance:2021q4",
+    "balance:2022q1",
     "cash_flow:2020q4",
     "cash_flow:2021q1",
     "cash_flow:2021q2",
@@ -29,7 +30,7 @@
   "rows_written": {
     "indicator": 26676,
     "income": 27388,
-    "balance": 24659,
+    "balance": 29477,
     "cash_flow": 22001
   }
 }
