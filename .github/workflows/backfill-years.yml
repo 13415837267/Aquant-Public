@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       rebuild:
-        description: "Re-download existing daily files with the main-board historical scope"
+        description: "Re-download existing daily files using the database stock scope"
         required: false
         default: false
         type: boolean
