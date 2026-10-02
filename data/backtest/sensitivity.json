@@ -263,6 +263,9 @@
   ],
   "audit": {
     "fixed_strategy": true,
-    "future_adjusted_factor_not_used": true
+    "future_adjusted_factor_not_used": true,
+    "warmup_sessions": 59,
+    "performance_sessions": 2794,
+    "metrics_exclude_warmup": true
   }
 }
