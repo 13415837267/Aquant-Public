@@ -90,7 +90,10 @@ def evaluate(
         signal_date = current["date"].iloc[0]
         frame = base.build_strategy_frame(current, state)
 
-        if not frame.empty:
+        if frame.empty:
+            scored_base = frame.copy()
+            penalty = pd.Series(index=frame.index, dtype=float)
+        else:
             scored_base = strategy_model.score_universe(frame).copy()
             raw_score = 100.0 * sum(
                 float(base_weights[key])
@@ -100,36 +103,39 @@ def evaluate(
             penalty = pd.to_numeric(scored_base["score"], errors="coerce") - raw_score
             current_scored_rows += int(len(scored_base))
 
-            for name in VARIANTS:
-                weights = variant_weights(name, base_weights)
-                scored = score_variant(scored_base, weights, penalty)
-                targets = scored.head(top_n).reset_index(drop=True)
-                symbols = targets["symbol"].astype(str).str.zfill(6).tolist()
-                target_weights = base.normalize_weights(symbols)
-                gross_return, executed, missing = base.next_session_return(
-                    targets, next_day, target_weights
-                )
-                actual_target = {
-                    symbol: target_weights[symbol]
-                    for symbol in executed
-                    if symbol in target_weights
+        for name in VARIANTS:
+            weights = variant_weights(name, base_weights)
+            targets = (
+                score_variant(scored_base, weights, penalty).head(top_n).reset_index(drop=True)
+                if not frame.empty
+                else frame
+            )
+            symbols = targets["symbol"].astype(str).str.zfill(6).tolist() if not targets.empty else []
+            target_weights = base.normalize_weights(symbols)
+            gross_return, executed, missing = base.next_session_return(
+                targets, next_day, target_weights
+            )
+            actual_target = {
+                symbol: target_weights[symbol]
+                for symbol in executed
+                if symbol in target_weights
+            }
+            turn = base.turnover(prev_target[name], actual_target)
+            total_cost = turn * (cost_bps + slippage_bps) / 10000.0
+            net_return = gross_return - total_cost
+            variant_daily[name].append(
+                {
+                    "date": next_day["date"].iloc[0],
+                    "signal_date": signal_date,
+                    "gross_return": float(gross_return),
+                    "turnover": float(turn),
+                    "net_return": float(net_return),
+                    "target_count": int(len(targets)),
+                    "executed_count": int(len(executed)),
+                    "missing_execution_count": int(len(missing)),
                 }
-                turn = base.turnover(prev_target[name], actual_target)
-                total_cost = turn * (cost_bps + slippage_bps) / 10000.0
-                net_return = gross_return - total_cost
-                variant_daily[name].append(
-                    {
-                        "date": next_day["date"].iloc[0],
-                        "signal_date": signal_date,
-                        "gross_return": float(gross_return),
-                        "turnover": float(turn),
-                        "net_return": float(net_return),
-                        "target_count": int(len(targets)),
-                        "executed_count": int(len(executed)),
-                        "missing_execution_count": int(len(missing)),
-                    }
-                )
-                prev_target[name] = actual_target
+            )
+            prev_target[name] = actual_target
         current = next_day
 
     results = {}
