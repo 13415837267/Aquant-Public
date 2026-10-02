@@ -71,26 +71,26 @@ jobs:
 
       - name: Publish
         shell: bash
-        env:
-          RESULT_FILE: data/backtest/sensitivity.json
         run: |
           set -euo pipefail
-          TMP_RESULT="$RUNNER_TEMP/sensitivity.json"
-          cp "$RESULT_FILE" "$TMP_RESULT"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for attempt in 1 2 3; do
+          result_file="$RUNNER_TEMP/sensitivity.json"
+          cp data/backtest/sensitivity.json "$result_file"
+          for attempt in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            cp "$TMP_RESULT" "$RESULT_FILE"
-            git add "$RESULT_FILE"
+            cp "$result_file" data/backtest/sensitivity.json
+            git add data/backtest/sensitivity.json
             if git diff --cached --quiet; then
+              echo "No sensitivity output change to publish."
               exit 0
             fi
             git commit -m "research: update parameter sensitivity"
-            if git push origin HEAD:main; then
+            if git push; then
               exit 0
             fi
+            git reset --hard origin/main
           done
-          echo "failed to publish sensitivity result after retries" >&2
+          echo "Failed to publish sensitivity output after retries." >&2
           exit 1
