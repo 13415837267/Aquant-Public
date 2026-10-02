@@ -69,6 +69,24 @@ jobs:
             --top-n "${{ steps.params.outputs.top_n }}" --cost-bps "${{ steps.params.outputs.cost_bps }}" \
             --slippage-bps "${{ steps.params.outputs.slippage_bps }}" --output data/backtest/sensitivity.json
 
+      - name: Cross-check baseline
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, math
+          s=json.load(open("data/backtest/sensitivity.json", encoding="utf-8"))
+          b=json.load(open("data/backtest/latest.json", encoding="utf-8"))
+          rows=[r for r in s["results"] if r["top_n"]==30 and r["transaction_cost_bps"]==3.0 and r["slippage_bps"]==2.0]
+          if len(rows)!=1:
+              raise SystemExit("missing Top-N=30 / 3+2bps sensitivity row")
+          r,o=rows[0],b["overall"]
+          fields=["total_return_pct","annualized_return_pct","annualized_volatility_pct","sharpe","max_drawdown_pct","win_rate_pct"]
+          for k in fields:
+              if not math.isclose(float(r[k]), float(o[k]), rel_tol=0, abs_tol=1e-8):
+                  raise SystemExit(f"baseline mismatch: {k}: sensitivity={r[k]} baseline={o[k]}")
+          print("baseline cross-check passed")
+          PY
+
       - name: Publish
         shell: bash
         run: |
