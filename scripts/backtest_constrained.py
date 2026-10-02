@@ -53,7 +53,7 @@ def row_value(df: pd.DataFrame, symbol: str, column: str, fallback: float = np.n
     return value if np.isfinite(value) else fallback
 
 
-def blocked_for_side(row: pd.Series, side: str) -> bool:
+def blocked_for_side(row: pd.Series, side: str, enforce_limits: bool = True) -> bool:
     paused = row.get("is_paused", 0)
     if pd.notna(paused) and float(paused) != 0:
         return True
@@ -61,6 +61,9 @@ def blocked_for_side(row: pd.Series, side: str) -> bool:
     open_price = row.get("open", np.nan)
     if not valid_price(open_price):
         return True
+
+    if not enforce_limits:
+        return False
 
     if side == "buy":
         high_limit = row.get("high_limit", np.nan)
@@ -97,6 +100,8 @@ class StatefulPortfolio:
         targets: pd.DataFrame,
         execution_df: pd.DataFrame,
         cost_rate: float,
+        *,
+        enforce_limits: bool = True,
     ) -> dict:
         execution = execution_df.set_index("symbol", drop=False)
         target_symbols = [str(x).zfill(6) for x in targets.get("symbol", pd.Series(dtype=str)).tolist()]
@@ -127,7 +132,7 @@ class StatefulPortfolio:
                 continue
 
             row = execution.loc[symbol] if symbol in execution.index else None
-            if row is None or blocked_for_side(row, "sell"):
+            if row is None or blocked_for_side(row, "sell", enforce_limits):
                 blocked_sell += 1
                 continue
 
@@ -155,7 +160,7 @@ class StatefulPortfolio:
                 continue
 
             row = execution.loc[symbol] if symbol in execution.index else None
-            if row is None or blocked_for_side(row, "buy"):
+            if row is None or blocked_for_side(row, "buy", enforce_limits):
                 blocked_buy += 1
                 continue
 
@@ -302,8 +307,10 @@ def run_constrained(
     strategy_model, strategy_version, strategy_commit = base.load_strategy()
     states = base.RollingFeatureState()
     portfolio = StatefulPortfolio(initial_cash=1.0)
+    unconstrained = StatefulPortfolio(initial_cash=1.0)
 
     daily_rows = []
+    unconstrained_rows = []
     selection_rows = []
     intraday_rows = []
     selected_total = 0
@@ -346,11 +353,19 @@ def run_constrained(
             targets,
             next_day,
             cost_rate,
+            enforce_limits=True,
+        )
+        unconstrained_result = unconstrained.rebalance(
+            targets,
+            next_day,
+            cost_rate,
+            enforce_limits=False,
         )
         blocked_buy_total += result["blocked_buy_count"]
         blocked_sell_total += result["blocked_sell_count"]
 
         intraday_rows.append({"date": next_date, "net_return": float(result["equity_close"] / result["equity_open"] - 1.0), "turnover": result["turnover"]})
+        unconstrained_rows.append({"date": next_date, "net_return": float(unconstrained_result["net_return"]), "turnover": unconstrained_result["turnover"]})
 
         daily_rows.append(
             {
@@ -392,6 +407,11 @@ def run_constrained(
     monthly = base.period_metrics(performance, "M")
     rolling_252d = base.rolling_252d_metrics(performance)
     intraday_metrics = base.metrics(pd.DataFrame(intraday_rows))
+    unconstrained_daily = pd.DataFrame(unconstrained_rows)
+    unconstrained_overall = base.metrics(unconstrained_daily)
+    unconstrained_annual = base.period_metrics(unconstrained_daily, "Y")
+    unconstrained_monthly = base.period_metrics(unconstrained_daily, "M")
+    unconstrained_rolling_252d = base.rolling_252d_metrics(unconstrained_daily)
 
     payload = {
         "schema_version": 1,
@@ -425,6 +445,12 @@ def run_constrained(
         "strategy_commit": strategy_commit,
         "overall": overall,
         "intraday_metrics": intraday_metrics,
+        "stateful_unconstrained": {
+            "overall": unconstrained_overall,
+            "annual": unconstrained_annual,
+            "monthly": unconstrained_monthly,
+            "rolling_252d": unconstrained_rolling_252d,
+        },
         "annual": annual,
         "monthly": monthly,
         "rolling_252d": rolling_252d,
@@ -445,6 +471,7 @@ def run_constrained(
             "future_adjusted_factor_not_used": True,
             "pit_fundamentals_required": False,
             "intraday_return_definition": "T+1 close equity / T+1 pre-trade open equity - 1",
+            "constraint_comparison": "same stateful portfolio and PIT signals, limits disabled vs enabled; paused/missing-price restrictions remain",
         },
         "daily": daily.to_dict(orient="records"),
         "selection_audit": selection_rows,
