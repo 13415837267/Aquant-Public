@@ -224,17 +224,22 @@ def load_universe(api: DataApi) -> pd.DataFrame:
     return df
 
 
-def filter_historical_main_board(df: pd.DataFrame) -> pd.DataFrame:
-    """Keep all Shanghai/Shenzhen main-board rows present in the source day.
+def filter_historical_stock_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep stock rows from the provider without applying the strategy universe.
 
-    This deliberately avoids the current active-list filter so later ST or
-    delisted main-board stocks can remain in historical research data.
+    The database intentionally retains Shanghai/Shenzhen/Beijing stock rows.
+    Candidate generation applies the narrower Shanghai/Shenzhen main-board
+    scope later, so historical ST/delisted and non-target board data remain
+    available for research and future expansion.
     """
     if df is None or df.empty:
         raise RuntimeError("cannot filter empty historical daily dataframe")
-    out = df[df["symbol"].map(is_main_board_symbol)].reset_index(drop=True).copy()
+
+    symbols = df["symbol"].astype(str).str.strip().str.upper()
+    stock_rows = symbols.str.fullmatch(r"\d{6}\.(SH|SZ|BJ)", na=False)
+    out = df.loc[stock_rows].reset_index(drop=True).copy()
     if out.empty:
-        raise RuntimeError("historical daily contains no Shanghai/Shenzhen main-board rows")
+        raise RuntimeError("historical daily contains no supported stock rows")
     return out
 
 
@@ -380,7 +385,6 @@ def quality_check_daily(df: pd.DataFrame, trade_date: str, minimum_rows: int | N
     duplicate_rows = int(df.duplicated(["symbol", "date"]).sum())
     wrong_date = int((df["date"] != trade_date).sum())
     null_close = int(df["close"].isna().sum())
-    non_main_board = int(~df["symbol"].map(is_main_board_symbol).sum())
 
     if unique_symbols == 0:
         raise RuntimeError(f"{trade_date}: no symbols")
@@ -390,11 +394,6 @@ def quality_check_daily(df: pd.DataFrame, trade_date: str, minimum_rows: int | N
         raise RuntimeError(f"{trade_date}: wrong-date rows={wrong_date}")
     if null_close:
         raise RuntimeError(f"{trade_date}: null close rows={null_close}")
-    if non_main_board:
-        raise RuntimeError(
-            f"{trade_date}: non-main-board rows={non_main_board}; "
-            "historical database must be Shanghai/Shenzhen main board only"
-        )
     if minimum_rows is not None and unique_symbols < minimum_rows:
         raise RuntimeError(
             f"{trade_date}: only {unique_symbols} symbols, below validation minimum {minimum_rows}"
@@ -464,7 +463,6 @@ def git_checkpoint(paths: list[str], message: str) -> None:
             time.sleep(wait)
 def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
     api = api_client()
-    universe = load_universe(api)
     recent = load_trade_days(api)[:days]
     if not recent:
         raise RuntimeError("no recent trading days returned")
@@ -472,13 +470,13 @@ def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
     results = []
     for trade_date in recent:
         raw = request_bulk_day(api, trade_date)
-        market = filter_strategy_universe(raw, universe)
+        market = filter_historical_stock_rows(raw)
         valuation = request_valuation_day(api, trade_date)
         combined = merge_daily_valuation(market, valuation)
         result = quality_check_daily(combined, trade_date, MIN_VALIDATION_ROWS)
         result["raw_rows"] = len(raw)
         result["filtered_rows"] = len(market)
-        result["strategy_universe_overlap"] = len(market)
+        result["database_rows"] = len(market)
         results.append(result)
         print(
             f"VALIDATED {trade_date}: raw={len(raw)} "
@@ -491,7 +489,6 @@ def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
         "validated_at": datetime.now(TZ).isoformat(),
         "source": "zzshare daily all-fields bulk",
         "days": results,
-        "universe_size": len(universe),
         "bulk_limit": BULK_LIMIT,
         "advanced_fields": sorted(DAILY_REQUIRED | set(VALUATION_COLUMNS)),
     }
@@ -523,8 +520,6 @@ def save_state(state: dict) -> None:
 
 def backfill_daily() -> None:
     api = api_client()
-    universe = load_universe(api)
-
     today = datetime.now(TZ).date()
     try:
         target_start = today.replace(year=today.year - TARGET_YEARS)
@@ -552,17 +547,16 @@ def backfill_daily() -> None:
     state.setdefault("initial_end", str(today))
     state.setdefault("direction", "near_to_far")
     state.setdefault("source", "zzshare daily all-fields bulk")
-    state.setdefault("universe_scope", "CN_A_MAINBOARD")
+    state.setdefault("universe_scope", "DATABASE_SHSZBJ_STOCKS")
     state.setdefault("bulk_limit", BULK_LIMIT)
     state.setdefault("completed_dates", [])
     state.setdefault("days_completed", len(state.get("completed_dates", [])))
     state.setdefault("rows_written", 0)
 
     completed = set(state.get("completed_dates", []))
-    strategy_universe_size = len(universe)
     for existing_date in list(completed):
         existing_path = HISTORY / existing_date[:4] / f"{existing_date}.csv.gz"
-        ok, old_rows = daily_file_has_full_schema(existing_path, strategy_universe_size)
+        ok, old_rows = daily_file_has_full_schema(existing_path)
         if not ok:
             print(f"REBUILD REQUIRED {existing_date}: existing daily file lacks full database schema")
             completed.discard(existing_date)
@@ -583,7 +577,7 @@ def backfill_daily() -> None:
             continue
 
         raw = request_bulk_day(api, trade_date)
-        market = filter_historical_main_board(raw)
+        market = filter_historical_stock_rows(raw)
         valuation = request_valuation_day(api, trade_date)
         combined = merge_daily_valuation(market, valuation)
         result = quality_check_daily(combined, trade_date)
@@ -638,10 +632,9 @@ def backfill_daily() -> None:
                 "years": TARGET_YEARS,
                 "trading_days": len(trade_days),
                 "days_completed": state["days_completed"],
-                "symbols_strategy_universe": len(universe),
                 "daily_fields": [*sorted(DAILY_REQUIRED), *VALUATION_COLUMNS],
                 "source": "zzshare daily bulk + daily valuation",
-                "universe_scope": "CN_A_MAINBOARD",
+                "universe_scope": "DATABASE_SHSZBJ_STOCKS",
                 "format": "daily CSV gzip",
             },
             ensure_ascii=False,
@@ -651,7 +644,7 @@ def backfill_daily() -> None:
     )
     git_checkpoint(
         ["data/history/_BACKFILL_STATE.json", "data/history/_BACKFILL_COMPLETE"],
-        "data: complete five-year full-market daily history",
+        "data: complete five-year database stock history",
     )
 
 
