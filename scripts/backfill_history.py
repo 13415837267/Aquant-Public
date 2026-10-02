@@ -344,11 +344,6 @@ def request_valuation_day(api: DataApi, trade_date: str) -> pd.DataFrame:
     raise RuntimeError(f"zzshare valuation failed for {trade_date}: {last_exc}")
 
 
-def filter_strategy_universe(df: pd.DataFrame, universe: pd.DataFrame) -> pd.DataFrame:
-    allowed = set(universe["ts_code"].astype(str).str.upper())
-    return df[df["symbol"].isin(allowed)].reset_index(drop=True).copy()
-
-
 def merge_daily_valuation(market: pd.DataFrame, valuation: pd.DataFrame) -> pd.DataFrame:
     return market.merge(
         valuation,
