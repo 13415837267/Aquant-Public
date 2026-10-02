@@ -155,7 +155,7 @@ def test_stateful_portfolio_blocks_limit_up_buy():
 
 
 def test_stateful_portfolio_keeps_limit_down_holding_and_buys_available_target():
-    portfolio = StatefulPortfolio(initial_cash=0.5)
+    portfolio = FlattenedIntradayPortfolio(initial_cash=0.5)
     portfolio.shares["000001"] = 0.05
     portfolio.last_close["000001"] = 10.0
     portfolio.prev_close_equity = 1.0
