@@ -424,7 +424,11 @@ def run_backtest(
         target_weights = normalize_weights(target_symbols)
 
         selected_total += len(target_symbols)
-        gross_return, executed, missing = next_session_return(targets, next_day)
+        gross_return, executed, missing = next_session_return(
+            targets,
+            next_day,
+            target_weights,
+        )
         missing_execution_total += len(missing)
 
         # Use equal-weight intended targets for turnover. Missing T+1 execution
