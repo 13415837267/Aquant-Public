@@ -24,6 +24,7 @@
     "cash_flow:2022q3",
     "cash_flow:2022q4",
     "cash_flow:2023q1",
+    "cash_flow:2023q2",
     "income:2020q4",
     "income:2021q1",
     "income:2021q2",
@@ -51,6 +52,6 @@
     "indicator": 51261,
     "income": 52130,
     "balance": 54951,
-    "cash_flow": 46219
+    "cash_flow": 51264
   }
 }
