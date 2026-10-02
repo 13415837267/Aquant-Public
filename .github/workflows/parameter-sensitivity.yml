@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - "scripts/sensitivity.py"
-      - ".github/workflows/parameter-sensitivity.yml"
   workflow_dispatch:
     inputs:
       start: {description: "History start", required: true, default: "2015-01-05"}
@@ -59,13 +58,24 @@ jobs:
             --slippage-bps "${{ steps.params.outputs.slippage_bps }}" --output data/backtest/sensitivity.json
       - name: Publish
         shell: bash
+        env:
+          RESULT_FILE: data/backtest/sensitivity.json
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/backtest/sensitivity.json
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m "research: update parameter sensitivity"
-          git fetch origin main
-          git rebase --autostash origin/main
-          git status --short
-          git push
+          cp "$RESULT_FILE" "$RUNNER_TEMP/sensitivity.json"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$RUNNER_TEMP/sensitivity.json" "$RESULT_FILE"
+            git add "$RESULT_FILE"
+            if git diff --cached --quiet; then
+              exit 0
+            fi
+            git commit -m "research: update parameter sensitivity"
+            if git push; then
+              exit 0
+            fi
+          done
+          exit 1
