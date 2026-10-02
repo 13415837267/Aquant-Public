@@ -1,0 +1,18 @@
+{
+  "completed_at": "2026-10-03T01:58:26.295605+08:00",
+  "valuation_start": "2021-10-03",
+  "valuation_end": "2026-10-03",
+  "financial_start": "2020-10-03",
+  "financial_end": "2026-06-30",
+  "tables": [
+    "indicator",
+    "income",
+    "balance",
+    "cash_flow"
+  ],
+  "source": "zzshare quarterly fundamentals",
+  "point_in_time_fields": [
+    "report_date",
+    "pub_date"
+  ]
+}

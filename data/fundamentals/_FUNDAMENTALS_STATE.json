@@ -1,5 +1,5 @@
 {
-  "status": "running",
+  "status": "complete",
   "started_at": "2026-10-03T01:25:26.383519+08:00",
   "completed_valuation_chunks": [],
   "completed_quarters": [
@@ -101,5 +101,9 @@
     "income": 113926,
     "balance": 116943,
     "cash_flow": 113060
-  }
+  },
+  "completed_at": "2026-10-03T01:58:26.295605+08:00",
+  "target_start": "2021-10-03",
+  "financial_start": "2020-10-03",
+  "financial_end": "2026-06-30"
 }
