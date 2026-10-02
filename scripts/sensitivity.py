@@ -80,7 +80,13 @@ def main():
         raise ValueError("strategy/PIT consistency audit failed")
     out={"schema_version":1,"status":"ready","method":"fixed_strategy_parameter_sensitivity",
          "start":a.start,"end":a.end,"results":rows,
-         "audit":{"fixed_strategy":True,"future_adjusted_factor_not_used":True}}
+         "audit":{
+             "fixed_strategy":True,
+             "future_adjusted_factor_not_used":True,
+             "warmup_sessions": int(59),
+             "performance_sessions": int(rows[0]["performance_sessions"]) if rows else 0,
+             "metrics_exclude_warmup": True,
+         }}
     Path(a.output).write_text(json.dumps(out,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({"rows":len(rows),"strategy_commit":next(iter(commits))}))
 if __name__=="__main__": main()
