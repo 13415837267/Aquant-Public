@@ -380,6 +380,7 @@ def quality_check_daily(df: pd.DataFrame, trade_date: str, minimum_rows: int | N
     duplicate_rows = int(df.duplicated(["symbol", "date"]).sum())
     wrong_date = int((df["date"] != trade_date).sum())
     null_close = int(df["close"].isna().sum())
+    non_main_board = int(~df["symbol"].map(is_main_board_symbol).sum())
 
     if unique_symbols == 0:
         raise RuntimeError(f"{trade_date}: no symbols")
@@ -389,6 +390,11 @@ def quality_check_daily(df: pd.DataFrame, trade_date: str, minimum_rows: int | N
         raise RuntimeError(f"{trade_date}: wrong-date rows={wrong_date}")
     if null_close:
         raise RuntimeError(f"{trade_date}: null close rows={null_close}")
+    if non_main_board:
+        raise RuntimeError(
+            f"{trade_date}: non-main-board rows={non_main_board}; "
+            "historical database must be Shanghai/Shenzhen main board only"
+        )
     if minimum_rows is not None and unique_symbols < minimum_rows:
         raise RuntimeError(
             f"{trade_date}: only {unique_symbols} symbols, below validation minimum {minimum_rows}"
