@@ -30,7 +30,6 @@ import json
 import os
 import subprocess
 import sys
-from collections import defaultdict, deque
 from pathlib import Path
 from typing import Iterable
 
@@ -170,87 +169,173 @@ def iter_selected_dates(
     return files[start_i : end_i + 1], index
 
 
+class RollingFeatureState:
+    """Vectorized rolling state for the point-in-time feature set."""
+
+    def __init__(self, initial_capacity: int = 4096) -> None:
+        self.capacity = initial_capacity
+        self.symbol_to_idx: dict[str, int] = {}
+        self.symbols = np.empty(initial_capacity, dtype=object)
+
+        self.rets = np.full((initial_capacity, 60), np.nan, dtype=float)
+        self.vol_rets = np.full((initial_capacity, 20), np.nan, dtype=float)
+        self.volumes = np.full((initial_capacity, 20), np.nan, dtype=float)
+
+        self.pos60 = np.zeros(initial_capacity, dtype=np.int64)
+        self.pos20 = np.zeros(initial_capacity, dtype=np.int64)
+        self.count60 = np.zeros(initial_capacity, dtype=np.int64)
+        self.count20 = np.zeros(initial_capacity, dtype=np.int64)
+        self.finite60 = np.zeros(initial_capacity, dtype=np.int64)
+        self.finite20 = np.zeros(initial_capacity, dtype=np.int64)
+        self.volume_valid20 = np.zeros(initial_capacity, dtype=np.int64)
+
+    def _grow(self, required: int) -> None:
+        if required <= self.capacity:
+            return
+        new_capacity = max(required, self.capacity * 2)
+
+        new_rets = np.full((new_capacity, 60), np.nan, dtype=float)
+        new_rets[: self.capacity] = self.rets
+        self.rets = new_rets
+
+        new_vol_rets = np.full((new_capacity, 20), np.nan, dtype=float)
+        new_vol_rets[: self.capacity] = self.vol_rets
+        self.vol_rets = new_vol_rets
+
+        new_volumes = np.full((new_capacity, 20), np.nan, dtype=float)
+        new_volumes[: self.capacity] = self.volumes
+        self.volumes = new_volumes
+
+        for name in (
+            "symbols",
+            "pos60",
+            "pos20",
+            "count60",
+            "count20",
+            "finite60",
+            "finite20",
+            "volume_valid20",
+        ):
+            old = getattr(self, name)
+            if name == "symbols":
+                value = np.empty(new_capacity, dtype=object)
+                value[: self.capacity] = old
+            elif old.dtype.kind in "iu":
+                value = np.zeros(new_capacity, dtype=old.dtype)
+                value[: self.capacity] = old
+            else:
+                value = np.empty(new_capacity, dtype=old.dtype)
+                value[: self.capacity] = old
+            setattr(self, name, value)
+
+        self.capacity = new_capacity
+
+    def indices_for(self, symbols: np.ndarray) -> np.ndarray:
+        new_symbols = [symbol for symbol in pd.unique(symbols) if symbol not in self.symbol_to_idx]
+        if new_symbols:
+            start = len(self.symbol_to_idx)
+            self._grow(start + len(new_symbols))
+            for offset, symbol in enumerate(new_symbols):
+                idx = start + offset
+                self.symbol_to_idx[symbol] = idx
+                self.symbols[idx] = symbol
+
+        return np.fromiter(
+            (self.symbol_to_idx[symbol] for symbol in symbols),
+            dtype=np.int64,
+            count=len(symbols),
+        )
+
+    def update_and_features(
+        self,
+        symbols: np.ndarray,
+        daily_ret: np.ndarray,
+        volumes: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        idx = self.indices_for(symbols)
+
+        slot60 = self.pos60[idx] % 60
+        old60 = self.rets[idx, slot60]
+        self.finite60[idx] += np.isfinite(daily_ret).astype(np.int64) - np.isfinite(old60).astype(np.int64)
+        self.rets[idx, slot60] = daily_ret
+        self.pos60[idx] += 1
+        self.count60[idx] = np.minimum(self.count60[idx] + 1, 60)
+
+        slot20 = self.pos20[idx] % 20
+        old20_ret = self.vol_rets[idx, slot20]
+        old20_volume = self.volumes[idx, slot20]
+        self.finite20[idx] += np.isfinite(daily_ret).astype(np.int64) - np.isfinite(old20_ret).astype(np.int64)
+        self.volume_valid20[idx] += np.isfinite(volumes).astype(np.int64) - np.isfinite(old20_volume).astype(np.int64)
+        self.vol_rets[idx, slot20] = daily_ret
+        self.volumes[idx, slot20] = volumes
+        self.pos20[idx] += 1
+        self.count20[idx] = np.minimum(self.count20[idx] + 1, 20)
+
+        ret60 = np.full(len(idx), np.nan, dtype=float)
+        complete = (self.count60[idx] == 60) & (self.finite60[idx] == 60)
+        if complete.any():
+            ret60[complete] = np.prod(1.0 + self.rets[idx[complete]], axis=1) - 1.0
+
+        volatility = np.full(len(idx), np.nan, dtype=float)
+        enough_rets = self.finite20[idx] >= 10
+        if enough_rets.any():
+            volatility[enough_rets] = np.nanstd(
+                self.vol_rets[idx[enough_rets]],
+                axis=1,
+                ddof=1,
+            )
+
+        volume_ratio = np.full(len(idx), np.nan, dtype=float)
+        enough_volume = (
+            self.volume_valid20[idx] >= 10
+            & np.isfinite(volumes)
+            & (volumes > 0)
+        )
+        if enough_volume.any():
+            mean_volume = np.nanmean(self.volumes[idx[enough_volume]], axis=1)
+            valid_mean = mean_volume > 0
+            ratio = np.full(len(mean_volume), np.nan, dtype=float)
+            ratio[valid_mean] = volumes[enough_volume][valid_mean] / mean_volume[valid_mean]
+            volume_ratio[enough_volume] = ratio
+
+        return ret60, volatility * 100.0, volume_ratio
+
+
 def build_strategy_frame(
     df: pd.DataFrame,
-    states: dict[str, dict[str, deque[float]]],
+    state: RollingFeatureState,
 ) -> pd.DataFrame:
     """Append current observations and return today's scorable main-board frame."""
-    rows = []
+    symbols = df["symbol"].astype(str).str.zfill(6).to_numpy()
+    daily_ret = pd.to_numeric(df["pct_chg"], errors="coerce").to_numpy(dtype=float) / 100.0
+    volumes = pd.to_numeric(df["volume"], errors="coerce").to_numpy(dtype=float)
 
-    for row in df.itertuples(index=False):
-        symbol = str(row.symbol).zfill(6)
-        state = states.setdefault(
-            symbol,
-            {
-                "rets": deque(maxlen=60),
-                "vol_rets": deque(maxlen=20),
-                "volumes": deque(maxlen=20),
-            },
-        )
+    ret60, volatility_proxy, volume_ratio = state.update_and_features(
+        symbols,
+        daily_ret,
+        volumes,
+    )
 
-        daily_ret = float(row.pct_chg) / 100.0 if pd.notna(row.pct_chg) else np.nan
-        volume = float(row.volume) if pd.notna(row.volume) else np.nan
+    close = pd.to_numeric(df["close"], errors="coerce").to_numpy(dtype=float)
+    amount = pd.to_numeric(df["amount"], errors="coerce").to_numpy(dtype=float)
+    turnover_pct = pd.to_numeric(df["turnover_pct"], errors="coerce").to_numpy(dtype=float)
+    is_paused = pd.to_numeric(df["is_paused"], errors="coerce").to_numpy(dtype=float)
+    is_st = pd.to_numeric(df["is_st"], errors="coerce").to_numpy(dtype=float)
+    pe = pd.to_numeric(df["pe_ratio"], errors="coerce").to_numpy(dtype=float)
+    pb = pd.to_numeric(df["pb_ratio"], errors="coerce").to_numpy(dtype=float)
+    change_pct = pd.to_numeric(df["pct_chg"], errors="coerce").to_numpy(dtype=float)
 
-        state["rets"].append(daily_ret)
-        state["vol_rets"].append(daily_ret)
-        state["volumes"].append(volume)
+    eligible = (
+        (is_paused == 0)
+        & (is_st == 0)
+        & np.isfinite(close)
+        & (close > 2.0)
+        & np.isfinite(amount)
+        & (amount >= 2e7)
+        & np.isfinite(ret60)
+    )
 
-        ret60 = np.nan
-        if len(state["rets"]) == 60 and all(np.isfinite(state["rets"])):
-            gross = np.prod([1.0 + x for x in state["rets"]])
-            ret60 = float(gross - 1.0)
-
-        volatility_proxy = np.nan
-        valid_rets = [x for x in state["vol_rets"] if np.isfinite(x)]
-        if len(valid_rets) >= 10:
-            volatility_proxy = float(np.std(valid_rets, ddof=1) * 100.0)
-
-        volume_ratio = np.nan
-        valid_volumes = [x for x in state["volumes"] if np.isfinite(x)]
-        if len(valid_volumes) >= 10 and valid_volumes[-1] > 0:
-            mean_volume = float(np.mean(valid_volumes))
-            if mean_volume > 0:
-                volume_ratio = float(valid_volumes[-1] / mean_volume)
-
-        name_st = str(getattr(row, "name", "") or "")
-        if "ST" in name_st.upper() or "退" in name_st:
-            continue
-
-        if not (
-            pd.notna(row.is_paused)
-            and float(row.is_paused) == 0
-            and pd.notna(row.is_st)
-            and float(row.is_st) == 0
-            and pd.notna(row.close)
-            and float(row.close) > 2.0
-            and pd.notna(row.amount)
-            and float(row.amount) >= 2e7
-            and np.isfinite(ret60)
-        ):
-            continue
-
-        rows.append(
-            {
-                "symbol": symbol,
-                "name": name_st or f"股票{symbol}",
-                "close": float(row.close),
-                "amount": float(row.amount),
-                "turnover_pct": (
-                    float(row.turnover_pct) if pd.notna(row.turnover_pct) else np.nan
-                ),
-                "change_pct": (
-                    float(row.pct_chg) if pd.notna(row.pct_chg) else np.nan
-                ),
-                "pe": float(row.pe_ratio) if pd.notna(row.pe_ratio) else np.nan,
-                "pb": float(row.pb_ratio) if pd.notna(row.pb_ratio) else np.nan,
-                "ret_60d": ret60,
-                "momentum_60d": ret60 * 100.0,
-                "volatility_proxy": volatility_proxy,
-                "volume_ratio": volume_ratio,
-            }
-        )
-
-    if not rows:
+    if not eligible.any():
         return pd.DataFrame(
             columns=[
                 "symbol",
@@ -268,9 +353,23 @@ def build_strategy_frame(
             ]
         )
 
-    return pd.DataFrame(rows)
-
-
+    selected_symbols = symbols[eligible]
+    return pd.DataFrame(
+        {
+            "symbol": selected_symbols,
+            "name": [f"股票{symbol}" for symbol in selected_symbols],
+            "close": close[eligible],
+            "amount": amount[eligible],
+            "turnover_pct": turnover_pct[eligible],
+            "change_pct": change_pct[eligible],
+            "pe": pe[eligible],
+            "pb": pb[eligible],
+            "ret_60d": ret60[eligible],
+            "momentum_60d": ret60[eligible] * 100.0,
+            "volatility_proxy": volatility_proxy[eligible],
+            "volume_ratio": volume_ratio[eligible],
+        }
+    )
 def select_targets(frame: pd.DataFrame, strategy_model: object, top_n: int) -> pd.DataFrame:
     if frame.empty:
         return frame
@@ -332,6 +431,68 @@ def normalize_weights(symbols: Iterable[str]) -> dict[str, float]:
 def turnover(prev: dict[str, float], target: dict[str, float]) -> float:
     keys = set(prev) | set(target)
     return float(sum(abs(target.get(k, 0.0) - prev.get(k, 0.0)) for k in keys))
+
+
+def validate_backtest_payload(payload: dict) -> None:
+    """Fail closed on structural, numerical, and point-in-time audit violations."""
+    if payload.get("status") != "ready":
+        raise ValueError("backtest payload is not ready")
+    if payload.get("future_function") is not False:
+        raise ValueError("future_function audit must be false")
+    audit = payload.get("audit", {})
+    overall = payload.get("overall", {})
+    daily = payload.get("daily", [])
+
+    performance_sessions = int(audit.get("performance_sessions", -1))
+    if performance_sessions != len(daily):
+        raise ValueError("performance_sessions does not match daily rows")
+    if performance_sessions != int(overall.get("trading_days", -1)):
+        raise ValueError("overall trading_days does not match daily rows")
+    if int(audit.get("selected_sessions", -1)) + 1 != int(audit.get("historical_files_used", -2)):
+        raise ValueError("historical session/file audit mismatch")
+
+    dates = [row["date"] for row in daily]
+    if dates != sorted(dates) or len(dates) != len(set(dates)):
+        raise ValueError("daily dates are not strictly unique and increasing")
+
+    numeric_fields = [
+        "gross_return",
+        "turnover",
+        "cost",
+        "net_return",
+        "target_count",
+        "executed_count",
+        "missing_execution_count",
+    ]
+    for row in daily:
+        for field in numeric_fields:
+            value = float(row[field])
+            if not np.isfinite(value):
+                raise ValueError(f"non-finite daily field: {field}")
+        if row["turnover"] < -1e-12 or row["turnover"] > 2.0 + 1e-12:
+            raise ValueError("turnover outside theoretical L1 bounds")
+        expected_cost = row["turnover"] * (
+            float(payload["transaction_cost_bps"]) + float(payload["slippage_bps"])
+        ) / 10000.0
+        if not np.isclose(row["cost"], expected_cost, rtol=0, atol=1e-12):
+            raise ValueError("daily cost does not match turnover * bps")
+
+    for key in (
+        "total_return_pct",
+        "annualized_return_pct",
+        "annualized_volatility_pct",
+        "max_drawdown_pct",
+        "average_turnover_pct",
+        "total_turnover_pct",
+    ):
+        if overall.get(key) is not None and not np.isfinite(float(overall[key])):
+            raise ValueError(f"non-finite overall metric: {key}")
+    if overall.get("sharpe") is not None and not np.isfinite(float(overall["sharpe"])):
+        raise ValueError("non-finite Sharpe")
+    if overall.get("max_drawdown_pct") is not None and float(overall["max_drawdown_pct"]) > 1e-9:
+        raise ValueError("max drawdown cannot be positive")
+    if not payload.get("strategy_commit"):
+        raise ValueError("strategy commit audit is missing")
 
 
 def metrics(daily: pd.DataFrame) -> dict:
@@ -398,7 +559,7 @@ def run_backtest(
         raise ValueError("Backtest needs at least two trading days")
 
     strategy_model, strategy_version, strategy_commit = load_strategy()
-    states: dict[str, dict[str, deque[float]]] = {}
+    states = RollingFeatureState()
 
     # The first 59 sessions are warm-up only; they cannot be traded until each
     # stock has a complete 60-observation return window.
@@ -408,14 +569,16 @@ def run_backtest(
     missing_execution_total = 0
     selected_total = 0
 
+    # Read each historical session once. The next session becomes the current
+    # session on the following iteration, eliminating duplicate CSV reads.
+    current = read_daily(selected_files[0])
+
     # We need T and T+1 for every scoring date.
     for i in range(len(selected_files) - 1):
-        current_path = selected_files[i]
         next_path = selected_files[i + 1]
-        current_date = current_path.name[:10]
         next_date = next_path.name[:10]
+        current_date = current["date"].iloc[0]
 
-        current = read_daily(current_path)
         next_day = read_daily(next_path)
 
         frame = build_strategy_frame(current, states)
@@ -479,6 +642,8 @@ def run_backtest(
                 f"targets={len(target_symbols)}"
             )
 
+        current = next_day
+
     daily = pd.DataFrame(daily_rows)
     active_start = 0
     active_rows = daily.index[daily["target_count"] > 0].tolist()
@@ -541,6 +706,9 @@ def run_backtest(
         "daily": daily.to_dict(orient="records"),
         "selection_audit": selection_rows,
     }
+
+    validate_backtest_payload(payload)
+    print("[backtest] quality audit passed")
 
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUT_FILE.write_text(
