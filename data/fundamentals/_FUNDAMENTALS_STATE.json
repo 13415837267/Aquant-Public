@@ -10,10 +10,11 @@
     "income:2020q4",
     "income:2021q1",
     "indicator:2020q4",
-    "indicator:2021q1"
+    "indicator:2021q1",
+    "indicator:2021q2"
   ],
   "rows_written": {
-    "indicator": 8466,
+    "indicator": 12891,
     "income": 8761,
     "balance": 9712,
     "cash_flow": 8466
