@@ -1,0 +1,57 @@
+name: Fundamentals Database Backfill
+
+on:
+  push:
+    paths:
+      - "scripts/backfill_history.py"
+      - ".github/workflows/fundamentals-backfill.yml"
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fundamentals-backfill
+  cancel-in-progress: false
+
+jobs:
+  fundamentals:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Backfill five-year point-in-time fundamentals
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/backfill_history.py --mode fundamentals
+      - name: Validate persisted fundamentals
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/backfill_history.py --mode validate_fundamentals
+      - name: Verify completeness markers
+        run: |
+          test -f data/fundamentals/_FUNDAMENTALS_STATE.json
+          test -f data/fundamentals/_FUNDAMENTALS_COMPLETE
+          test -f data/fundamentals/_FUNDAMENTALS_VALIDATION.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("data/fundamentals")
+          state = json.loads((root / "_FUNDAMENTALS_STATE.json").read_text(encoding="utf-8"))
+          complete = json.loads((root / "_FUNDAMENTALS_COMPLETE").read_text(encoding="utf-8"))
+          if state.get("status") != "complete":
+              raise SystemExit("fundamentals state is not complete")
+          if complete.get("point_in_time_fields") != ["report_date", "pub_date"]:
+              raise SystemExit("point-in-time fields audit failed")
+          print("FUNDAMENTALS COMPLETENESS AUDIT PASS")
+          PY
