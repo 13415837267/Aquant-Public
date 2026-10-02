@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from scripts.backtest import execution_limit_diagnostics, metrics, normalize_weights, rolling_252d_metrics, turnover
+from scripts.backtest_constrained import StatefulPortfolio
 
 
 def test_metrics_simple_path():
@@ -130,3 +131,49 @@ def test_rolling_252d_metrics_samples_final_window():
     assert rows
     assert rows[-1]["end_date"] == dates[-1].strftime("%Y-%m-%d")
     assert rows[-1]["window_sessions"] == 252
+
+
+
+def test_stateful_portfolio_blocks_limit_up_buy():
+    portfolio = StatefulPortfolio(initial_cash=1.0)
+    targets = pd.DataFrame({"symbol": ["000001"]})
+    execution = pd.DataFrame(
+        {
+            "symbol": ["000001"],
+            "open": [10.0],
+            "close": [11.0],
+            "high_limit": [10.0],
+            "low_limit": [9.0],
+            "is_paused": [0],
+        }
+    )
+    result = portfolio.rebalance(targets, execution, cost_rate=0.0005)
+    assert result["blocked_buy_count"] == 1
+    assert result["buy_count"] == 0
+    assert result["position_count"] == 0
+    assert np.isclose(result["equity_close"], 1.0)
+
+
+def test_stateful_portfolio_keeps_limit_down_holding_and_buys_available_target():
+    portfolio = StatefulPortfolio(initial_cash=0.5)
+    portfolio.shares["000001"] = 0.05
+    portfolio.last_close["000001"] = 10.0
+    portfolio.prev_close_equity = 1.0
+
+    targets = pd.DataFrame({"symbol": ["000002"]})
+    execution = pd.DataFrame(
+        {
+            "symbol": ["000001", "000002"],
+            "open": [9.0, 10.0],
+            "close": [9.0, 10.0],
+            "high_limit": [9.9, 11.0],
+            "low_limit": [9.0, 9.0],
+            "is_paused": [0, 0],
+        }
+    )
+    result = portfolio.rebalance(targets, execution, cost_rate=0.0005)
+    assert result["blocked_sell_count"] == 1
+    assert result["buy_count"] == 1
+    assert "000001" in portfolio.shares
+    assert "000002" in portfolio.shares
+    assert result["position_count"] == 2
