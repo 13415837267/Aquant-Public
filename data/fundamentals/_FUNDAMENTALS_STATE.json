@@ -4,12 +4,14 @@
   "completed_valuation_chunks": [],
   "completed_quarters": [
     "balance:2020q4",
+    "cash_flow:2020q4",
     "income:2020q4",
     "indicator:2020q4"
   ],
   "rows_written": {
     "indicator": 4192,
     "income": 4272,
-    "balance": 5223
+    "balance": 5223,
+    "cash_flow": 4192
   }
 }
