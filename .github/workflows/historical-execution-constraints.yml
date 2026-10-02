@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "scripts/backtest_constrained.py"
+      - "scripts/portfolio.py"
       - ".github/workflows/historical-execution-constraints.yml"
   workflow_dispatch:
     inputs:
