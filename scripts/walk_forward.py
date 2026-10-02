@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from bisect import bisect_left, bisect_right
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -39,33 +40,56 @@ def prior_calendar_years(d: date, years: int) -> date:
 def build_folds(dates: list[str], train_years: int, test_years: int) -> list[dict]:
     if not dates:
         raise ValueError("history is empty")
-    first = date.fromisoformat(dates[0])
-    last = date.fromisoformat(dates[-1])
+    if train_years <= 0 or test_years <= 0:
+        raise ValueError("train_years and test_years must be positive")
+
+    date_values = [date.fromisoformat(x) for x in dates]
+    first = date_values[0]
+    last = date_values[-1]
+
+    def first_on_or_after(target: date) -> int | None:
+        idx = bisect_left(date_values, target)
+        return idx if idx < len(date_values) else None
+
+    def last_on_or_before(target: date) -> int | None:
+        idx = bisect_right(date_values, target) - 1
+        return idx if idx >= 0 else None
+
     folds = []
-    oos_start = prior_calendar_years(first, -0)  # replaced below
-    # Start with the first complete train_years block available in history.
-    cursor = first.replace(year=first.year + train_years)
-    while cursor <= last:
-        oos_end = min(cursor.replace(year=cursor.year + test_years) - timedelta(days=1), last)
-        if oos_end < cursor:
+    cursor_calendar = first.replace(year=first.year + train_years)
+
+    while cursor_calendar <= last:
+        oos_start_idx = first_on_or_after(cursor_calendar)
+        if oos_start_idx is None:
             break
-        train_start = prior_calendar_years(cursor, train_years)
-        # Include the immediately preceding history for the 60-session feature warm-up.
-        cursor_text = cursor.isoformat()
-        cursor_idx = next((idx for idx, value in enumerate(dates) if value >= cursor_text), len(dates) - 1)
-        warmup_idx = max(0, cursor_idx - 60)
-        warmup_start = dates[warmup_idx]
+
+        oos_start = date_values[oos_start_idx]
+        oos_end_calendar = cursor_calendar.replace(
+            year=cursor_calendar.year + test_years
+        ) - timedelta(days=1)
+        oos_end_idx = last_on_or_before(oos_end_calendar)
+        if oos_end_idx is None or oos_end_idx < oos_start_idx:
+            break
+
+        oos_end = date_values[oos_end_idx]
+        train_start = prior_calendar_years(oos_start, train_years)
+        warmup_idx = max(0, oos_start_idx - 60)
+
         folds.append(
             {
                 "fold": len(folds) + 1,
                 "train_start": train_start.isoformat(),
-                "train_end": (cursor - timedelta(days=1)).isoformat(),
-                "oos_start": cursor.isoformat(),
+                "train_end": (oos_start - timedelta(days=1)).isoformat(),
+                "oos_start": oos_start.isoformat(),
                 "oos_end": oos_end.isoformat(),
-                "warmup_start": warmup_start,
+                "warmup_start": dates[warmup_idx],
             }
         )
-        cursor = cursor.replace(year=cursor.year + test_years)
+
+        cursor_calendar = cursor_calendar.replace(
+            year=cursor_calendar.year + test_years
+        )
+
     return folds
 
 
