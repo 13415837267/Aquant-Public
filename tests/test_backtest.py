@@ -233,3 +233,34 @@ def test_sensitivity_metrics_exclude_warmup_rows():
     result = run_one(30, 3.0, 2.0, payload)
     assert result["performance_sessions"] == 2
     assert np.isclose(result["total_return_pct"], 0.4200125)
+
+def test_allocate_weights_matches_capped_cash_buffer_contract():
+    from scripts.portfolio import allocate_weights
+
+    targets = pd.DataFrame(
+        {
+            "symbol": ["000001", "000002", "000003"],
+            "score": [90.0, 80.0, 70.0],
+            "volatility_proxy": [2.0, 4.0, 8.0],
+        }
+    )
+    weights = allocate_weights(targets, max_weight=0.05, cash_buffer=0.05)
+
+    assert set(weights) == {"000001", "000002", "000003"}
+    assert all(0 < value <= 0.05 + 1e-12 for value in weights.values())
+    assert np.isclose(sum(weights.values()), 0.15)
+
+
+def test_allocate_weights_is_deterministic_and_zero_for_empty_targets():
+    from scripts.portfolio import allocate_weights
+
+    targets = pd.DataFrame(
+        {
+            "symbol": ["000002", "000001"],
+            "score": [80.0, 90.0],
+            "volatility_proxy": [5.0, 5.0],
+        }
+    )
+    assert allocate_weights(targets) == allocate_weights(targets.iloc[::-1].reset_index(drop=True))
+    assert allocate_weights(pd.DataFrame()) == {}
+
