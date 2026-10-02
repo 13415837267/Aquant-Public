@@ -1,3 +1,5 @@
+import pandas as pd
+
 from scripts.market_scope import is_main_board_symbol
 
 
