@@ -76,7 +76,7 @@ def blocked_for_side(row: pd.Series, side: str, enforce_limits: bool = True) -> 
     raise ValueError(f"unsupported execution side: {side}")
 
 
-class StatefulPortfolio:
+class FlattenedIntradayPortfolio:
     """Long-only portfolio carried from close to close through T+1 execution."""
 
     def __init__(self, initial_cash: float = 1.0) -> None:
@@ -192,28 +192,86 @@ class StatefulPortfolio:
         total_traded = sell_notional + buy_notional
         cost = total_traded * cost_rate
 
-        close_equity = self.cash
+        # Mark the portfolio at T+1 close, then flatten all executable positions.
+        # Only a failed close sale creates a forced overnight carry.
+        mark_close_equity = self.cash
         close_missing = 0
+        close_sell_notional = 0.0
+        blocked_close_sell = 0
+        close_sell_count = 0
+        close_sell_symbols = []
+
         for symbol, shares in list(self.shares.items()):
-            close_price = row_value(execution, symbol, "close", self.last_close.get(symbol, np.nan))
+            row = execution.loc[symbol] if symbol in execution.index else None
+            close_price = row_value(
+                execution,
+                symbol,
+                "close",
+                self.last_close.get(symbol, np.nan),
+            )
             if not valid_price(close_price):
                 close_missing += 1
-                close_price = self.last_close.get(symbol, np.nan)
-            if valid_price(close_price):
-                self.last_close[symbol] = float(close_price)
-                close_equity += shares * float(close_price)
+                continue
 
-        if not valid_price(close_equity) or close_equity <= 0:
-            raise ValueError("stateful execution produced invalid close equity")
+            close_price = float(close_price)
+            self.last_close[symbol] = close_price
+            mark_close_equity += shares * close_price
 
-        net_return = close_equity / prior_equity - 1.0
-        gross_return = net_return + cost
+            if row is None or blocked_for_side(row, "sell", enforce_limits):
+                blocked_close_sell += 1
+                continue
+
+            notional = float(shares) * close_price
+            self.cash += notional * (1.0 - cost_rate)
+            close_sell_notional += notional
+            close_sell_count += 1
+            close_sell_symbols.append(symbol)
+            del self.shares[symbol]
+
+        end_equity = self.cash
+        for symbol, shares in self.shares.items():
+            price = self.last_close.get(symbol, np.nan)
+            if valid_price(price):
+                end_equity += shares * float(price)
+
+        if not valid_price(end_equity) or end_equity <= 0:
+            raise ValueError("flattened execution produced invalid close equity")
+
+        total_traded = sell_notional + buy_notional + close_sell_notional
+        total_cost = total_traded * cost_rate
+        net_return = end_equity / prior_equity - 1.0
+        gross_return = net_return + total_cost
 
         turnover_value = total_traded / equity_open if equity_open > 0 else 0.0
         overnight_return = equity_open / prior_equity - 1.0
+        intraday_return = mark_close_equity / equity_open - 1.0 if equity_open > 0 else 0.0
 
-        self.prev_close_equity = float(close_equity)
+        self.prev_close_equity = float(end_equity)
 
+        return {
+            "net_return": float(net_return),
+            "gross_return": float(gross_return),
+            "intraday_return": float(intraday_return),
+            "turnover": float(turnover_value),
+            "cost": float(total_cost),
+            "equity_open": float(equity_open),
+            "equity_close": float(end_equity),
+            "mark_close_equity": float(mark_close_equity),
+            "overnight_return": float(overnight_return),
+            "sell_count": len(sell_symbols),
+            "buy_count": len(buy_symbols),
+            "close_sell_count": close_sell_count,
+            "blocked_buy_count": blocked_buy,
+            "blocked_sell_count": blocked_sell,
+            "blocked_close_sell_count": blocked_close_sell,
+            "close_missing_count": close_missing,
+            "cash": float(self.cash),
+            "position_count": len(self.shares),
+            "forced_overnight_positions": len(self.shares),
+            "sold_symbols": sell_symbols,
+            "bought_symbols": buy_symbols,
+            "close_sold_symbols": close_sell_symbols,
+        }
         return {
             "net_return": float(net_return),
             "gross_return": float(gross_return),
@@ -306,8 +364,8 @@ def run_constrained(
 
     strategy_model, strategy_version, strategy_commit = base.load_strategy()
     states = base.RollingFeatureState()
-    portfolio = StatefulPortfolio(initial_cash=1.0)
-    unconstrained = StatefulPortfolio(initial_cash=1.0)
+    portfolio = FlattenedIntradayPortfolio(initial_cash=1.0)
+    unconstrained = FlattenedIntradayPortfolio(initial_cash=1.0)
 
     daily_rows = []
     unconstrained_rows = []
@@ -364,7 +422,7 @@ def run_constrained(
         blocked_buy_total += result["blocked_buy_count"]
         blocked_sell_total += result["blocked_sell_count"]
 
-        intraday_rows.append({"date": next_date, "net_return": float(result["equity_close"] / result["equity_open"] - 1.0), "turnover": result["turnover"]})
+        intraday_rows.append({"date": next_date, "net_return": result["intraday_return"], "turnover": result["turnover"]})
         unconstrained_rows.append({"date": next_date, "net_return": float(unconstrained_result["net_return"]), "turnover": unconstrained_result["turnover"]})
 
         daily_rows.append(
@@ -445,7 +503,7 @@ def run_constrained(
         "strategy_commit": strategy_commit,
         "overall": overall,
         "intraday_metrics": intraday_metrics,
-        "stateful_unconstrained": {
+        "flattened_unconstrained": {
             "overall": unconstrained_overall,
             "annual": unconstrained_annual,
             "monthly": unconstrained_monthly,
@@ -464,8 +522,11 @@ def run_constrained(
             "limit_down_open_observations": limit_down_total,
             "blocked_buy_orders": blocked_buy_total,
             "blocked_sell_orders": blocked_sell_total,
-            "stateful_positions": True,
-            "overnight_gaps_included": True,
+            "blocked_close_sell_orders": int(sum(r["blocked_close_sell_count"] for r in daily_rows)),
+            "forced_overnight_sessions": int(sum(r["forced_overnight_positions"] > 0 for r in daily_rows)),
+            "forced_overnight_position_observations": int(sum(r["forced_overnight_positions"] for r in daily_rows)),
+            "flattened_daily_execution": True,
+            "overnight_gaps_included_only_when_close_sale_blocked": True,
             "current_universe_not_used_for_history": True,
             "current_names_not_used_for_history": True,
             "future_adjusted_factor_not_used": True,
