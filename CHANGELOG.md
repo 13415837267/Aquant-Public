@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Shanghai/Shenzhen main-board scope
+- Standardized the production universe to Shanghai/Shenzhen main-board A shares (000/001/002/003.SZ and 600/601/603/605.SH).
+- Historical yearly backfill no longer filters by the current active stock list, reducing survivorship bias for later-delisted main-board stocks.
+- Added --rebuild and a workflow input so existing historical files can be re-downloaded under the corrected scope.
+- Candidate generation now filters the history window to the main board.
+- 60-day momentum and 20-day volatility now use the provider daily pct_chg return series; the future-sensitive adjustment factor is retained as data but is not used to construct the signal.
+- Candidate generation excludes stocks without a complete 60-trading-day momentum window.
+
 Every code change is recorded here with the corresponding Git commit or pull request. Automated data-only refreshes use the `data:` commit prefix.
 
 ## Unreleased — Checkpoint push resilience
