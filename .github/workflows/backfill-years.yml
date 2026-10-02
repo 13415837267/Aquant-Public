@@ -2,6 +2,12 @@
 
 on:
   workflow_dispatch:
+    inputs:
+      rebuild:
+        description: "Re-download existing daily files with the main-board historical scope"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -31,5 +37,5 @@ jobs:
       - name: Backfill year
         env:
           ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
-        run: python scripts/backfill_year.py --year ${{ matrix.year }}
+        run: python scripts/backfill_year.py --year ${{ matrix.year }} ${{ inputs.rebuild && '--rebuild' || '' }}
 
