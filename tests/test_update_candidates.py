@@ -85,4 +85,4 @@ def test_build_candidates_filters_to_main_board_and_metadata():
     assert snapshot["strategy_version"] == "test"
     assert snapshot["strategy_commit"] == "abc123"
     assert snapshot["lookback_trading_days"] == 60
-    assert snapshot["market_scope"].startswith("沪深主板")
+    assert snapshot["market_scope"].startswith("沪深主板")\n    assert snapshot["diagnostics"]["history_rows"] == len(_history())\n    assert snapshot["diagnostics"]["latest_main_board_rows"] == 2\n    assert snapshot["diagnostics"]["scorable_rows"] == 2\n    assert snapshot["diagnostics"]["candidate_count"] == 2\n
