@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "status": "ready",
+  "comparison_note": "baseline uses independent T+1 open-to-close equal-weight daily replay; constrained uses stateful close-to-close accounting with the same PIT signals. intraday_metrics provides the closest execution-layer sensitivity comparison.",
+  "baseline_strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+  "constrained_strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+  "baseline": {
+    "total_return_pct": 2070.324819013491,
+    "annualized_return_pct": 31.99137047249705,
+    "annualized_volatility_pct": 25.458967602795816,
+    "sharpe": 1.2182454761239776,
+    "max_drawdown_pct": -27.57842364119658,
+    "win_rate_pct": 53.937007874015755,
+    "average_turnover_pct": 90.2720114531138,
+    "total_turnover_pct": 252219.99999999997
+  },
+  "constrained": {
+    "total_return_pct": -98.58437266898086,
+    "annualized_return_pct": -31.344255990535085,
+    "annualized_volatility_pct": 26.662173316087877,
+    "sharpe": -1.2752868954258723,
+    "max_drawdown_pct": -98.78869396490829,
+    "win_rate_pct": 46.79284963196635,
+    "average_turnover_pct": 84.89420290160669,
+    "total_turnover_pct": 242203.16087828387
+  },
+  "difference_constrained_minus_baseline": {
+    "total_return_pct": -2168.909191682472,
+    "annualized_return_pct": -63.335626463032135,
+    "annualized_volatility_pct": 1.2032057132920606,
+    "sharpe": -2.4935323715498496,
+    "max_drawdown_pct": -71.21027032371171,
+    "win_rate_pct": -7.144158242049407,
+    "average_turnover_pct": -5.3778085515071155,
+    "total_turnover_pct": -10016.839121716097
+  },
+  "constrained_intraday_metrics": {
+    "trading_days": 2853,
+    "total_return_pct": 1901.1106144760781,
+    "annualized_return_pct": 30.298306701015076,
+    "annualized_volatility_pct": 23.561142789804673,
+    "sharpe": 1.2417107404558816,
+    "max_drawdown_pct": -27.17007694872695,
+    "average_turnover_pct": 84.89420290160669,
+    "total_turnover_pct": 242203.16087828387,
+    "win_rate_pct": 52.89169295478444,
+    "best_day_pct": 7.310761476468253,
+    "worst_day_pct": -8.191010390942289,
+    "max_consecutive_losses": 12,
+    "max_consecutive_gains": 9
+  },
+  "execution_audit": {
+    "historical_files_used": 2854,
+    "selected_sessions": 2853,
+    "performance_sessions": 2853,
+    "selected_stock_observations": 83820,
+    "missing_execution_observations": 2,
+    "limit_up_open_observations": 280,
+    "limit_down_open_observations": 160,
+    "blocked_buy_orders": 265,
+    "blocked_sell_orders": 2787,
+    "stateful_positions": true,
+    "overnight_gaps_included": true,
+    "current_universe_not_used_for_history": true,
+    "current_names_not_used_for_history": true,
+    "future_adjusted_factor_not_used": true,
+    "pit_fundamentals_required": false,
+    "intraday_return_definition": "T+1 close equity / T+1 pre-trade open equity - 1"
+  }
+}
