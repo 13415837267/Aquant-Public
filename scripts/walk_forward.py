@@ -75,14 +75,7 @@ def filter_oos(payload: dict, oos_start: str, oos_end: str) -> pd.DataFrame:
     return daily[(daily["date"] >= oos_start) & (daily["date"] <= oos_end)].reset_index(drop=True)
 
 
-def run_fold(fold: dict, top_n: int, cost_bps: float, slippage_bps: float) -> dict:
-    payload = base.run_backtest(
-        start=fold["warmup_start"],
-        end=fold["oos_end"],
-        top_n=top_n,
-        cost_bps=cost_bps,
-        slippage_bps=slippage_bps,
-    )
+def run_fold(fold: dict, payload: dict) -> dict:
     oos = filter_oos(payload, fold["oos_start"], fold["oos_end"])
     if oos.empty:
         raise ValueError(f"fold {fold['fold']} has no OOS observations")
@@ -142,6 +135,13 @@ def main() -> None:
 
     # run_backtest writes latest.json on every fold; keep the final research
     # artifact separate and do not treat it as the production baseline.
+    full_payload = base.run_backtest(
+        start=args.start,
+        end=args.end,
+        top_n=args.top_n,
+        cost_bps=args.cost_bps,
+        slippage_bps=args.slippage_bps,
+    )
     results = []
     for fold in folds:
         print(
@@ -149,7 +149,7 @@ def main() -> None:
             f"train={fold['train_start']}..{fold['train_end']} "
             f"oos={fold['oos_start']}..{fold['oos_end']}"
         )
-        results.append(run_fold(fold, args.top_n, args.cost_bps, args.slippage_bps))
+        results.append(run_fold(fold, full_payload))
 
     result = {
         "schema_version": 1,
