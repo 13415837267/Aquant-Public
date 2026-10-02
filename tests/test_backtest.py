@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from scripts.backtest import execution_limit_diagnostics, metrics, normalize_weights, rolling_252d_metrics, turnover
-from scripts.backtest_constrained import StatefulPortfolio
+from scripts.backtest_constrained import FlattenedIntradayPortfolio
 
 
 def test_metrics_simple_path():
@@ -135,7 +135,7 @@ def test_rolling_252d_metrics_samples_final_window():
 
 
 def test_stateful_portfolio_blocks_limit_up_buy():
-    portfolio = StatefulPortfolio(initial_cash=1.0)
+    portfolio = FlattenedIntradayPortfolio(initial_cash=1.0)
     targets = pd.DataFrame({"symbol": ["000001"]})
     execution = pd.DataFrame(
         {
@@ -167,7 +167,7 @@ def test_stateful_portfolio_keeps_limit_down_holding_and_buys_available_target()
             "open": [9.0, 10.0],
             "close": [9.0, 10.0],
             "high_limit": [9.9, 11.0],
-            "low_limit": [9.0, 9.0],
+            "low_limit": [9.0, 10.0],
             "is_paused": [0, 0],
         }
     )
