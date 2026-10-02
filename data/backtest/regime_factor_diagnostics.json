@@ -53,15 +53,6 @@
       "max_drawdown_pct": -27.57842364119657
     },
     {
-      "dimension": "trend_regime",
-      "regime": "unknown",
-      "sessions": 59,
-      "total_return_pct": 22.837998063497977,
-      "mean_daily_return_pct": 0.3801046649186827,
-      "win_rate_pct": 61.016949152542374,
-      "max_drawdown_pct": -12.168994603676953
-    },
-    {
       "dimension": "volatility_regime",
       "regime": "high_vol",
       "sessions": 361,
@@ -78,17 +69,18 @@
       "mean_daily_return_pct": 0.09365637453686225,
       "win_rate_pct": 53.02820157189089,
       "max_drawdown_pct": -35.40031009983055
-    },
-    {
-      "dimension": "volatility_regime",
-      "regime": "unknown",
-      "sessions": 270,
-      "total_return_pct": 51.91563015753229,
-      "mean_daily_return_pct": 0.1926480695038085,
-      "win_rate_pct": 57.03703703703704,
-      "max_drawdown_pct": -22.182227237377226
     }
   ],
+  "regime_coverage": {
+    "trend_regime": {
+      "known_sessions": 2735,
+      "unknown_or_unavailable_sessions": 59
+    },
+    "volatility_regime": {
+      "known_sessions": 2524,
+      "unknown_or_unavailable_sessions": 270
+    }
+  },
   "factor_exposure": {
     "momentum": {
       "selected_mean_rank": 0.8491033379083257,
