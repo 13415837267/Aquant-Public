@@ -76,6 +76,8 @@ jobs:
           RESULT_FILE: data/backtest/regime_factor_diagnostics.json
         run: |
           set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           cp "$RESULT_FILE" "$RUNNER_TEMP/regime_factor_diagnostics.json"
           for attempt in 1 2 3; do
             git fetch origin main
