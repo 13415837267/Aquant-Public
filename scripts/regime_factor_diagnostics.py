@@ -224,8 +224,17 @@ def run_diagnostics(
     )
 
     regime_rows = []
+    regime_coverage = {}
     for regime_key in ["trend_regime", "volatility_regime"]:
-        for regime, group in baseline_daily.groupby(regime_key, dropna=True):
+        known_mask = (
+            baseline_daily[regime_key].notna()
+            & ~baseline_daily[regime_key].astype(str).eq("unknown")
+        )
+        regime_coverage[regime_key] = {
+            "known_sessions": int(known_mask.sum()),
+            "unknown_or_unavailable_sessions": int((~known_mask).sum()),
+        }
+        for regime, group in baseline_daily.loc[known_mask].groupby(regime_key):
             returns = group["net_return"].dropna()
             if len(returns) == 0:
                 continue
@@ -289,6 +298,7 @@ def run_diagnostics(
         "strategy_weights": weights,
         "overall_market": overall_market,
         "regime_performance": regime_rows,
+        "regime_coverage": regime_coverage,
         "factor_exposure": selected_exposure,
         "factor_ic": factor_ic_summary,
         "audit": {
