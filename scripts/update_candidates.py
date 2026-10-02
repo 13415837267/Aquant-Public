@@ -174,9 +174,35 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
     if not latest_date:
         raise RuntimeError("History has no valid date")
 
+    main_board_history = history.loc[history["symbol"].map(is_main_board_symbol)].copy()
+    latest_main_board = main_board_history.loc[main_board_history["date"].eq(latest_date)].copy()
+    for col in ["is_paused", "is_st", "close", "amount"]:
+        latest_main_board[col] = pd.to_numeric(latest_main_board[col], errors="coerce")
+
+    diagnostics = {
+        "history_rows": int(len(history)),
+        "main_board_history_rows": int(len(main_board_history)),
+        "latest_main_board_rows": int(len(latest_main_board)),
+        "latest_st_rows": int(latest_main_board["is_st"].eq(1).sum()),
+        "latest_paused_rows": int(latest_main_board["is_paused"].eq(1).sum()),
+        "latest_price_le_2_rows": int(latest_main_board["close"].le(2).sum()),
+        "latest_amount_lt_20m_rows": int(latest_main_board["amount"].lt(2e7).sum()),
+    }
+
     strategy_frame = _prepare_strategy_frame(history, latest_date)
     if strategy_frame.empty:
         raise RuntimeError("No usable stocks after strategy universe filters")
+
+    diagnostics["scorable_rows"] = int(len(strategy_frame))
+    diagnostics["dropped_no_60d_momentum_or_history"] = max(
+        0,
+        diagnostics["latest_main_board_rows"]
+        - diagnostics["scorable_rows"]
+        - diagnostics["latest_st_rows"]
+        - diagnostics["latest_paused_rows"]
+        - diagnostics["latest_price_le_2_rows"]
+        - diagnostics["latest_amount_lt_20m_rows"],
+    )
 
     scored = strategy_model.score_universe(strategy_frame)
     scored = scored.head(30).reset_index(drop=True)
@@ -216,6 +242,10 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
         "market_scope": "沪深主板：000001-004999.SZ（排除001001-001199 CDR）+ 600/601/603/605.SH",
         "universe": "沪深主板；排除 ST/退市相关标的、停牌、价格≤2元、最近交易日成交额<2000万元；60日动量必须有完整窗口",
         "lookback_trading_days": 60,
+        "diagnostics": {
+            **diagnostics,
+            "candidate_count": len(rows),
+        },
         "candidates": rows,
         "factor_weights": weights,
     }
@@ -225,6 +255,9 @@ def main() -> None:
     strategy_model, strategy_version, strategy_commit = _load_private_strategy()
     history, dates = _read_history_window(61)
     snapshot = build_candidates(history, strategy_model, strategy_version, strategy_commit)
+    snapshot["history_files_used"] = len(dates)
+    snapshot["history_window_start"] = dates[-1]
+    snapshot["history_window_end"] = dates[0]
     previous = None
     if DATA_FILE.exists():
         try:
