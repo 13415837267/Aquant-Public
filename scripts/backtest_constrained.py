@@ -350,7 +350,7 @@ def run_constrained(
         blocked_buy_total += result["blocked_buy_count"]
         blocked_sell_total += result["blocked_sell_count"]
 
-        intraday_rows.append({"date": next_date, "net_return": float(result["close_equity"] / result["equity_open"] - 1.0), "turnover": result["turnover"]})
+        intraday_rows.append({"date": next_date, "net_return": float(result["equity_close"] / result["equity_open"] - 1.0), "turnover": result["turnover"]})
 
         daily_rows.append(
             {
