@@ -444,10 +444,16 @@ def validate_backtest_payload(payload: dict) -> None:
     daily = payload.get("daily", [])
 
     performance_sessions = int(audit.get("performance_sessions", -1))
-    if performance_sessions != len(daily):
-        raise ValueError("performance_sessions does not match daily rows")
+    trade_start = payload.get("trade_start")
+    performance_daily = (
+        [row for row in daily if trade_start and row.get("date", "") >= trade_start]
+        if trade_start
+        else daily
+    )
+    if performance_sessions != len(performance_daily):
+        raise ValueError("performance_sessions does not match performance daily rows")
     if performance_sessions != int(overall.get("trading_days", -1)):
-        raise ValueError("overall trading_days does not match daily rows")
+        raise ValueError("overall trading_days does not match performance sessions")
     if int(audit.get("selected_sessions", -1)) + 1 != int(audit.get("historical_files_used", -2)):
         raise ValueError("historical session/file audit mismatch")
 
