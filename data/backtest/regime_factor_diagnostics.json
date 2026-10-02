@@ -235,6 +235,15 @@
     "baseline_strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
     "baseline_score_reconstruction_max_abs_error": 4.999994445142875e-07,
     "baseline_score_reconstruction_rows": 83820,
+    "baseline_selection_sessions": 2794,
+    "factor_ic_keys": [
+      "activity",
+      "liquidity",
+      "momentum",
+      "risk",
+      "score",
+      "value"
+    ],
     "future_adjusted_factor_not_used": true,
     "current_names_not_used_for_history": true,
     "production_filter_reused": true,
