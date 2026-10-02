@@ -43,6 +43,7 @@ def main() -> None:
         "target_start": dates[-1],
         "end": dates[0],
         "database_scope": "DATABASE_STOCK_ROWS",
+        "history_storage_scope": "CN_A_MAINBOARD_CURRENT; DATABASE_STOCK_ROWS_ON_REBUILD",
         "candidate_scope": "CN_A_MAINBOARD",
         "years": sorted(int(year) for year in years),
         "year_count": len(years),
