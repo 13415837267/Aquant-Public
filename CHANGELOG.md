@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Portfolio execution planning
+- Added `scripts/execution_plan.py` to convert the production portfolio into a next-open execution plan.
+- Enforced 100-share lot rounding, T+1 available-share limits, paused/ST checks, aggregate turnover caps, cash-floor checks, and configurable commission/stamp-duty/slippage assumptions.
+- Latest-close prices are explicitly reference-only; every order carries a next-open recheck gate for price-limit and execution-state validation.
+
 ## Unreleased — Database scope and Shanghai/Shenzhen main-board candidates
 - Added a metadata reconciliation script and manual finalizer workflow so the historical coverage manifest is rebuilt from the actual Git-tracked daily files after a multi-year rebuild.
 - Kept the database broader than the production candidate pool so Shanghai/Shenzhen/Beijing stock rows can remain available for research.

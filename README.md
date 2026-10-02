@@ -45,7 +45,13 @@ Public 不维护另一套独立策略。Private 修改并提交到 `main` 后，
 
 Public 不复制或维护独立策略版本。生产 Action 通过 `PRIVATE_REPO_TOKEN` 只读访问 Private，并将实际使用的 `strategy_version` 与 `strategy_commit` 写入候选股快照。
 
-## 三、历史数据库
+## 三、组合与执行计划
+
+候选池生成后由 `scripts/portfolio.py` 构造目标组合，并生成 `data/portfolio.json`。组合采用逆波动率配置，单票权重上限 5%，保留 5% 现金。
+
+随后由 `scripts/execution_plan.py` 生成 `data/execution_plan.json`。该层负责 100 股整数手、T+1 可卖库存、停牌/ST 检查、单日换手上限、现金底线和成本估算；最新收盘价只用于计划参考，订单释放前必须使用实际 T+1 开盘数据再次检查涨跌停与可成交状态。
+
+## 四、历史数据库
 
 数据库按**交易日逐日保存**，采用“近到远”的方式回补；数据库层可以保留更宽的股票数据范围，候选池阶段再限制为沪深主板。
 
