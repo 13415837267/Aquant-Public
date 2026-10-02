@@ -1,4 +1,5 @@
 {
+  "future_function": false,
   "schema_version": 1,
   "status": "ready",
   "method": "frozen_strategy_regime_factor_diagnostics",
