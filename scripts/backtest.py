@@ -286,17 +286,19 @@ def select_targets(frame: pd.DataFrame, strategy_model: object, top_n: int) -> p
 def next_session_return(
     selected: pd.DataFrame,
     execution_df: pd.DataFrame,
+    target_weights: dict[str, float],
 ) -> tuple[float, list[str], list[str]]:
     if selected.empty:
         return 0.0, [], []
 
     execution = execution_df.set_index("symbol", drop=False)
-    returns = []
+    gross = 0.0
     executed = []
     missing = []
 
     for row in selected.itertuples(index=False):
         symbol = str(row.symbol).zfill(6)
+        weight = float(target_weights.get(symbol, 0.0))
         if symbol not in execution.index:
             missing.append(symbol)
             continue
@@ -313,11 +315,10 @@ def next_session_return(
             missing.append(symbol)
             continue
 
-        returns.append(close_price / open_price - 1.0)
+        gross += weight * (close_price / open_price - 1.0)
         executed.append(symbol)
 
-    gross = float(np.mean(returns)) if returns else 0.0
-    return gross, executed, missing
+    return float(gross), executed, missing
 
 
 def normalize_weights(symbols: Iterable[str]) -> dict[str, float]:
@@ -461,7 +462,7 @@ def run_backtest(
                 ],
             }
         )
-        prev_target = target_weights
+        prev_target = actual_target
 
         if (i + 1) % 100 == 0:
             print(
@@ -471,13 +472,18 @@ def run_backtest(
             )
 
     daily = pd.DataFrame(daily_rows)
-    overall = metrics(daily)
-    annual = period_metrics(daily, "Y")
-    monthly = period_metrics(daily, "M")
+    active_start = 0
+    active_rows = daily.index[daily["target_count"] > 0].tolist()
+    if active_rows:
+        active_start = int(active_rows[0])
+    performance = daily.iloc[active_start:].reset_index(drop=True)
+    overall = metrics(performance)
+    annual = period_metrics(performance, "Y")
+    monthly = period_metrics(performance, "M")
 
     warmup_days = min(59, len(selected_files) - 1)
-    trade_start = daily["date"].min() if not daily.empty else None
-    trade_end = daily["date"].max() if not daily.empty else None
+    trade_start = performance["date"].min() if not performance.empty else None
+    trade_end = performance["date"].max() if not performance.empty else None
 
     payload = {
         "schema_version": 1,
@@ -514,6 +520,7 @@ def run_backtest(
         "audit": {
             "historical_files_used": len(selected_files),
             "selected_sessions": len(selected_files) - 1,
+            "performance_sessions": len(performance),
             "selected_stock_observations": selected_total,
             "missing_execution_observations": missing_execution_total,
             "production_filter_reused": True,
