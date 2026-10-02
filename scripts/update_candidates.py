@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gzip
+import numpy as np
 import importlib
 import json
 import os
@@ -9,6 +10,8 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+
+from scripts.market_scope import is_main_board_symbol
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 HISTORY_DIR = DATA_DIR / "history"
@@ -63,6 +66,9 @@ def _read_history_window(max_files: int = 61) -> tuple[pd.DataFrame, list[str]]:
         missing = REQUIRED_COLUMNS - set(frame.columns)
         if missing:
             raise RuntimeError(f"{path.name} missing required columns: {sorted(missing)}")
+        frame = frame.loc[frame["symbol"].map(is_main_board_symbol)].copy()
+        if frame.empty:
+            raise RuntimeError(f"{path.name} contains no Shanghai/Shenzhen main-board rows")
         frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.strftime("%Y-%m-%d")
         frame["symbol"] = frame["symbol"].astype(str).str.extract(r"(\d+)")[0].str.zfill(6)
         dates.append(path.name[:10])
@@ -82,10 +88,21 @@ def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> pd.DataF
     hist = hist.sort_values(["symbol", "date"])
     grouped = hist.groupby("symbol", sort=False)
 
-    hist["ret_1d"] = grouped["close"].pct_change()
-    hist["ret_60d"] = grouped["close"].pct_change(60)
+    # Provider pct_chg is the economic daily return series. Compounding it
+    # avoids raw-close discontinuities on corporate-action dates and does not
+    # inject hindsight from a future-adjusted factor series.
+    hist["daily_ret"] = hist["pct_chg"] / 100.0
+    hist["gross_ret"] = 1.0 + hist["daily_ret"]
+    hist["ret_1d"] = hist["daily_ret"]
+    hist["ret_60d"] = (
+        grouped["gross_ret"]
+        .rolling(60, min_periods=60)
+        .apply(np.prod, raw=True)
+        .reset_index(level=0, drop=True)
+        - 1.0
+    )
     hist["volatility_proxy"] = (
-        grouped["ret_1d"].rolling(20, min_periods=10).std()
+        grouped["daily_ret"].rolling(20, min_periods=10).std()
         .reset_index(level=0, drop=True) * 100
     )
     avg_volume_20d = (
@@ -109,6 +126,7 @@ def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> pd.DataF
         & latest["is_paused"].eq(0)
         & latest["close"].gt(2)
         & latest["amount"].ge(2e7)
+        & latest["ret_60d"].notna()
     )
     latest = latest.loc[usable].copy()
 
@@ -168,7 +186,8 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
         "strategy_source": "Aquant-Private/main",
         "strategy_version": strategy_version,
         "strategy_commit": strategy_commit,
-        "universe": "沪深京 A 股；排除 ST/退市相关标的、停牌、价格≤2元、最近交易日成交额<2000万元",
+        "market_scope": "沪深主板：000/001/002/003.SZ + 600/601/603/605.SH",
+        "universe": "沪深主板；排除 ST/退市相关标的、停牌、价格≤2元、最近交易日成交额<2000万元；60日动量必须有完整窗口",
         "lookback_trading_days": 60,
         "candidates": rows,
         "factor_weights": weights,
