@@ -26,6 +26,23 @@ REQUIRED_COLUMNS = {
 }
 
 
+def _load_current_names() -> dict[str, str]:
+    path = DATA_DIR / "universe.json"
+    if not path.exists():
+        return {}
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return {
+        str(row.get("symbol", "")).zfill(6): str(row.get("name", "")).strip()
+        for row in rows
+        if is_main_board_symbol(row.get("ts_code"))
+        and row.get("symbol")
+        and row.get("name")
+    }
+
+
 def _load_private_strategy():
     if not PRIVATE_STRATEGY_PATH:
         raise RuntimeError("AQUANT_PRIVATE_STRATEGY_PATH is required; Public must not run an independent strategy")
@@ -70,8 +87,12 @@ def _read_history_window(max_files: int = 61) -> tuple[pd.DataFrame, list[str]]:
         if frame.empty:
             raise RuntimeError(f"{path.name} contains no Shanghai/Shenzhen main-board rows")
         frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        file_date = path.name[:10]
+        bad_dates = int(frame["date"].ne(file_date).sum())
+        if bad_dates:
+            raise RuntimeError(f"{path.name} contains {bad_dates} rows with a mismatched date")
         frame["symbol"] = frame["symbol"].astype(str).str.extract(r"(\d+)")[0].str.zfill(6)
-        dates.append(path.name[:10])
+        dates.append(file_date)
         frames.append(frame)
     data = pd.concat(frames, ignore_index=True).drop_duplicates(["symbol", "date"], keep="last")
     return data.sort_values(["symbol", "date"]), dates
@@ -112,7 +133,10 @@ def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> pd.DataF
     hist["volume_ratio"] = hist["volume"] / avg_volume_20d.replace(0, float("nan"))
 
     latest = hist.loc[hist["date"].eq(latest_date)].copy()
-    latest["name"] = latest.get("name", latest["symbol"]).astype(str)
+    names = _load_current_names()
+    latest["name"] = latest["symbol"].map(names).fillna(
+        latest.get("name", latest["symbol"]).astype(str)
+    )
 
     excluded_name = latest["name"].str.contains(r"ST|退", case=False, na=False)
     for col in ["is_paused", "is_st", "close", "amount"]:
