@@ -301,6 +301,7 @@ def run_constrained(
 
     daily_rows = []
     selection_rows = []
+    intraday_rows = []
     selected_total = 0
     missing_execution_total = 0
     limit_up_total = 0
@@ -345,6 +346,8 @@ def run_constrained(
         blocked_buy_total += result["blocked_buy_count"]
         blocked_sell_total += result["blocked_sell_count"]
 
+        intraday_rows.append({"date": next_date, "net_return": float(result["close_equity"] / result["equity_open"] - 1.0), "turnover": result["turnover"]})
+
         daily_rows.append(
             {
                 "date": next_date,
@@ -384,6 +387,7 @@ def run_constrained(
     annual = base.period_metrics(performance, "Y")
     monthly = base.period_metrics(performance, "M")
     rolling_252d = base.rolling_252d_metrics(performance)
+    intraday_metrics = base.metrics(pd.DataFrame(intraday_rows))
 
     payload = {
         "schema_version": 1,
@@ -416,6 +420,7 @@ def run_constrained(
         "strategy_version": strategy_version,
         "strategy_commit": strategy_commit,
         "overall": overall,
+        "intraday_metrics": intraday_metrics,
         "annual": annual,
         "monthly": monthly,
         "rolling_252d": rolling_252d,
@@ -435,6 +440,7 @@ def run_constrained(
             "current_names_not_used_for_history": True,
             "future_adjusted_factor_not_used": True,
             "pit_fundamentals_required": False,
+            "intraday_return_definition": "T+1 close equity / T+1 pre-trade open equity - 1",
         },
         "daily": daily.to_dict(orient="records"),
         "selection_audit": selection_rows,
