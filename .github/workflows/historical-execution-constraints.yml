@@ -1,6 +1,10 @@
 name: Historical Execution Constraints
 
 on:
+  push:
+    paths:
+      - "scripts/backtest_constrained.py"
+      - ".github/workflows/historical-execution-constraints.yml"
   workflow_dispatch:
     inputs:
       start:
@@ -23,6 +27,10 @@ on:
         description: "Slippage (bps)"
         required: true
         default: "2"
+      turnover_cap:
+        description: "Daily turnover cap"
+        required: true
+        default: "0.30"
 
 permissions:
   contents: write
@@ -72,6 +80,7 @@ jobs:
             --top-n "${{ inputs.top_n }}" \
             --cost-bps "${{ inputs.cost_bps }}" \
             --slippage-bps "${{ inputs.slippage_bps }}" \
+            --turnover-cap "${{ inputs.turnover_cap }}" \
             --output data/backtest/execution_constrained.json
 
       - name: Compare baseline and constrained
