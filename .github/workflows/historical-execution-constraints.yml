@@ -75,12 +75,12 @@ jobs:
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
         run: |
           python scripts/backtest_constrained.py \
-            --start "${{ inputs.start }}" \
-            --end "${{ inputs.end }}" \
-            --top-n "${{ inputs.top_n }}" \
-            --cost-bps "${{ inputs.cost_bps }}" \
-            --slippage-bps "${{ inputs.slippage_bps }}" \
-            --turnover-cap "${{ inputs.turnover_cap }}" \
+            --start "${{ inputs.start || '2015-01-05' }}" \
+            --end "${{ inputs.end || '2026-09-29' }}" \
+            --top-n "${{ inputs.top_n || '30' }}" \
+            --cost-bps "${{ inputs.cost_bps || '3' }}" \
+            --slippage-bps "${{ inputs.slippage_bps || '2' }}" \
+            --turnover-cap "${{ inputs.turnover_cap || '0.30' }}" \
             --output data/backtest/execution_constrained.json
 
       - name: Compare baseline and constrained
