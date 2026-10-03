@@ -14,6 +14,7 @@ OUT_DIR = ROOT / "data" / "backtest"
 MAX_HOLD = 6
 MIN_EXIT_DAY = 2
 MAX_HOLDING_SESSIONS = 5
+ENTRY_LIMIT_UP_BLOCK = True
 TARGET_PCT = 6.0
 STOP_PCT = 3.0
 
@@ -134,6 +135,11 @@ def managed_trade(symbol: str, future_days: list[pd.DataFrame]):
     if row.empty or pd.isna(row.iloc[0].get("open")): return None
     entry = float(row.iloc[0]["open"])
     if entry <= 0 or not np.isfinite(entry): return None
+    high_limit = row.iloc[0].get("high_limit", np.nan)
+    if ENTRY_LIMIT_UP_BLOCK and pd.notna(high_limit):
+        high_limit = float(high_limit)
+        if np.isfinite(high_limit) and entry >= high_limit * (1.0 - 1e-6):
+            return None
     stop = entry*(1-STOP_PCT/100.0); target = entry*(1+TARGET_PCT/100.0)
 
     for day_no, day in enumerate(future_days[:MAX_HOLD], 1):
@@ -183,7 +189,7 @@ def run(args):
     dates = [p.name[:10] for p in files]
     if args.start not in dates or args.end not in dates: raise ValueError("research dates must be trading dates")
     start_i, end_i = dates.index(args.start), dates.index(args.end)
-    if end_i + MAX_HOLD >= len(files): raise ValueError("research end needs five future sessions")
+    if end_i + MAX_HOLD >= len(files): raise ValueError("research end must leave six future trading sessions for a five-session T+1 holding window")
     begin = max(0, start_i-20)
     active = files[begin:end_i+MAX_HOLD+1]
 
@@ -194,6 +200,7 @@ def run(args):
 
     state=FeatureState()
     trade_rows=[]
+    forward_rows={1:[],3:[],5:[]}
     daily={1:[],2:[],3:[]}
     candidate_days=0
     for i in range(len(active)-MAX_HOLD):
@@ -209,16 +216,39 @@ def run(args):
         futures=[get(i+j) for j in range(1,MAX_HOLD+1)]
         by_symbol={}
         for row in selected.itertuples(index=False):
-            tr=managed_trade(str(row.symbol).zfill(6),futures)
+            symbol=str(row.symbol).zfill(6)
+            entry_row=futures[0].loc[futures[0]["symbol"].eq(symbol)]
+            if not entry_row.empty and pd.notna(entry_row.iloc[0].get("open")):
+                entry=float(entry_row.iloc[0]["open"])
+                if np.isfinite(entry) and entry > 0:
+                    for horizon in (1,3,5):
+                        idx=horizon-1
+                        if idx < len(futures):
+                            close_value=futures[idx].loc[futures[idx]["symbol"].eq(symbol)]
+                            if not close_value.empty and pd.notna(close_value.iloc[0].get("close")):
+                                forward_rows[horizon].append((float(close_value.iloc[0]["close"])/entry-1.0)*100.0)
+            tr=managed_trade(symbol,futures)
             if tr:
-                tr.update({"signal_date":signal_date,"symbol":str(row.symbol).zfill(6),"score":float(row.score)})
-                trade_rows.append(tr); by_symbol[tr["symbol"]]=tr
+                tr.update({"signal_date":signal_date,"symbol":symbol,"score":float(row.score)})
+                trade_rows.append(tr); by_symbol[symbol]=tr
         for n in (1,2,3):
             syms=selected.head(n)["symbol"].astype(str).str.zfill(6).tolist()
             trs=[by_symbol[s] for s in syms if s in by_symbol]
             gross=float(np.mean([x["gross_return_pct"] for x in trs])) if trs else 0.0
             net=gross-2*(args.cost_bps+args.slippage_bps)/100.0 if trs else 0.0
             daily[n].append({"date":signal_date,"basket_return_pct":net,"candidate_count":len(syms),"executed_count":len(trs)})
+
+    forward_signal_diagnostics={}
+    for horizon, values in forward_rows.items():
+        arr=np.asarray(values,dtype=float)
+        forward_signal_diagnostics[str(horizon)+"d"] = {
+            "samples":int(len(arr)),
+            "mean_return_pct":float(np.mean(arr)) if len(arr) else None,
+            "median_return_pct":float(np.median(arr)) if len(arr) else None,
+            "positive_rate_pct":float((arr>0).mean()*100.0) if len(arr) else None,
+            "p25_return_pct":float(np.quantile(arr,0.25)) if len(arr) else None,
+            "p75_return_pct":float(np.quantile(arr,0.75)) if len(arr) else None,
+        }
 
     sensitivity=[]
     for n in (1,2,3):
@@ -234,12 +264,14 @@ def run(args):
         "strategy_version":version,"strategy_commit":commit,"future_function":False,
         "signal_days":len(daily[3]),"candidate_days":candidate_days,
         "candidate_day_rate_pct":candidate_days/len(daily[3])*100 if daily[3] else 0,
+        "forward_signal_diagnostics":forward_signal_diagnostics,
         "trade_performance":stats(trade_rows,args.cost_bps,args.slippage_bps),
         "candidate_count_sensitivity":sensitivity,
         "exit_distribution":pd.Series([x["exit_reason"] for x in trade_rows]).value_counts().to_dict() if trade_rows else {},
         "audit":{
             "signal_uses_only_T_close_information":True,
             "entry_uses_T_plus_1_open":True,
+            "entry_limit_up_block":ENTRY_LIMIT_UP_BLOCK,
             "earliest_exit_is_T_plus_2":True,
             "future_function":False,
             "max_holding_sessions":MAX_HOLDING_SESSIONS,
