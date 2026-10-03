@@ -12,14 +12,13 @@ Selection:
   - Score using the strategy loaded from Aquant-Private/main.
 
 Execution:
-  - Rebalance at T+1 open into top N equal-weight names.
+  - Rebalance at T+1 open into the strategy-admitted top-N names.
   - Hold through T+1 close.
   - Transaction cost + slippage are charged on target-weight turnover.
   - A missing/invalid T+1 execution price makes that target weight inactive for
     the day and is recorded in audit diagnostics.
 
-This module is price/valuation based. It does not fabricate point-in-time
-quarterly fundamentals that are not present in the current v0.2 strategy.
+This module is price/valuation based and reuses the current Private strategy score/admission interface.
 """
 from __future__ import annotations
 
@@ -62,7 +61,7 @@ REQUIRED_COLUMNS = {
     "low_limit",
 }
 
-DEFAULT_TOP_N = 20
+DEFAULT_TOP_N = 3
 DEFAULT_COST_BPS = 3.0
 DEFAULT_SLIPPAGE_BPS = 2.0
 
@@ -891,7 +890,7 @@ def run_backtest(
             "T+1开盘等权调仓，持有至T+1收盘；手续费与滑点按换手计提。"
         ),
         "return_definition": "T+1 close / T+1 open - 1",
-        "lookback_trading_days": 60,
+        "lookback_trading_days": 126,
         "top_n": top_n,
         "transaction_cost_bps": cost_bps,
         "slippage_bps": slippage_bps,
