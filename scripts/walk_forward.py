@@ -1,8 +1,8 @@
-"""Walk-forward / out-of-sample evaluation for the fixed Private strategy.
+"""Walk-forward / out-of-sample evaluation for the current Private strategy.
 
 The current Private model is not trained by this script. Each fold therefore
-measures genuine out-of-sample calendar performance of the frozen strategy
-after a rolling historical window, while preserving the 60-session feature
+measures genuine out-of-sample calendar performance of the current strategy
+after a rolling historical window, while preserving the 126-session feature
 warm-up before the OOS start.
 """
 from __future__ import annotations
@@ -73,7 +73,7 @@ def build_folds(dates: list[str], train_years: int, test_years: int) -> list[dic
 
         oos_end = date_values[oos_end_idx]
         train_start = prior_calendar_years(oos_start, train_years)
-        warmup_idx = max(0, oos_start_idx - 60)
+        warmup_idx = max(0, oos_start_idx - 126)
 
         folds.append(
             {
@@ -145,7 +145,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--end", default="2026-09-29")
     p.add_argument("--train-years", type=int, default=3)
     p.add_argument("--test-years", type=int, default=1)
-    p.add_argument("--top-n", type=int, default=30)
+    p.add_argument("--top-n", type=int, default=20)
     p.add_argument("--cost-bps", type=float, default=3)
     p.add_argument("--slippage-bps", type=float, default=2)
     p.add_argument("--output", default=str(OUT_FILE))
@@ -212,7 +212,7 @@ def main() -> None:
         "audit": {
             "fixed_strategy_no_retraining": True,
             "oos_only_metrics": True,
-            "60_session_warmup_before_oos": True,
+            "126_session_warmup_before_oos": True,
             "current_universe_not_used_for_history": True,
             "future_adjusted_factor_not_used": True,
         },
