@@ -93,3 +93,20 @@ def test_cycle_requires_valuation_snapshot_for_remaining_position():
         assert "missing next-open valuation snapshots" in str(exc)
     else:
         raise AssertionError("missing valuation snapshot must fail closed")
+
+
+def test_cycle_failure_does_not_mutate_input_state():
+    state, _, _ = run_cycle(base_plan(), snapshot(), None)
+    before = state.copy()
+    before_floor = state["cash_floor"]
+    bad_plan = base_plan()
+    bad_plan["strategy_version"] = "9.9.9"
+    try:
+        run_cycle(bad_plan, snapshot(), state)
+    except RuntimeError as exc:
+        assert "strategy version" in str(exc)
+    else:
+        raise AssertionError("strategy mismatch must fail")
+    assert state["cash_floor"] == before_floor
+    assert state["cash"] == before["cash"]
+    assert state["positions"] == before["positions"]
