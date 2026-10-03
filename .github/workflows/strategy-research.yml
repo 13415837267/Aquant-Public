@@ -121,17 +121,29 @@ jobs:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
         run: python scripts/short_term_release_validation.py --development-start 2018-01-05 --development-end 2024-12-20 --validation-start 2025-01-02 --validation-end 2025-12-31 --final-start 2026-01-05 --final-end 2026-09-21
-      - name: Promote research candidate only when production gate passes
+      - name: Record research candidate without declaring production
         shell: bash
         run: |
           set -euo pipefail
           cp data/candidates.json data/backtest/research_candidates.json
-          if python -c 'import json; from pathlib import Path; raise SystemExit(0 if json.loads(Path("data/backtest/short_term_release_validation.json").read_text(encoding="utf-8")).get("release_gate") is True else 1)'; then
-            echo "Production gate passed; promoting research candidate to production."
-          else
-            echo "Production gate not passed; keeping previous production candidate."
-            cp runtime/production_candidates.json data/candidates.json
-          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          release=json.loads(Path("data/backtest/short_term_release_validation.json").read_text(encoding="utf-8"))
+          candidates=json.loads(Path("data/candidates.json").read_text(encoding="utf-8"))
+          passed=release.get("release_gate") is True
+          status={
+              "schema_version": 1,
+              "status": "release_candidate" if passed else "not_released",
+              "production_version": candidates.get("strategy_version") if passed else None,
+              "production_strategy_commit": candidates.get("strategy_commit") if passed else None,
+              "as_of": candidates.get("as_of") if passed else None,
+              "release_gate": passed,
+              "system_audit": False,
+              "note": "通过发布门槛后仍需系统审计；系统审计通过前不得视为正式生产产物。" if passed else "当前没有正式生产策略；研究候选不得视为正式生产产物。"
+          }
+          Path("data/production_status.json").write_text(json.dumps(status,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+          PY
       - name: Run system audit
         run: python scripts/system_audit.py
       - name: Record workflow failure or cancellation
