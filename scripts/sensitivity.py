@@ -92,6 +92,10 @@ def main():
         raise ValueError("strategy/PIT consistency audit failed")
     out={"schema_version":1,"status":"ready","method":"fixed_strategy_parameter_sensitivity",
          "start":a.start,"end":a.end,"results":rows,
+         "strategy_source": rows[0]["strategy_source"] if rows and "strategy_source" in rows[0] else "Aquant-Private/main",
+         "strategy_version": rows[0]["strategy_version"] if rows else None,
+         "strategy_commit": rows[0]["strategy_commit"] if rows else None,
+         "future_function": False,
          "audit":{
              "fixed_strategy":True,
              "future_adjusted_factor_not_used":True,
