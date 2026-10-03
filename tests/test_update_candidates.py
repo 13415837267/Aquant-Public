@@ -15,7 +15,7 @@ def _history():
     for symbol,start,step in [("000001",10.0,0.15),("000002",10.0,0.0),("688001.SH",10.0,0.20),("300001.SZ",10.0,0.25),("920001.BJ",10.0,0.30)]:
         for i,dt in enumerate(dates):
             close=start+step*i
-            rows.append({"symbol":symbol,"date":dt.strftime("%Y-%m-%d"),"high":close+0.1,"low":close-0.1,"close":close,"volume":1_000_000,"amount":50_000_000,"pct_chg":0.5,"turnover_pct":2.0,"is_paused":0,"is_st":0})
+            rows.append({"symbol":symbol,"date":dt.strftime("%Y-%m-%d"),"open":close-0.05,"high":close+0.1,"low":close-0.1,"close":close,"volume":1_000_000,"amount":50_000_000,"pct_chg":0.5,"turnover_pct":2.0,"is_paused":0,"is_st":0,"high_limit":round((close-0.05)*1.1,2)})
     return pd.DataFrame(rows)
 
 def test_main_board_scope():
@@ -32,3 +32,4 @@ def test_build_candidates_uses_short_term_contract():
     assert snapshot["strategy_source"]=="Aquant-Private/main"
     assert snapshot["diagnostics"]["candidate_count"]==2
     assert snapshot["audit"]["short_term_features_only"] is True
+    assert set(["overnight_1d_pct","overnight_3d_pct","overnight_5d_pct","intraday_return_pct","limit_up_5d_count"]).issubset(snapshot["candidates"][0])

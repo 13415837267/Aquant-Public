@@ -15,7 +15,7 @@ DATA_FILE=DATA_DIR/"candidates.json"
 PRIVATE_STRATEGY_PATH=os.environ.get("AQUANT_PRIVATE_STRATEGY_PATH")
 PRIVATE_STRATEGY_COMMIT=os.environ.get("AQUANT_PRIVATE_STRATEGY_COMMIT")
 
-REQUIRED_COLUMNS={"symbol","date","high","low","close","volume","amount","pct_chg","turnover_pct","is_paused","is_st"}
+REQUIRED_COLUMNS={"symbol","date","open","high","low","close","volume","amount","pct_chg","turnover_pct","is_paused","is_st","high_limit"}
 
 def _load_current_names():
     path=DATA_DIR/"universe.json"
@@ -50,7 +50,7 @@ def _read(path:Path):
     frame["date"]=pd.to_datetime(frame["date"],errors="coerce").dt.strftime("%Y-%m-%d")
     file_date=path.name[:10]
     if frame["date"].ne(file_date).any(): raise RuntimeError(f"{path.name} date mismatch")
-    for c in ["high","low","close","volume","amount","pct_chg","turnover_pct","is_paused","is_st"]:
+    for c in ["open","high","low","close","volume","amount","pct_chg","turnover_pct","is_paused","is_st","high_limit"]:
         frame[c]=pd.to_numeric(frame[c],errors="coerce")
     frame["is_paused"]=frame["is_paused"].fillna(0); frame["is_st"]=frame["is_st"].fillna(0)
     return frame.drop_duplicates(["symbol","date"],keep="last")
@@ -58,10 +58,18 @@ def _read(path:Path):
 def _prepare(history:pd.DataFrame,latest_date:str):
     hist=history.sort_values(["symbol","date"]).copy()
     hist["daily_ret"]=hist["pct_chg"]/100.0
+    hist["prior_close"]=hist.groupby("symbol")["close"].shift(1)
+    hist["overnight_ret"]=hist["open"]/hist["prior_close"].replace(0,np.nan)-1.0
     for w in (1,3,5,10,20):
         hist[f"return_{w}d_pct"]=hist.groupby("symbol")["daily_ret"].transform(
             lambda s:(1.0+s).rolling(w,min_periods=w).apply(np.prod,raw=True).sub(1.0).mul(100.0)
         )
+        hist[f"overnight_{w}d_pct"]=hist.groupby("symbol")["overnight_ret"].transform(
+            lambda s:(1.0+s).rolling(w,min_periods=w).apply(np.prod,raw=True).sub(1.0).mul(100.0)
+        )
+    hist["intraday_return_pct"]=(hist["close"]/hist["open"].replace(0,np.nan)-1.0)*100.0
+    hist["limit_up_close_flag"]=((hist["high_limit"].notna()) & (hist["close"]>=hist["high_limit"]*(1.0-1e-6))).astype(int)
+    hist["limit_up_5d_count"]=hist.groupby("symbol")["limit_up_close_flag"].transform(lambda s:s.rolling(5,min_periods=1).sum())
     hist["volatility_10d_pct"]=hist.groupby("symbol")["daily_ret"].transform(
         lambda s:s.rolling(10,min_periods=10).std().mul(100.0)
     )
@@ -84,7 +92,7 @@ def _prepare(history:pd.DataFrame,latest_date:str):
     market=latest.loc[eligible]
     breadth=float((market["pct_chg"]>0).mean()*100) if not market.empty else 0.0
     median_ret=float(market["pct_chg"].median()) if not market.empty else 0.0
-    usable=eligible & latest["return_10d_pct"].notna() & latest["volume_ratio_5d"].notna() & latest["volatility_10d_pct"].notna() & latest["amount_20d"].notna()
+    usable=eligible & latest["return_10d_pct"].notna() & latest["overnight_5d_pct"].notna() & latest["volume_ratio_5d"].notna() & latest["volatility_10d_pct"].notna() & latest["amount_20d"].notna()
     latest=latest.loc[usable].copy()
     latest["market_breadth_pct"]=breadth; latest["market_median_return_pct"]=median_ret
     return latest.reset_index(drop=True),{
@@ -115,7 +123,7 @@ def build_candidates(history,strategy_model,strategy_version,strategy_commit):
             "return_5d_pct":round(float(row.return_5d_pct),3),"return_10d_pct":round(float(row.return_10d_pct),3),
             "volume_ratio_5d":round(float(row.volume_ratio_5d),3),"turnover_pct":round(float(row.turnover_pct),3),
             "amount":round(float(row.amount),2),"volatility_10d_pct":round(float(row.volatility_10d_pct),3),
-            "close_strength":round(float(row.close_strength),3),"score":round(float(row.score),3),"flags":flags
+            "close_strength":round(float(row.close_strength),3),"overnight_1d_pct":round(float(row.overnight_1d_pct),3),"overnight_3d_pct":round(float(row.overnight_3d_pct),3),"overnight_5d_pct":round(float(row.overnight_5d_pct),3),"intraday_return_pct":round(float(row.intraday_return_pct),3),"limit_up_5d_count":round(float(row.limit_up_5d_count),3),"score":round(float(row.score),3),"flags":flags
         })
     breadth=float(frame["market_breadth_pct"].iloc[0]); median=float(frame["market_median_return_pct"].iloc[0])
     regime="risk_on" if breadth>=55 and median>0.3 else ("neutral" if breadth>=35 and median>=-0.3 else "risk_off")
