@@ -294,8 +294,11 @@ jobs:
 
           for path in files:
               payload = json.loads(path.read_text(encoding="utf-8"))
-              if payload.get("status") != "ready":
-                  raise SystemExit(f"{path} is not ready")
+              allowed_statuses = {"ready"}
+              if path.name == "execution_plan.json":
+                  allowed_statuses.add("ready_for_next_open_recheck")
+              if payload.get("status") not in allowed_statuses:
+                  raise SystemExit(f"{path} is not ready: {payload.get('status')}")
               if payload.get("strategy_version") != expected_v:
                   raise SystemExit(f"{path} strategy version mismatch")
               if payload.get("strategy_commit") != expected_c:
