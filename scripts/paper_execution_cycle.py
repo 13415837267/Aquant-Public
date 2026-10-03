@@ -161,6 +161,10 @@ def run_cycle(
             }
         )
 
+    # Keep accounting constraints aligned with the current plan, whose cash
+    # buffer is defined as a fraction of current paper equity.
+    state["cash_floor"] = float(plan["equity_reference"]) * float(plan["cash_buffer"])
+
     next_state, ledger_entries = apply_paper_fills(
         state,
         fills,
@@ -170,6 +174,11 @@ def run_cycle(
         stamp_duty_sell_bps=float(plan["cost_assumptions_bps"]["stamp_duty_sell"]),
         slippage_bps=float(plan["cost_assumptions_bps"]["slippage"]),
     )
+    valuation_missing = sorted(set(next_state["positions"]) - set(market))
+    if valuation_missing:
+        raise RuntimeError(
+            "missing next-open valuation snapshots: " + ", ".join(valuation_missing)
+        )
     next_state = mark_to_market(next_state, market)
     next_state["plan_reference_date"] = plan["reference_date"]
     next_state["last_gate_status"] = gate["status"]
