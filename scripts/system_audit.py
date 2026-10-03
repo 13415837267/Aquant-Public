@@ -10,6 +10,7 @@ REQUIRED_READY=[
     "data/backtest/short_term_latest.json",
     "data/backtest/short_term_sensitivity.json",
     "data/backtest/short_term_exit_diagnostics.json",
+    "data/backtest/short_term_release_validation.json",
 ]
 
 def load(path):
@@ -37,13 +38,18 @@ def main():
     if int(research.get("signal_days",0))<500: raise RuntimeError("short-term research coverage too small")
     if int(research.get("candidate_days",0))<50: raise RuntimeError("short-term candidate sample too small")
 
-    forward = research.get("forward_signal_diagnostics", {})
-    trade = research.get("trade_performance", {})
-    one = forward.get("1d", {})
-    three = forward.get("3d", {})
-    five = forward.get("5d", {})
-    round_trip_cost_bps = float(research.get("audit", {}).get("round_trip_cost_bps", 10.0))
+    release=load("data/backtest/short_term_release_validation.json")
+    if release.get("strategy_version") != candidates.get("strategy_version") or release.get("strategy_commit") != candidates.get("strategy_commit"):
+        raise RuntimeError("release validation strategy provenance mismatch")
+    final_holdout = release.get("final_holdout", {})
+    if int(final_holdout.get("signal_days",0)) < 100:
+        raise RuntimeError("final holdout coverage too small")
+    if int(final_holdout.get("candidate_days",0)) < 50:
+        raise RuntimeError("final holdout candidate sample too small")
+
+    round_trip_cost_bps = float(release.get("cost_bps", 3.0) + release.get("slippage_bps", 2.0)) * 2.0
     production_gate = {
+        "validation_scope": "final_holdout_2026_only",
         "min_forward_3d_mean_return_pct": 0.10,
         "min_forward_5d_mean_return_pct": 0.10,
         "min_forward_5d_positive_rate_pct": 50.0,
@@ -53,12 +59,12 @@ def main():
         "round_trip_cost_bps": round_trip_cost_bps,
     }
     production_gate["checks"] = {
-        "forward_3d_mean": float(three.get("mean_return_pct", -999)) >= production_gate["min_forward_3d_mean_return_pct"],
-        "forward_5d_mean": float(five.get("mean_return_pct", -999)) >= production_gate["min_forward_5d_mean_return_pct"],
-        "forward_5d_positive_rate": float(five.get("positive_rate_pct", -999)) >= production_gate["min_forward_5d_positive_rate_pct"],
-        "managed_trade_mean": float(trade.get("mean_return_pct", -999)) >= production_gate["min_managed_trade_mean_return_pct"],
-        "managed_trade_win_rate": float(trade.get("win_rate_pct", -999)) >= production_gate["min_managed_trade_win_rate_pct"],
-        "managed_trade_drawdown": float(trade.get("max_drawdown_pct", -999)) >= production_gate["max_managed_trade_drawdown_pct"],
+        "forward_3d_mean": bool(final_holdout.get("forward_3d",{}).get("mean_return_pct") is not None and float(final_holdout["forward_3d"]["mean_return_pct"]) >= production_gate["min_forward_3d_mean_return_pct"]),
+        "forward_5d_mean": bool(final_holdout.get("forward_5d",{}).get("mean_return_pct") is not None and float(final_holdout["forward_5d"]["mean_return_pct"]) >= production_gate["min_forward_5d_mean_return_pct"]),
+        "forward_5d_positive_rate": bool(final_holdout.get("forward_5d",{}).get("positive_rate_pct") is not None and float(final_holdout["forward_5d"]["positive_rate_pct"]) >= production_gate["min_forward_5d_positive_rate_pct"]),
+        "managed_trade_mean": bool(final_holdout.get("managed_trade",{}).get("mean_return_pct") is not None and float(final_holdout["managed_trade"]["mean_return_pct"]) >= production_gate["min_managed_trade_mean_return_pct"]),
+        "managed_trade_win_rate": bool(final_holdout.get("managed_trade",{}).get("win_rate_pct") is not None and float(final_holdout["managed_trade"]["win_rate_pct"]) >= production_gate["min_managed_trade_win_rate_pct"]),
+        "managed_trade_drawdown": bool(final_holdout.get("managed_trade",{}).get("max_drawdown_pct") is not None and float(final_holdout["managed_trade"]["max_drawdown_pct"]) >= production_gate["max_managed_trade_drawdown_pct"]),
     }
     production_gate["passed"] = all(production_gate["checks"].values())
     for path in REQUIRED_READY:
