@@ -145,7 +145,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--end", default="2026-09-29")
     p.add_argument("--train-years", type=int, default=3)
     p.add_argument("--test-years", type=int, default=1)
-    p.add_argument("--top-n", type=int, default=20)
+    p.add_argument("--top-n", type=int, default=3)
     p.add_argument("--cost-bps", type=float, default=3)
     p.add_argument("--slippage-bps", type=float, default=2)
     p.add_argument("--output", default=str(OUT_FILE))
