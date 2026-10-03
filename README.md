@@ -83,7 +83,7 @@ Public 不复制或维护独立策略版本。生产 Action 通过 `PRIVATE_REPO
 
 用于 point-in-time join，避免回测中的未来函数。
 
-## 四、数据源
+## 五、数据源
 
 当前生产主数据源为 **zzshare**，依赖版本锁定在：
 
@@ -91,7 +91,7 @@ Public 不复制或维护独立策略版本。生产 Action 通过 `PRIVATE_REPO
 
 数据接口采用 provider 隔离设计，后续可以加入备用数据源进行故障切换和交叉校验。
 
-## 五、断点续传
+## 六、断点续传
 
 状态文件：
 
@@ -105,14 +105,14 @@ Public 不复制或维护独立策略版本。生产 Action 通过 `PRIVATE_REPO
 
 GitHub Actions 使用小批次 checkpoint，避免长时间任务因为单次提交失败而丢失进度。
 
-## 六、运行环境
+## 七、运行环境
 
 - **GitHub Actions**：唯一生产运行环境
 - **GitHub Pages**：公开静态展示
 - **本地电脑**：只用于编辑、提交和控制
 - **Aquant-Private**：提供唯一策略源；Public 生产任务运行时只读加载最新 `main` 策略
 
-## 七、数据质量要求
+## 八、数据质量要求
 
 正式历史库要求：
 
@@ -125,7 +125,7 @@ GitHub Actions 使用小批次 checkpoint，避免长时间任务因为单次提
 - 财务数据保留真实披露日期
 - 策略运行不使用未来数据
 
-## 八、项目结构
+## 九、项目结构
 
 ```text
 data/
@@ -153,7 +153,11 @@ app/
   # GitHub Pages 静态站点
 ```
 
-## 九、GitHub Pages
+## 十、候选池研究
+
+历史回测、Walk-forward、候选准入阈值、因子消融和候选数量/成本敏感性仅用于验证候选池规则，不参与每日生产发布。统一研究入口为 `.github/workflows/strategy-research.yml`，只在 `main` 上运行。
+
+## 十、GitHub Pages
 
 公开网站：
 
@@ -161,7 +165,7 @@ https://13415837267.github.io/Aquant-Public/
 
 Pages 使用 Next.js 静态导出。
 
-## 十、维护规则
+## 十一、维护规则
 
 - 数据提交使用 `data:` 前缀
 - 策略版本记录在 Private 的 `strategy/version.py`
@@ -170,7 +174,7 @@ Pages 使用 Next.js 静态导出。
 - Public 不保存私有策略研究、账户凭证或 API 密钥
 - 候选股生产任务显式依赖 `Aquant-Private/main`，通过 `PRIVATE_REPO_TOKEN` 只读加载策略
 
-## 十一、系统目标
+## 十三、系统目标
 
 当前阶段的第一目标是稳定、可审计地**每日生成候选池**：
 
