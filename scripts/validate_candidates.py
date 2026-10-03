@@ -20,7 +20,7 @@ REQUIRED_CANDIDATE_FIELDS = {
     "volume_ratio_5d","turnover_pct","amount",
     "volatility_10d_pct","close_strength","score",
 }
-EXPECTED_WEIGHTS = {"momentum_short","volume_activity","price_strength","liquidity","safety"}
+EXPECTED_WEIGHTS = {"momentum_short","overnight_structure","volume_activity","price_strength","liquidity","safety"}
 MAX_CANDIDATES = 3
 
 def finite(value: object, field: str) -> float:

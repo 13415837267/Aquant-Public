@@ -5,11 +5,11 @@ from scripts.validate_candidates import validate_candidates
 def _payload():
     return {
         "as_of":"2026-09-30T18:00:00+08:00","status":"ready",
-        "strategy_source":"Aquant-Private/main","strategy_version":"2.0.0","strategy_commit":"abc123",
+        "strategy_source":"Aquant-Private/main","strategy_version":"2.1.0","strategy_commit":"abc123",
         "market_scope":"沪深主板","universe":"沪深主板；排除 ST/退市相关标的",
         "history_window_start":"2026-09-03","history_window_end":"2026-09-30","history_files_used":20,
         "lookback_trading_days":20,"signal_horizon":"T收盘信号 → T+1开盘进入 → 最长5个交易日",
-        "factor_weights":{"momentum_short":0.35,"volume_activity":0.25,"price_strength":0.15,"liquidity":0.15,"safety":0.10},
+        "factor_weights":{"momentum_short":0.25,"overnight_structure":0.15,"volume_activity":0.20,"price_strength":0.10,"liquidity":0.15,"safety":0.15},
         "market":{"breadth_pct":58.0,"median_return_pct":0.4,"regime":"risk_on"},
         "candidates":[
             {"rank":1,"symbol":"600000","name":"浦发银行","price":10.0,"change_pct":1.0,"return_3d_pct":2.0,"return_5d_pct":4.0,"return_10d_pct":6.0,"volume_ratio_5d":1.5,"turnover_pct":2.0,"amount":1e8,"volatility_10d_pct":3.0,"close_strength":0.9,"score":92.0},
