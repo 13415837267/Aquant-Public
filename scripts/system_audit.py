@@ -33,6 +33,9 @@ def main():
     if fs.get("status")!="complete" or fc.get("point_in_time_fields")!=["report_date","pub_date"]:
         raise RuntimeError("fundamentals database is not complete/PIT")
     candidates=load("data/candidates.json"); ready("data/candidates.json",candidates); validate_candidates(candidates)
+    production_status=load("data/production_status.json")
+    if production_status.get("status") not in {"not_released","release_candidate","released"}:
+        raise RuntimeError("invalid production status")
     for path in REQUIRED_READY: ready(path,load(path))
     research=load(REQUIRED_READY[0])
     if int(research.get("signal_days",0))<500: raise RuntimeError("short-term research coverage too small")
@@ -107,7 +110,7 @@ def main():
         and candidates.get("strategy_commit")==research_strategy_commit
     )
     if production_gate["passed"] and not candidate_matches_research:
-        raise RuntimeError("production gate passed but production candidate was not promoted")
+        raise RuntimeError("production gate passed but research candidate provenance is inconsistent")
     payload={
         "schema_version":2,"status":"ready","audited_at":datetime.now(timezone.utc).isoformat(),
         "historical_database":"complete","fundamentals_database":"complete_pit",
@@ -127,8 +130,20 @@ def main():
             "production_gate_passed":production_gate["passed"]
         }
     }
+    production_released = bool(production_gate["passed"])
+    production_payload = {
+        "schema_version": 1,
+        "status": "released" if production_released else "not_released",
+        "production_version": research_strategy_version if production_released else None,
+        "production_strategy_commit": research_strategy_commit if production_released else None,
+        "as_of": candidates.get("as_of") if production_released else None,
+        "release_gate": production_released,
+        "system_audit": True,
+        "note": "正式生产版本已通过发布门槛与系统审计。" if production_released else "当前没有正式生产策略；研究候选未达到正式发布条件。"
+    }
+    (ROOT/"data/production_status.json").write_text(
+        json.dumps(production_payload,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8"
+    )
     out=ROOT/args.output; out.parent.mkdir(parents=True,exist_ok=True)
-    out.write_text(json.dumps(payload,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    out.write_text(json.dumps(payload,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
     print(json.dumps(payload,ensure_ascii=False))
-
-if __name__=="__main__": main()
