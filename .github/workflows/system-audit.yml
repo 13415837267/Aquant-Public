@@ -9,12 +9,18 @@ on:
       - "data/backtest/short_term_latest.json"
       - "data/backtest/short_term_sensitivity.json"
       - "data/backtest/short_term_exit_diagnostics.json"
+      - "data/backtest/short_term_release_validation.json"
+      - "scripts/system_audit.py"
   workflow_dispatch:
   schedule:
     - cron: "30 12 * * 1-5"
 
 permissions:
   contents: write
+
+concurrency:
+  group: system-audit-main
+  cancel-in-progress: true
 
 jobs:
   audit:
