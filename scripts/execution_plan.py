@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import json
 from pathlib import Path
 
@@ -31,7 +32,7 @@ def valid_price(value: object) -> bool:
         return False
     return np.isfinite(x) and x > 0
 def latest_history_file() -> Path:
-    files = sorted(HISTORY.glob("????/*.csv.gz"), key=lambda p: p.name)
+    files = sorted(HISTORY.glob("????/*.csv.gz"), key=lambda p: (p.parent.name, p.stem))
     if not files:
         raise RuntimeError("no history files found")
     return files[-1]
@@ -107,9 +108,19 @@ def build_plan(
     # Latest close is a planning reference only. The next session's open must
     # be re-checked before an order is released to a broker.
     market_value = 0.0
+    missing_holdings_market: list[str] = []
     for symbol, shares in total_shares.items():
-        if symbol in market.index and valid_price(market.loc[symbol, "close"]):
-            market_value += shares * float(market.loc[symbol, "close"])
+        if shares <= 0:
+            continue
+        if symbol not in market.index or not valid_price(market.loc[symbol, "close"]):
+            missing_holdings_market.append(symbol)
+            continue
+        market_value += shares * float(market.loc[symbol, "close"])
+    if missing_holdings_market:
+        raise ValueError(
+            "missing/invalid market close for holdings: "
+            + ", ".join(sorted(missing_holdings_market))
+        )
     if total_shares and market_value > equity + 1e-9:
         raise ValueError("equity reference is below marked holding value")
 
