@@ -6,6 +6,7 @@ on:
     paths:
       - "scripts/train_short_term_model.py"
       - "requirements.txt"
+      - ".github/workflows/feature-training.yml"
   workflow_dispatch:
 
 permissions:
