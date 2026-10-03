@@ -2,8 +2,9 @@ name: Daily Market Data Update
 
 on:
   schedule:
-    # 18:00 Beijing time = 10:00 UTC.
-    - cron: "0 10 * * 1-5"
+    # Check every calendar day at 18:00 Beijing time; continue only when
+    # the China A-share trade calendar says today is open.
+    - cron: "0 10 * * *"
   workflow_dispatch:
 
 permissions:
@@ -27,17 +28,35 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Check China A-share trading day
+        id: market
+        env:
+          ZZSHARE_TOKEN: '${{ secrets.ZZSHARE_TOKEN }}'
+        run: |
+          set -euo pipefail
+          result="$(python scripts/check_trading_day.py)"
+          printf '%s\n' "$result"
+          is_trading_day="$(printf '%s\n' "$result" | awk -F= '/^IS_TRADING_DAY=/{print $2}')"
+          if [[ "$is_trading_day" != "true" && "$is_trading_day" != "false" ]]; then
+            echo "Invalid trading-day result: $is_trading_day"
+            exit 1
+          fi
+          echo "is_trading_day=$is_trading_day" >> "$GITHUB_OUTPUT"
+
       - name: Update current year
+        if: steps.market.outputs.is_trading_day == 'true'
         env:
           ZZSHARE_TOKEN: '${{ secrets.ZZSHARE_TOKEN }}'
         run: python scripts/backfill_year.py --year $(date +%Y)
 
       - name: Refresh main-board universe
+        if: steps.market.outputs.is_trading_day == 'true'
         env:
           ZZSHARE_TOKEN: '${{ secrets.ZZSHARE_TOKEN }}'
         run: python scripts/refresh_universe.py
 
       - name: Checkout private strategy
+        if: steps.market.outputs.is_trading_day == 'true'
         uses: actions/checkout@v5
         with:
           repository: 13415837267/Aquant-Private
@@ -46,19 +65,23 @@ jobs:
           path: .private-strategy
 
       - name: Generate candidates
+        if: steps.market.outputs.is_trading_day == 'true'
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/update_candidates.py
 
       - name: Validate candidate pool
+        if: steps.market.outputs.is_trading_day == 'true'
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/validate_candidates.py
 
       - name: Archive candidate pool
+        if: steps.market.outputs.is_trading_day == 'true'
         run: python scripts/archive_candidates.py
 
       - name: Publish candidate snapshot
+        if: steps.market.outputs.is_trading_day == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -80,3 +103,7 @@ jobs:
             git rebase origin/main
           done
           exit 1
+
+      - name: Non-trading day
+        if: steps.market.outputs.is_trading_day == 'false'
+        run: echo "China A-share market is closed today; data update skipped."
