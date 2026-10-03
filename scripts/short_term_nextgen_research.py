@@ -307,8 +307,9 @@ def run(args):
         dispersion_history.append(current_dispersion)
 
         period = None
+        absolute_i = begin + i
         for name, (s, e) in windows.items():
-            if s <= i <= e - 5:
+            if s <= absolute_i <= e - 5:
                 period = name
                 break
         if period is None:
