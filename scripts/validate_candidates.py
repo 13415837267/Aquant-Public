@@ -83,10 +83,16 @@ def validate_candidates(payload: dict, private_version: str | None = None, priva
     if payload.get("future_function") is not False:
         raise RuntimeError("candidate snapshot future_function audit failed")
 
-    as_of = _date_only(payload.get("as_of"), "as_of")
+    as_of = str(payload.get("as_of") or "")
+    as_of_day = _date_only(as_of, "as_of")
+    if not as_of.endswith("T18:00:00+08:00"):
+        raise RuntimeError("as_of must use the production 18:00 Asia/Shanghai timestamp")
     window_end = _date_only(payload.get("history_window_end"), "history_window_end")
-    if as_of != window_end:
+    window_start = _date_only(payload.get("history_window_start"), "history_window_start")
+    if as_of_day != window_end:
         raise RuntimeError("as_of must match history_window_end")
+    if window_start > window_end:
+        raise RuntimeError("history_window_start must not be after history_window_end")
 
     files_used = payload.get("history_files_used")
     if not isinstance(files_used, int) or isinstance(files_used, bool) or files_used < 126:
@@ -120,8 +126,13 @@ def validate_candidates(payload: dict, private_version: str | None = None, priva
     weight_sum = sum(_finite(weights[key], f"factor_weights.{key}") for key in EXPECTED_WEIGHTS)
     if abs(weight_sum - 1.0) > 1e-9:
         raise RuntimeError(f"factor weights must sum to 1.0, got {weight_sum}")
-    if any(_finite(weights[key], f"factor_weights.{key}") <= 0 for key in EXPECTED_WEIGHTS):
-        raise RuntimeError("factor weights must be positive")
+    expected_weights = {"momentum": 0.35, "liquidity": 0.15, "value": 0.30, "safety": 0.20}
+    for key, expected in expected_weights.items():
+        actual = _finite(weights[key], f"factor_weights.{key}")
+        if abs(actual - expected) > 1e-9:
+            raise RuntimeError(
+                f"factor_weights.{key} mismatch: expected={expected}, got={actual}"
+            )
 
     candidates = payload.get("candidates")
     if not isinstance(candidates, list):
