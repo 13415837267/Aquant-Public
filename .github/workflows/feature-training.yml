@@ -1,0 +1,62 @@
+name: Full-Market Feature Training
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/train_short_term_model.py"
+      - "requirements.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: full-market-feature-training-main
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Initialize progress
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runtime
+          echo "{\"timestamp_utc\":\"$(date -u +%FT%TZ)\",\"event\":\"feature_training_started\",\"run_id\":\"${GITHUB_RUN_ID}\"}" > runtime/feature_training_progress.jsonl
+      - name: Python quality
+        run: python -m pytest -q
+      - name: Train and validate on 2015-now market history
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python scripts/train_short_term_model.py --start 2015-01-05 --final-end 2026-09-30
+          echo "{\"timestamp_utc\":\"$(date -u +%FT%TZ)\",\"event\":\"feature_training_completed\"}" >> runtime/feature_training_progress.jsonl
+      - name: Upload research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-market-feature-training
+          path: |
+            data/backtest/feature_training_latest.json
+            runtime/feature_training_progress.jsonl
+          retention-days: 30
+      - name: Commit research result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/backtest/feature_training_latest.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: record full-market feature training"
+          git push origin HEAD:main
