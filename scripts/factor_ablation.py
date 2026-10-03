@@ -207,7 +207,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default="2015-01-05")
     ap.add_argument("--end", default="2026-09-29")
-    ap.add_argument("--top-n", type=int, default=30)
+    ap.add_argument("--top-n", type=int, default=3)
     ap.add_argument("--cost-bps", type=float, default=3.0)
     ap.add_argument("--slippage-bps", type=float, default=2.0)
     ap.add_argument("--output", default=str(ROOT / "data" / "backtest" / "factor_ablation.json"))
