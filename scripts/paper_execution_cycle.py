@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from copy import deepcopy
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -161,12 +162,13 @@ def run_cycle(
             }
         )
 
-    # Keep accounting constraints aligned with the current plan, whose cash
-    # buffer is defined as a fraction of current paper equity.
-    state["cash_floor"] = float(plan["equity_reference"]) * float(plan["cash_buffer"])
+    # Keep accounting constraints aligned with the current plan on a working
+    # copy so a rejected cycle never mutates the prior persisted state.
+    working_state = deepcopy(state)
+    working_state["cash_floor"] = float(plan["equity_reference"]) * float(plan["cash_buffer"])
 
     next_state, ledger_entries = apply_paper_fills(
-        state,
+        working_state,
         fills,
         execution_date=execution_date,
         lot_size=int(plan["lot_size"]),
