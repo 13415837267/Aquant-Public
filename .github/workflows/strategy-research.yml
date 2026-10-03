@@ -2,6 +2,7 @@ name: Candidate Pool Research 1.1
 
 on:
   push:
+    branches: [main]
     paths:
       - "scripts/backtest.py"
       - "scripts/update_candidates.py"
