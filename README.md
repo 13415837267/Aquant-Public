@@ -194,12 +194,13 @@ Pages 使用 Next.js 静态导出。
 - `scripts/paper_execution_gate.py`：只负责下一开盘安全复核，不调用券商接口；缺数据、停牌、ST、涨跌停风险、非法手数、过期快照等条件均 fail-closed。
 - `scripts/paper_portfolio.py`：负责现金、持仓、平均成本、已实现/未实现盈亏、T+1 可卖库存和幂等成交应用。
 - `scripts/paper_execution_cycle.py`：把执行计划和次日开盘快照串成一个可重复执行的 Paper 周期，并维护 `data/paper/portfolio.json` 与 `data/paper/fills.jsonl`。
+- `scripts/paper_rebalance.py`：在新交易日收盘后读取 Paper 状态，以当前现金+持仓市值计算动态权益，并重新生成下一周期 Paper 执行计划；同时支持识别目标组合之外的旧仓并生成清仓单。
 
 Paper 开盘快照要求至少包含：
 
 `execution_date`、`settlement_date`、以及每个计划股票的 `symbol/open/high_limit/low_limit/is_paused/is_st`。
 
-Paper 层仍然不接入任何实盘券商，不提交真实订单；真实订单释放仍需要独立的人工/账户授权层。
+Paper 层仍然不接入任何实盘券商，不提交真实订单；真实订单释放仍需要独立的人工/账户授权层。Paper 运行状态与成交账本属于运行时数据，不提交到 Git。
 
 ## 十四、测试与质量门
 
