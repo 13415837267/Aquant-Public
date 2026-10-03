@@ -181,6 +181,7 @@ def main() -> None:
         "strategy_source": "Aquant-Private/main",
         "strategy_version": version,
         "strategy_commit": commit,
+        "future_function": False,
         "folds": results,
         "aggregate_oos": [aggregate[name] for name in VARIANTS],
         "audit": {
