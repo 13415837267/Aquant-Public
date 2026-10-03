@@ -204,9 +204,10 @@ def run(args):
     dates = [p.name[:10] for p in files]
     if args.start not in dates or args.end not in dates: raise ValueError("research dates must be trading dates")
     start_i, end_i = dates.index(args.start), dates.index(args.end)
-    if end_i + MAX_HOLD >= len(files): raise ValueError("research end must leave six future trading sessions for a five-session T+1 holding window")
+    # The research end is a data/signal cutoff. Complete performance metrics
+    # are calculated only for signal dates with a full five-session future window.
     begin = max(0, start_i-20)
-    active = files[begin:end_i+MAX_HOLD+1]
+    active = files[begin:end_i+1]
 
     cache = {}
     def get(i):
@@ -218,10 +219,17 @@ def run(args):
     forward_rows={1:[],3:[],5:[]}
     daily={1:[],2:[],3:[]}
     candidate_days=0
-    for i in range(len(active)-MAX_HOLD):
+    for i in range(len(active)):
         signal_date=active[i].name[:10]
         frame=state.build(get(i))
         if signal_date < args.start or signal_date > args.end: continue
+        # The latest signal dates may be censored because future sessions are
+        # not yet in the database. Exclude them from historical performance
+        # metrics rather than inventing future prices. Candidate generation
+        # separately uses the latest available close, so a 2026-09-30 cutoff
+        # can produce a valid post-holiday candidate snapshot.
+        if i + MAX_HOLD >= len(active):
+            continue
         scored=model.score_universe(frame) if not frame.empty else frame
         selected=getattr(model,"admit_candidates")(scored) if not frame.empty else frame
         if selected.empty:
@@ -276,6 +284,7 @@ def run(args):
     result={
         "schema_version":2,"status":"ready","method":"short_term_signal_research_1_5_session",
         "start":args.start,"end":args.end,"strategy_source":"Aquant-Private/main",
+        "cutoff_semantics":"signal_data_cutoff; performance metrics exclude signal dates without a complete five-session future window",
         "strategy_version":version,"strategy_commit":commit,"future_function":False,
         "signal_days":len(daily[3]),"candidate_days":candidate_days,
         "candidate_day_rate_pct":candidate_days/len(daily[3])*100 if daily[3] else 0,
