@@ -141,6 +141,16 @@ def build_paper_decisions(
         execution_date = snapshot.get("date")
         if execution_date is not None:
             execution_date = str(execution_date)
+            if execution_date <= str(execution_plan["reference_date"]):
+                raise GateError(
+                    f"{symbol}: next-open snapshot date must be after plan reference date"
+                )
+        if bool(order.get("blocked", False)):
+            raise GateError(f"{symbol}: blocked order cannot be released")
+        if "requested_shares" in order:
+            requested = _strict_int(order["requested_shares"], f"{symbol}: requested_shares")
+            if shares > requested:
+                raise GateError(f"{symbol}: executable shares exceed requested shares")
 
         notional = opening * shares
         decisions.append(
