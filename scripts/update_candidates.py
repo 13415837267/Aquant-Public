@@ -137,7 +137,7 @@ def build_candidates(history,strategy_model,strategy_version,strategy_commit):
         "market":{"breadth_pct":round(breadth,3),"median_return_pct":round(median,3),"regime":regime},
         "diagnostics":{"history_rows":int(len(history)),**diag,"candidate_count":len(rows),"risk_off_no_trade":regime=="risk_off"},
         "candidates":rows,"factor_weights":getattr(strategy_model,"WEIGHTS",None),"future_function":False,
-        "candidate_admission_policy":"dynamic_top_score_3_with_market_gate",
+        "candidate_admission_policy":f"dynamic_top_score_{int(getattr(strategy_model, 'MAX_CANDIDATES', len(rows)))}_with_market_gate",
         "audit":{"hard_eligibility_applied_before_scoring":True,"strategy_source_locked_to_private":True,"short_term_features_only":True,"market_gate_applied":True}
     }
 
