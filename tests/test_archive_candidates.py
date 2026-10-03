@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import pytest
 
@@ -36,3 +37,10 @@ def test_archive_candidates_rejects_non_ready(tmp_path):
     payload["status"] = "pending"
     with pytest.raises(RuntimeError):
         archive_candidates(payload, tmp_path)
+
+def test_archive_candidates_accepts_existing_equivalent_json_with_different_format(tmp_path):
+    payload = _payload()
+    destination = Path(tmp_path) / "2026" / "2026-09-30.json"
+    destination.parent.mkdir(parents=True)
+    destination.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    assert archive_candidates(payload, tmp_path) == destination
