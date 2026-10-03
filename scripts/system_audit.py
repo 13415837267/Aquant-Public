@@ -41,15 +41,17 @@ def main():
     release=load("data/backtest/short_term_release_validation.json")
     if release.get("strategy_version") != candidates.get("strategy_version") or release.get("strategy_commit") != candidates.get("strategy_commit"):
         raise RuntimeError("release validation strategy provenance mismatch")
+    validation = release.get("validation", {})
     final_holdout = release.get("final_holdout", {})
-    if int(final_holdout.get("signal_days",0)) < 100:
-        raise RuntimeError("final holdout coverage too small")
-    if int(final_holdout.get("candidate_days",0)) < 50:
-        raise RuntimeError("final holdout candidate sample too small")
+    for label, window in (("validation", validation), ("final_holdout", final_holdout)):
+        if int(window.get("signal_days",0)) < 100:
+            raise RuntimeError(f"{label} coverage too small")
+        if int(window.get("candidate_days",0)) < 50:
+            raise RuntimeError(f"{label} candidate sample too small")
 
     round_trip_cost_bps = float(release.get("cost_bps", 3.0) + release.get("slippage_bps", 2.0)) * 2.0
     production_gate = {
-        "validation_scope": "final_holdout_2026_only",
+        "validation_scope": "2025_validation_and_2026_final_holdout",
         "min_forward_3d_mean_return_pct": 0.10,
         "min_forward_5d_mean_return_pct": 0.10,
         "min_forward_5d_positive_rate_pct": 50.0,
@@ -58,15 +60,44 @@ def main():
         "max_managed_trade_drawdown_pct": -40.0,
         "round_trip_cost_bps": round_trip_cost_bps,
     }
+
+    def window_checks(window):
+        return {
+            "forward_3d_mean": bool(
+                window.get("forward_3d",{}).get("mean_return_pct") is not None
+                and float(window["forward_3d"]["mean_return_pct"]) >= production_gate["min_forward_3d_mean_return_pct"]
+            ),
+            "forward_5d_mean": bool(
+                window.get("forward_5d",{}).get("mean_return_pct") is not None
+                and float(window["forward_5d"]["mean_return_pct"]) >= production_gate["min_forward_5d_mean_return_pct"]
+            ),
+            "forward_5d_positive_rate": bool(
+                window.get("forward_5d",{}).get("positive_rate_pct") is not None
+                and float(window["forward_5d"]["positive_rate_pct"]) >= production_gate["min_forward_5d_positive_rate_pct"]
+            ),
+            "managed_trade_mean": bool(
+                window.get("managed_trade",{}).get("mean_return_pct") is not None
+                and float(window["managed_trade"]["mean_return_pct"]) >= production_gate["min_managed_trade_mean_return_pct"]
+            ),
+            "managed_trade_win_rate": bool(
+                window.get("managed_trade",{}).get("win_rate_pct") is not None
+                and float(window["managed_trade"]["win_rate_pct"]) >= production_gate["min_managed_trade_win_rate_pct"]
+            ),
+            "managed_trade_drawdown": bool(
+                window.get("managed_trade",{}).get("max_drawdown_pct") is not None
+                and float(window["managed_trade"]["max_drawdown_pct"]) >= production_gate["max_managed_trade_drawdown_pct"]
+            ),
+        }
+
     production_gate["checks"] = {
-        "forward_3d_mean": bool(final_holdout.get("forward_3d",{}).get("mean_return_pct") is not None and float(final_holdout["forward_3d"]["mean_return_pct"]) >= production_gate["min_forward_3d_mean_return_pct"]),
-        "forward_5d_mean": bool(final_holdout.get("forward_5d",{}).get("mean_return_pct") is not None and float(final_holdout["forward_5d"]["mean_return_pct"]) >= production_gate["min_forward_5d_mean_return_pct"]),
-        "forward_5d_positive_rate": bool(final_holdout.get("forward_5d",{}).get("positive_rate_pct") is not None and float(final_holdout["forward_5d"]["positive_rate_pct"]) >= production_gate["min_forward_5d_positive_rate_pct"]),
-        "managed_trade_mean": bool(final_holdout.get("managed_trade",{}).get("mean_return_pct") is not None and float(final_holdout["managed_trade"]["mean_return_pct"]) >= production_gate["min_managed_trade_mean_return_pct"]),
-        "managed_trade_win_rate": bool(final_holdout.get("managed_trade",{}).get("win_rate_pct") is not None and float(final_holdout["managed_trade"]["win_rate_pct"]) >= production_gate["min_managed_trade_win_rate_pct"]),
-        "managed_trade_drawdown": bool(final_holdout.get("managed_trade",{}).get("max_drawdown_pct") is not None and float(final_holdout["managed_trade"]["max_drawdown_pct"]) >= production_gate["max_managed_trade_drawdown_pct"]),
+        "validation": window_checks(validation),
+        "final_holdout": window_checks(final_holdout),
     }
-    production_gate["passed"] = all(production_gate["checks"].values())
+    production_gate["passed"] = bool(
+        all(production_gate["checks"]["validation"].values())
+        and all(production_gate["checks"]["final_holdout"].values())
+        and release.get("release_gate_scope") == "final_holdout_only"
+    )
     for path in REQUIRED_READY:
         p=load(path)
         if p.get("strategy_version")!=candidates.get("strategy_version") or p.get("strategy_commit")!=candidates.get("strategy_commit"):
