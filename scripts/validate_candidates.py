@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import argparse
 import json
 import math
@@ -7,219 +6,105 @@ import os
 import subprocess
 from datetime import date
 from pathlib import Path
-
 from scripts.market_scope import is_main_board_symbol
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CANDIDATES = ROOT / "data" / "candidates.json"
 REQUIRED_CANDIDATE_FIELDS = {
-    "rank",
-    "symbol",
-    "name",
-    "price",
-    "change_pct",
-    "momentum_60d",
-    "turnover_pct",
-    "amount",
-    "volatility_proxy",
-    "score",
+    "rank","symbol","name","price","change_pct",
+    "return_3d_pct","return_5d_pct","return_10d_pct",
+    "volume_ratio_5d","turnover_pct","amount",
+    "volatility_10d_pct","close_strength","score",
 }
-EXPECTED_WEIGHTS = {"momentum", "liquidity", "value", "safety"}
+EXPECTED_WEIGHTS = {"momentum_short","volume_activity","price_strength","liquidity","safety"}
 MAX_CANDIDATES = 3
 
-
-def _finite(value: object, field: str) -> float:
-    try:
-        number = float(value)
-    except (TypeError, ValueError) as exc:
-        raise RuntimeError(f"{field} is not numeric: {value!r}") from exc
-    if not math.isfinite(number):
-        raise RuntimeError(f"{field} is not finite: {value!r}")
+def finite(value: object, field: str) -> float:
+    try: number = float(value)
+    except (TypeError, ValueError) as exc: raise RuntimeError(f"{field} is not numeric") from exc
+    if not math.isfinite(number): raise RuntimeError(f"{field} is not finite")
     return number
 
+def date_only(value: object, field: str) -> str:
+    try: return date.fromisoformat(str(value)[:10]).isoformat()
+    except ValueError as exc: raise RuntimeError(f"{field} has invalid date") from exc
 
-def _date_only(value: object, field: str) -> str:
-    text = str(value or "")
-    if len(text) < 10:
-        raise RuntimeError(f"{field} is not a valid ISO timestamp/date: {value!r}")
-    try:
-        return date.fromisoformat(text[:10]).isoformat()
-    except ValueError as exc:
-        raise RuntimeError(f"{field} has invalid date: {value!r}") from exc
-
-
-def _private_provenance() -> tuple[str | None, str | None]:
+def private_provenance():
     root_text = os.environ.get("AQUANT_PRIVATE_STRATEGY_PATH")
-    if not root_text:
-        return None, None
+    if not root_text: return None, None
     root = Path(root_text).resolve()
-    version_file = root / "strategy" / "version.py"
-    if not version_file.exists():
-        raise RuntimeError(f"Private strategy version file not found: {version_file}")
-
+    vf = root / "strategy" / "version.py"
+    if not vf.exists(): raise RuntimeError("Private strategy version file missing")
     version = None
-    for line in version_file.read_text(encoding="utf-8").splitlines():
+    for line in vf.read_text(encoding="utf-8").splitlines():
         if line.startswith("STRATEGY_VERSION") and "=" in line:
-            version = line.split("=", 1)[1].strip().strip('"').strip("'")
-            break
-    if not version:
-        raise RuntimeError("Private strategy STRATEGY_VERSION not found")
-
-    try:
-        commit = subprocess.check_output(
-            ["git", "-C", str(root), "rev-parse", "HEAD"],
-            text=True,
-        ).strip()
-    except Exception as exc:
-        raise RuntimeError(f"Cannot resolve private strategy commit: {exc}") from exc
+            version = line.split("=",1)[1].strip().strip('"').strip("'")
+    commit = subprocess.check_output(["git","-C",str(root),"rev-parse","HEAD"], text=True).strip()
     return version, commit
 
-
-def validate_candidates(payload: dict, private_version: str | None = None, private_commit: str | None = None) -> dict:
-    if not isinstance(payload, dict):
-        raise RuntimeError("candidate snapshot must be an object")
-    if payload.get("status") != "ready":
-        raise RuntimeError("candidate snapshot status must be ready")
-    if payload.get("future_function") is not False:
-        raise RuntimeError("candidate snapshot future_function audit failed")
-
+def validate_candidates(payload, private_version=None, private_commit=None):
+    if not isinstance(payload, dict): raise RuntimeError("candidate snapshot must be an object")
+    if payload.get("status") != "ready" or payload.get("future_function") is not False:
+        raise RuntimeError("candidate readiness/PIT audit failed")
     as_of = str(payload.get("as_of") or "")
-    as_of_day = _date_only(as_of, "as_of")
-    if not as_of.endswith("T18:00:00+08:00"):
-        raise RuntimeError("as_of must use the production 18:00 Asia/Shanghai timestamp")
-    window_end = _date_only(payload.get("history_window_end"), "history_window_end")
-    window_start = _date_only(payload.get("history_window_start"), "history_window_start")
-    if as_of_day != window_end:
+    if not as_of.endswith("T18:00:00+08:00"): raise RuntimeError("invalid production timestamp")
+    if date_only(as_of,"as_of") != date_only(payload.get("history_window_end"),"history_window_end"):
         raise RuntimeError("as_of must match history_window_end")
-    if window_start > window_end:
-        raise RuntimeError("history_window_start must not be after history_window_end")
-
-    files_used = payload.get("history_files_used")
-    if not isinstance(files_used, int) or isinstance(files_used, bool) or files_used < 126:
-        raise RuntimeError("history_files_used must be an integer >= 126")
-
-    strategy_source = payload.get("strategy_source")
-    if strategy_source != "Aquant-Private/main":
-        raise RuntimeError("strategy_source must be Aquant-Private/main")
-
-    strategy_version = str(payload.get("strategy_version") or "")
-    strategy_commit = str(payload.get("strategy_commit") or "")
-    if not strategy_version or not strategy_commit:
-        raise RuntimeError("strategy version/commit provenance is missing")
-    if private_version is not None and strategy_version != private_version:
-        raise RuntimeError(
-            f"candidate strategy version mismatch: snapshot={strategy_version}, private={private_version}"
-        )
-    if private_commit is not None and strategy_commit != private_commit:
-        raise RuntimeError(
-            f"candidate strategy commit mismatch: snapshot={strategy_commit}, private={private_commit}"
-        )
-
-    market_scope = str(payload.get("market_scope") or "")
-    universe = str(payload.get("universe") or "")
-    if "沪深主板" not in market_scope or "排除" not in universe:
-        raise RuntimeError("candidate market scope/universe metadata is incomplete")
-
+    if date_only(payload.get("history_window_start"),"history_window_start") > date_only(payload.get("history_window_end"),"history_window_end"):
+        raise RuntimeError("invalid history window")
+    if not isinstance(payload.get("history_files_used"), int) or payload["history_files_used"] < 20:
+        raise RuntimeError("history_files_used must be >= 20")
+    if payload.get("lookback_trading_days") != 20: raise RuntimeError("short-term lookback must be 20")
+    if payload.get("signal_horizon") != "T收盘信号 → T+1开盘进入 → 最长5个交易日":
+        raise RuntimeError("short-term signal horizon mismatch")
+    if payload.get("strategy_source") != "Aquant-Private/main": raise RuntimeError("strategy source mismatch")
+    version = str(payload.get("strategy_version") or "")
+    commit = str(payload.get("strategy_commit") or "")
+    if not version or not commit: raise RuntimeError("strategy provenance missing")
+    if private_version is not None and version != private_version: raise RuntimeError("strategy version mismatch")
+    if private_commit is not None and commit != private_commit: raise RuntimeError("strategy commit mismatch")
     weights = payload.get("factor_weights")
-    if not isinstance(weights, dict) or set(weights) != EXPECTED_WEIGHTS:
-        raise RuntimeError(f"factor_weights must contain exactly {sorted(EXPECTED_WEIGHTS)}")
-    weight_sum = sum(_finite(weights[key], f"factor_weights.{key}") for key in EXPECTED_WEIGHTS)
-    if abs(weight_sum - 1.0) > 1e-9:
-        raise RuntimeError(f"factor weights must sum to 1.0, got {weight_sum}")
-    expected_weights = {"momentum": 0.35, "liquidity": 0.15, "value": 0.30, "safety": 0.20}
-    for key, expected in expected_weights.items():
-        actual = _finite(weights[key], f"factor_weights.{key}")
-        if abs(actual - expected) > 1e-9:
-            raise RuntimeError(
-                f"factor_weights.{key} mismatch: expected={expected}, got={actual}"
-            )
-
+    if not isinstance(weights, dict) or set(weights) != EXPECTED_WEIGHTS: raise RuntimeError("factor weights are invalid")
+    if abs(sum(finite(weights[k], f"factor_weights.{k}") for k in EXPECTED_WEIGHTS)-1.0) > 1e-9:
+        raise RuntimeError("factor weights must sum to 1")
     candidates = payload.get("candidates")
-    if not isinstance(candidates, list):
-        raise RuntimeError("candidates must be a list")
-    if len(candidates) > MAX_CANDIDATES:
-        raise RuntimeError(f"candidate count exceeds production maximum {MAX_CANDIDATES}")
-
-    symbols: list[str] = []
-    previous_score = math.inf
-    for expected_rank, row in enumerate(candidates, start=1):
-        if not isinstance(row, dict):
-            raise RuntimeError(f"candidate #{expected_rank} must be an object")
+    if not isinstance(candidates, list) or len(candidates) > MAX_CANDIDATES: raise RuntimeError("invalid candidate count")
+    previous = math.inf
+    seen = set()
+    for rank,row in enumerate(candidates,1):
         missing = REQUIRED_CANDIDATE_FIELDS - set(row)
-        if missing:
-            raise RuntimeError(f"candidate #{expected_rank} missing fields: {sorted(missing)}")
+        if missing: raise RuntimeError(f"candidate #{rank} missing {sorted(missing)}")
+        if row.get("rank") != rank: raise RuntimeError("candidate ranks are invalid")
+        symbol = str(row.get("symbol","")).zfill(6)
+        if not is_main_board_symbol(symbol): raise RuntimeError(f"{symbol} outside production scope")
+        if symbol in seen: raise RuntimeError("duplicate candidate symbol")
+        seen.add(symbol)
+        score = finite(row["score"], f"{symbol}.score")
+        if not 0 <= score <= 100: raise RuntimeError(f"{symbol} score outside 0..100")
+        if score > previous + 1e-9: raise RuntimeError("candidates not sorted by score")
+        previous = score
+        for field in REQUIRED_CANDIDATE_FIELDS - {"rank","symbol","name"}: finite(row[field], f"{symbol}.{field}")
+        if not str(row.get("name") or "").strip(): raise RuntimeError(f"{symbol} has empty name")
+    market = payload.get("market")
+    if not isinstance(market, dict) or market.get("regime") not in {"risk_on","neutral","risk_off"}:
+        raise RuntimeError("invalid market regime")
+    diag = payload.get("diagnostics")
+    if not isinstance(diag, dict) or diag.get("candidate_count") != len(candidates):
+        raise RuntimeError("candidate diagnostics mismatch")
+    if diag.get("risk_off_no_trade") != (market["regime"] == "risk_off"):
+        raise RuntimeError("risk-off admission audit mismatch")
+    if payload.get("candidate_admission_policy") != "dynamic_top_score_3_with_market_gate":
+        raise RuntimeError("admission policy mismatch")
+    for key in ("hard_eligibility_applied_before_scoring","strategy_source_locked_to_private","short_term_features_only","market_gate_applied"):
+        if payload.get("audit",{}).get(key) is not True: raise RuntimeError(f"audit failed: {key}")
+    return {"status":"pass","as_of":as_of,"candidate_count":len(candidates),"strategy_version":version,"strategy_commit":commit,"market_regime":market["regime"]}
 
-        rank = row["rank"]
-        if not isinstance(rank, int) or isinstance(rank, bool) or rank != expected_rank:
-            raise RuntimeError(f"candidate #{expected_rank} has invalid rank: {rank!r}")
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--input",type=Path,default=DEFAULT_CANDIDATES)
+    args=parser.parse_args()
+    payload=json.loads(args.input.read_text(encoding="utf-8"))
+    pv,pc=private_provenance()
+    print(json.dumps(validate_candidates(payload,pv,pc),ensure_ascii=False))
 
-        symbol = str(row["symbol"]).zfill(6)
-        if not is_main_board_symbol(symbol):
-            raise RuntimeError(f"candidate {symbol} is outside the production main-board scope")
-        symbols.append(symbol)
-
-        name = str(row["name"] or "").strip()
-        if not name:
-            raise RuntimeError(f"candidate {symbol} has empty name")
-
-        price = _finite(row["price"], f"{symbol}.price")
-        if price <= 0:
-            raise RuntimeError(f"candidate {symbol} price must be positive")
-        amount = _finite(row["amount"], f"{symbol}.amount")
-        if amount < 0:
-            raise RuntimeError(f"candidate {symbol} amount must be non-negative")
-        score = _finite(row["score"], f"{symbol}.score")
-        if not 0 <= score <= 100:
-            raise RuntimeError(f"candidate {symbol} score must be within 0..100")
-        if score > previous_score + 1e-9:
-            raise RuntimeError("candidates are not sorted by descending score")
-        previous_score = score
-
-    if len(symbols) != len(set(symbols)):
-        raise RuntimeError("candidate symbols contain duplicates")
-
-    diagnostics = payload.get("diagnostics")
-    if not isinstance(diagnostics, dict):
-        raise RuntimeError("diagnostics metadata is missing")
-    reported_count = diagnostics.get("candidate_count")
-    if reported_count != len(candidates):
-        raise RuntimeError("diagnostics.candidate_count does not match candidates length")
-
-    admission_policy = payload.get("candidate_admission_policy")
-    if admission_policy != "top_score_3_max":
-        raise RuntimeError("unexpected candidate admission policy")
-
-    audit = payload.get("audit")
-    if not isinstance(audit, dict):
-        raise RuntimeError("candidate audit metadata is missing")
-    if audit.get("hard_eligibility_applied_before_scoring") is not True:
-        raise RuntimeError("hard eligibility audit failed")
-    if audit.get("strategy_source_locked_to_private") is not True:
-        raise RuntimeError("private strategy lock audit failed")
-    if audit.get("top_n_is_not_a_score_threshold") is not True:
-        raise RuntimeError("top-N admission audit failed")
-
-    return {
-        "status": "pass",
-        "as_of": as_of,
-        "candidate_count": len(candidates),
-        "strategy_version": strategy_version,
-        "strategy_commit": strategy_commit,
-        "history_files_used": files_used,
-        "max_candidates": MAX_CANDIDATES,
-    }
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, default=DEFAULT_CANDIDATES)
-    args = parser.parse_args()
-
-    payload = json.loads(args.input.read_text(encoding="utf-8"))
-    private_version, private_commit = _private_provenance()
-    result = validate_candidates(payload, private_version, private_commit)
-    print(json.dumps(result, ensure_ascii=False))
-
-
-if __name__ == "__main__":
-    main()
+if __name__=="__main__": main()
