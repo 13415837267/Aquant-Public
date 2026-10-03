@@ -1,0 +1,44 @@
+name: Cleanup Obsolete Strategy Branches
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/cleanup-obsolete-branches.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete obsolete Public branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --silent --method DELETE \
+            "/repos/13415837267/Aquant-Public/git/refs/heads/strategy/0.3.0-candidate-admission" || true
+
+      - name: Delete obsolete Private branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          gh api --silent --method DELETE \
+            "/repos/13415837267/Aquant-Private/git/refs/heads/strategy/0.3.0-candidate-admission" || true
+
+      - name: Verify branch lists
+        shell: bash
+        env:
+          PUBLIC_TOKEN: ${{ github.token }}
+          PRIVATE_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          set -e
+          public=$(GH_TOKEN="$PUBLIC_TOKEN" gh api "/repos/13415837267/Aquant-Public/branches?per_page=100")
+          private=$(GH_TOKEN="$PRIVATE_TOKEN" gh api "/repos/13415837267/Aquant-Private/branches?per_page=100")
+          echo "$public" | python -c 'import json,sys; b=[x["name"] for x in json.load(sys.stdin)]; print("Public branches:", b); raise SystemExit(0 if b == ["main"] else 1)'
+          echo "$private" | python -c 'import json,sys; b=[x["name"] for x in json.load(sys.stdin)]; print("Private branches:", b); raise SystemExit(0 if b == ["main"] else 1)'
