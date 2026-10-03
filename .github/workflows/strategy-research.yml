@@ -1,4 +1,4 @@
-name: Short-Term Strategy Research 2.0
+name: Short-Term Strategy Research
 
 on:
   push:
@@ -56,7 +56,7 @@ jobs:
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
-        run: python scripts/short_term_research.py --start 2018-01-05 --end 2026-09-23 --cost-bps 3 --slippage-bps 2
+        run: python scripts/short_term_research.py --start 2018-01-05 --end 2026-09-22 --cost-bps 3 --slippage-bps 2
       - name: Run system audit
         run: python scripts/system_audit.py
       - name: Commit research outputs
