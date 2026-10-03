@@ -57,6 +57,7 @@ def new_paper_state(
         "realized_pnl": 0.0,
         "pending_settlements": [],
         "applied_fills": {},
+        "applied_plans": {},
         "strategy_version": strategy_version,
         "strategy_commit": strategy_commit,
         "audit": {
