@@ -9,6 +9,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 CANDIDATES = ROOT / "data" / "candidates.json"
 OUTPUT = ROOT / "data" / "portfolio.json"
+MAX_POSITIONS = 20
 
 
 def allocate_weights(
@@ -86,6 +87,10 @@ def build_portfolio(snapshot: dict, max_weight: float = 0.05, cash_buffer: float
     rows["score"] = pd.to_numeric(rows["score"], errors="coerce")
     rows["symbol"] = rows["symbol"].astype(str).str.zfill(6)
     rows = rows.loc[rows["symbol"].notna() & rows["score"].notna()].copy()
+    rows = rows.sort_values(
+        ["score", "rank", "symbol"],
+        ascending=[False, True, True],
+    ).head(MAX_POSITIONS).reset_index(drop=True)
 
     allocation = allocate_weights(
         rows,
@@ -116,6 +121,7 @@ def build_portfolio(snapshot: dict, max_weight: float = 0.05, cash_buffer: float
         "max_position_weight": max_weight,
         "cash_buffer": cash_buffer,
         "gross_target_weight": round(sum(p["target_weight"] for p in positions), 8),
+        "candidate_pool_count": len(snapshot["candidates"]),
         "position_count": len(positions),
         "positions": positions,
         "audit": {
@@ -123,6 +129,7 @@ def build_portfolio(snapshot: dict, max_weight: float = 0.05, cash_buffer: float
             "leverage": False,
             "future_function": False,
             "source_candidates": len(snapshot["candidates"]),
+            "max_positions_enforced": MAX_POSITIONS,
         },
     }
 
