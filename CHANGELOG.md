@@ -1,4 +1,6 @@
 ## Unreleased — Broker-free Paper execution state machine
+- Added deterministic `plan_id` tracking so the same plan cannot be applied on a different execution date or against a changed snapshot.
+- Hardened execution planning to fail closed when any positive holding lacks a valid market close, and fixed latest-history selection to sort by year/date rather than filename alone.
 - Added `scripts/paper_snapshot_from_history.py` so historical next-open replay uses the same execution gate and valuation schema as the normal Paper cycle.
 - Added an actual-next-open turnover recheck so opening-price gaps cannot silently push paper execution above the configured turnover cap.
 - Hardened next-open snapshot flags to accept only explicit boolean/0/1 values and require a real snapshot date.
