@@ -1,4 +1,4 @@
-name: Strategy Research 1.0
+name: Strategy Research 1.1
 
 on:
   push:
@@ -10,6 +10,10 @@ on:
       - "scripts/sensitivity.py"
       - "scripts/backtest_constrained.py"
       - "scripts/portfolio.py"
+      - "scripts/factor_ablation.py"
+      - "scripts/factor_ablation_walk_forward.py"
+      - "scripts/regime_factor_diagnostics.py"
+      - "scripts/system_audit.py"
       - "scripts/execution_plan.py"
       - ".github/workflows/strategy-research.yml"
       - "tests/test_backtest.py"
@@ -91,7 +95,7 @@ jobs:
             --end 2026-09-29 \
             --train-years 3 \
             --test-years 1 \
-            --top-n 20 \
+            --top-n 3 \
             --cost-bps 3 \
             --slippage-bps 2 \
             --output data/backtest/walk_forward.json
@@ -104,7 +108,7 @@ jobs:
           python scripts/sensitivity.py \
             --start 2015-01-05 \
             --end 2026-09-29 \
-            --top-n 8,12,16,20,24 \
+            --top-n 1,2,3 \
             --cost-bps 3,5,10 \
             --slippage-bps 2 \
             --output data/backtest/sensitivity.json
@@ -117,7 +121,7 @@ jobs:
           python scripts/backtest.py \
             --start 2015-01-05 \
             --end 2026-09-29 \
-            --top-n 20 \
+            --top-n 3 \
             --cost-bps 3 \
             --slippage-bps 2
 
@@ -129,11 +133,49 @@ jobs:
           python scripts/backtest_constrained.py \
             --start 2015-01-05 \
             --end 2026-09-29 \
-            --top-n 20 \
+            --top-n 3 \
             --cost-bps 3 \
             --slippage-bps 2 \
             --turnover-cap 0.30 \
             --output data/backtest/execution_constrained.json
+
+      - name: Run factor ablation
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/factor_ablation.py \
+            --start 2015-01-05 \
+            --end 2026-09-29 \
+            --top-n 3 \
+            --cost-bps 3 \
+            --slippage-bps 2 \
+            --output data/backtest/factor_ablation.json
+
+      - name: Run factor ablation walk-forward
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/factor_ablation_walk_forward.py \
+            --start 2015-01-05 \
+            --end 2026-09-29 \
+            --top-n 3 \
+            --cost-bps 3 \
+            --slippage-bps 2 \
+            --output data/backtest/factor_ablation_walk_forward.json
+
+      - name: Run regime factor diagnostics
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/regime_factor_diagnostics.py \
+            --start 2015-01-05 \
+            --end 2026-09-29 \
+            --top-n 3 \
+            --baseline data/backtest/latest.json \
+            --output data/backtest/regime_factor_diagnostics.json
 
       - name: Build execution comparison and cloud provenance
         shell: bash
@@ -193,7 +235,7 @@ jobs:
               "status": "ready",
               "strategy_version": expected_v,
               "strategy_commit": expected_c,
-              "strict_20_position": project(b),
+              "strict_top3": project(b),
               "stateful_unconstrained": project(u),
               "stateful_constrained": project(c),
               "constraint_impact_vs_stateful_unconstrained": diff(c, u),
@@ -265,8 +307,15 @@ jobs:
               Path("data/candidates.json").read_text(encoding="utf-8")
           )
           count = len(candidate.get("candidates", []))
-          if count < 8 or count > 24:
-              raise SystemExit(f"candidate pool out of operating range: {count}")
+          if count > 3:
+              raise SystemExit(f"production candidate cap violated: {count}")
+          if int(candidate.get("diagnostics", {}).get("candidate_count", count)) != count:
+              raise SystemExit("candidate count diagnostic mismatch")
+          portfolio = json.loads(
+              Path("data/portfolio.json").read_text(encoding="utf-8")
+          )
+          if int(portfolio.get("position_count", 0)) > 3:
+              raise SystemExit("production position cap violated")
 
           wf = json.loads(
               Path("data/backtest/walk_forward.json").read_text(encoding="utf-8")
