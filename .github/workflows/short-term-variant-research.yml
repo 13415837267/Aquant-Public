@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "scripts/short_term_variant_research.py"
+      - ".github/workflows/short-term-variant-research.yml"
   workflow_dispatch:
 
 permissions:
