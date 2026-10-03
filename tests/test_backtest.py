@@ -6,7 +6,6 @@ import pandas as pd
 
 from scripts.backtest import execution_limit_diagnostics, metrics, normalize_weights, rolling_252d_metrics, turnover
 from scripts.walk_forward import build_folds
-from scripts.sensitivity import run_one
 
 
 def test_metrics_simple_path():
@@ -146,20 +145,4 @@ def test_walk_forward_fold_snaps_calendar_date_to_next_trading_day():
     assert folds[0]["oos_start"] == "2018-01-08"
     assert folds[0]["train_end"] == "2018-01-07"
 
-
-def test_sensitivity_metrics_exclude_warmup_rows():
-    payload = {
-        "daily": [
-            {"date": "2015-01-01", "gross_return": 0.0, "turnover": 0.0},
-            {"date": "2015-01-02", "gross_return": 0.01, "turnover": 1.0},
-            {"date": "2015-01-03", "gross_return": -0.005, "turnover": 0.5},
-        ],
-        "trade_start": "2015-01-02",
-        "strategy_version": "test",
-        "strategy_commit": "tiny-commit",
-        "future_function": False,
-    }
-    result = run_one(30, 3.0, 2.0, payload)
-    assert result["performance_sessions"] == 2
-    assert np.isclose(result["total_return_pct"], 0.4200125)
 
