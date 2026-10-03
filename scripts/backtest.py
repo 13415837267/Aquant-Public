@@ -62,7 +62,7 @@ REQUIRED_COLUMNS = {
     "low_limit",
 }
 
-DEFAULT_TOP_N = 30
+DEFAULT_TOP_N = 20
 DEFAULT_COST_BPS = 3.0
 DEFAULT_SLIPPAGE_BPS = 2.0
 
@@ -174,22 +174,33 @@ def iter_selected_dates(
 
 
 class RollingFeatureState:
-    """Vectorized rolling state for the point-in-time feature set."""
+    """Vectorized rolling state for the 126/60/21/20-day feature set."""
 
     def __init__(self, initial_capacity: int = 4096) -> None:
         self.capacity = initial_capacity
         self.symbol_to_idx: dict[str, int] = {}
         self.symbols = np.empty(initial_capacity, dtype=object)
 
-        self.rets = np.full((initial_capacity, 60), np.nan, dtype=float)
-        self.vol_rets = np.full((initial_capacity, 20), np.nan, dtype=float)
-        self.volumes = np.full((initial_capacity, 20), np.nan, dtype=float)
+        self.rets126 = np.full((initial_capacity, 126), np.nan, dtype=float)
+        self.rets60 = np.full((initial_capacity, 60), np.nan, dtype=float)
+        self.rets21 = np.full((initial_capacity, 21), np.nan, dtype=float)
+        self.rets20 = np.full((initial_capacity, 20), np.nan, dtype=float)
+        self.vol_rets20 = np.full((initial_capacity, 20), np.nan, dtype=float)
+        self.volumes20 = np.full((initial_capacity, 20), np.nan, dtype=float)
 
+        self.pos126 = np.zeros(initial_capacity, dtype=np.int64)
         self.pos60 = np.zeros(initial_capacity, dtype=np.int64)
+        self.pos21 = np.zeros(initial_capacity, dtype=np.int64)
         self.pos20 = np.zeros(initial_capacity, dtype=np.int64)
+
+        self.count126 = np.zeros(initial_capacity, dtype=np.int64)
         self.count60 = np.zeros(initial_capacity, dtype=np.int64)
+        self.count21 = np.zeros(initial_capacity, dtype=np.int64)
         self.count20 = np.zeros(initial_capacity, dtype=np.int64)
+
+        self.finite126 = np.zeros(initial_capacity, dtype=np.int64)
         self.finite60 = np.zeros(initial_capacity, dtype=np.int64)
+        self.finite21 = np.zeros(initial_capacity, dtype=np.int64)
         self.finite20 = np.zeros(initial_capacity, dtype=np.int64)
         self.volume_valid20 = np.zeros(initial_capacity, dtype=np.int64)
 
@@ -198,44 +209,43 @@ class RollingFeatureState:
             return
         new_capacity = max(required, self.capacity * 2)
 
-        new_rets = np.full((new_capacity, 60), np.nan, dtype=float)
-        new_rets[: self.capacity] = self.rets
-        self.rets = new_rets
-
-        new_vol_rets = np.full((new_capacity, 20), np.nan, dtype=float)
-        new_vol_rets[: self.capacity] = self.vol_rets
-        self.vol_rets = new_vol_rets
-
-        new_volumes = np.full((new_capacity, 20), np.nan, dtype=float)
-        new_volumes[: self.capacity] = self.volumes
-        self.volumes = new_volumes
+        arrays = (
+            ("rets126", (new_capacity, 126), np.nan),
+            ("rets60", (new_capacity, 60), np.nan),
+            ("rets21", (new_capacity, 21), np.nan),
+            ("rets20", (new_capacity, 20), np.nan),
+            ("vol_rets20", (new_capacity, 20), np.nan),
+            ("volumes20", (new_capacity, 20), np.nan),
+        )
+        for name, shape, fill in arrays:
+            old = getattr(self, name)
+            value = np.full(shape, fill, dtype=float)
+            value[: self.capacity] = old
+            setattr(self, name, value)
 
         for name in (
             "symbols",
-            "pos60",
-            "pos20",
-            "count60",
-            "count20",
-            "finite60",
-            "finite20",
+            "pos126", "pos60", "pos21", "pos20",
+            "count126", "count60", "count21", "count20",
+            "finite126", "finite60", "finite21", "finite20",
             "volume_valid20",
         ):
             old = getattr(self, name)
             if name == "symbols":
                 value = np.empty(new_capacity, dtype=object)
                 value[: self.capacity] = old
-            elif old.dtype.kind in "iu":
-                value = np.zeros(new_capacity, dtype=old.dtype)
-                value[: self.capacity] = old
             else:
-                value = np.empty(new_capacity, dtype=old.dtype)
+                value = np.zeros(new_capacity, dtype=old.dtype)
                 value[: self.capacity] = old
             setattr(self, name, value)
 
         self.capacity = new_capacity
 
     def indices_for(self, symbols: np.ndarray) -> np.ndarray:
-        new_symbols = [symbol for symbol in pd.unique(symbols) if symbol not in self.symbol_to_idx]
+        new_symbols = [
+            symbol for symbol in pd.unique(symbols)
+            if symbol not in self.symbol_to_idx
+        ]
         if new_symbols:
             start = len(self.symbol_to_idx)
             self._grow(start + len(new_symbols))
@@ -250,41 +260,99 @@ class RollingFeatureState:
             count=len(symbols),
         )
 
+    @staticmethod
+    def _update_ring(
+        buffer: np.ndarray,
+        positions: np.ndarray,
+        counts: np.ndarray,
+        finite_counts: np.ndarray,
+        idx: np.ndarray,
+        values: np.ndarray,
+        width: int,
+    ) -> None:
+        slots = positions[idx] % width
+        old = buffer[idx, slots]
+        finite_counts[idx] += (
+            np.isfinite(values).astype(np.int64)
+            - np.isfinite(old).astype(np.int64)
+        )
+        buffer[idx, slots] = values
+        positions[idx] += 1
+        counts[idx] = np.minimum(counts[idx] + 1, width)
+
     def update_and_features(
         self,
         symbols: np.ndarray,
         daily_ret: np.ndarray,
         volumes: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         idx = self.indices_for(symbols)
 
-        slot60 = self.pos60[idx] % 60
-        old60 = self.rets[idx, slot60]
-        self.finite60[idx] += np.isfinite(daily_ret).astype(np.int64) - np.isfinite(old60).astype(np.int64)
-        self.rets[idx, slot60] = daily_ret
-        self.pos60[idx] += 1
-        self.count60[idx] = np.minimum(self.count60[idx] + 1, 60)
+        self._update_ring(
+            self.rets126, self.pos126, self.count126, self.finite126,
+            idx, daily_ret, 126,
+        )
+        self._update_ring(
+            self.rets60, self.pos60, self.count60, self.finite60,
+            idx, daily_ret, 60,
+        )
+        self._update_ring(
+            self.rets21, self.pos21, self.count21, self.finite21,
+            idx, daily_ret, 21,
+        )
+        self._update_ring(
+            self.rets20, self.pos20, self.count20, self.finite20,
+            idx, daily_ret, 20,
+        )
 
-        slot20 = self.pos20[idx] % 20
-        old20_ret = self.vol_rets[idx, slot20]
-        old20_volume = self.volumes[idx, slot20]
-        self.finite20[idx] += np.isfinite(daily_ret).astype(np.int64) - np.isfinite(old20_ret).astype(np.int64)
-        self.volume_valid20[idx] += np.isfinite(volumes).astype(np.int64) - np.isfinite(old20_volume).astype(np.int64)
-        self.vol_rets[idx, slot20] = daily_ret
-        self.volumes[idx, slot20] = volumes
-        self.pos20[idx] += 1
-        self.count20[idx] = np.minimum(self.count20[idx] + 1, 20)
+        slots20 = self.pos20[idx] - 1
+        vol_slots = slots20 % 20
+        old_vol_ret = self.vol_rets20[idx, vol_slots]
+        old_volume = self.volumes20[idx, vol_slots]
+        self.finite20[idx] += (
+            np.isfinite(daily_ret).astype(np.int64)
+            - np.isfinite(old_vol_ret).astype(np.int64)
+        )
+        self.volume_valid20[idx] += (
+            np.isfinite(volumes).astype(np.int64)
+            - np.isfinite(old_volume).astype(np.int64)
+        )
+        self.vol_rets20[idx, vol_slots] = daily_ret
+        self.volumes20[idx, vol_slots] = volumes
+
+        ret126 = np.full(len(idx), np.nan, dtype=float)
+        complete126 = (self.count126[idx] == 126) & (self.finite126[idx] == 126)
+        if complete126.any():
+            ret126[complete126] = (
+                np.prod(1.0 + self.rets126[idx[complete126]], axis=1) - 1.0
+            )
 
         ret60 = np.full(len(idx), np.nan, dtype=float)
-        complete = (self.count60[idx] == 60) & (self.finite60[idx] == 60)
-        if complete.any():
-            ret60[complete] = np.prod(1.0 + self.rets[idx[complete]], axis=1) - 1.0
+        complete60 = (self.count60[idx] == 60) & (self.finite60[idx] == 60)
+        if complete60.any():
+            ret60[complete60] = (
+                np.prod(1.0 + self.rets60[idx[complete60]], axis=1) - 1.0
+            )
+
+        ret21 = np.full(len(idx), np.nan, dtype=float)
+        complete21 = (self.count21[idx] == 21) & (self.finite21[idx] == 21)
+        if complete21.any():
+            ret21[complete21] = (
+                np.prod(1.0 + self.rets21[idx[complete21]], axis=1) - 1.0
+            )
+
+        ret20 = np.full(len(idx), np.nan, dtype=float)
+        complete20 = (self.count20[idx] == 20) & (self.finite20[idx] == 20)
+        if complete20.any():
+            ret20[complete20] = (
+                np.prod(1.0 + self.rets20[idx[complete20]], axis=1) - 1.0
+            )
 
         volatility = np.full(len(idx), np.nan, dtype=float)
         enough_rets = self.finite20[idx] >= 10
         if enough_rets.any():
             volatility[enough_rets] = np.nanstd(
-                self.vol_rets[idx[enough_rets]],
+                self.vol_rets20[idx[enough_rets]],
                 axis=1,
                 ddof=1,
             )
@@ -296,13 +364,36 @@ class RollingFeatureState:
             & (volumes > 0)
         )
         if enough_volume.any():
-            mean_volume = np.nanmean(self.volumes[idx[enough_volume]], axis=1)
+            mean_volume = np.nanmean(
+                self.volumes20[idx[enough_volume]], axis=1
+            )
             valid_mean = mean_volume > 0
             ratio = np.full(len(mean_volume), np.nan, dtype=float)
-            ratio[valid_mean] = volumes[enough_volume][valid_mean] / mean_volume[valid_mean]
+            ratio[valid_mean] = (
+                volumes[enough_volume][valid_mean] / mean_volume[valid_mean]
+            )
             volume_ratio[enough_volume] = ratio
 
-        return ret60, volatility * 100.0, volume_ratio
+        momentum_126_21 = np.full(len(idx), np.nan, dtype=float)
+        valid_momentum = (
+            np.isfinite(ret126)
+            & np.isfinite(ret21)
+            & (1.0 + ret21) > 0
+        )
+        momentum_126_21[valid_momentum] = (
+            (1.0 + ret126[valid_momentum])
+            / (1.0 + ret21[valid_momentum])
+            - 1.0
+        )
+
+        return (
+            ret126,
+            ret60,
+            ret21,
+            ret20,
+            volatility * 100.0,
+            volume_ratio,
+        )
 
 
 def build_strategy_frame(
@@ -314,11 +405,14 @@ def build_strategy_frame(
     daily_ret = pd.to_numeric(df["pct_chg"], errors="coerce").to_numpy(dtype=float) / 100.0
     volumes = pd.to_numeric(df["volume"], errors="coerce").to_numpy(dtype=float)
 
-    ret60, volatility_proxy, volume_ratio = state.update_and_features(
-        symbols,
-        daily_ret,
-        volumes,
-    )
+    (
+        ret126,
+        ret60,
+        ret21,
+        ret20,
+        volatility_proxy,
+        volume_ratio,
+    ) = state.update_and_features(symbols, daily_ret, volumes)
 
     close = pd.to_numeric(df["close"], errors="coerce").to_numpy(dtype=float)
     amount = pd.to_numeric(df["amount"], errors="coerce").to_numpy(dtype=float)
@@ -329,31 +423,29 @@ def build_strategy_frame(
     pb = pd.to_numeric(df["pb_ratio"], errors="coerce").to_numpy(dtype=float)
     change_pct = pd.to_numeric(df["pct_chg"], errors="coerce").to_numpy(dtype=float)
 
+    momentum_126_21 = np.full(len(symbols), np.nan, dtype=float)
+    valid = np.isfinite(ret126) & np.isfinite(ret21) & ((1.0 + ret21) > 0)
+    momentum_126_21[valid] = (
+        ((1.0 + ret126[valid]) / (1.0 + ret21[valid])) - 1.0
+    )
+
     eligible = (
         (is_paused == 0)
         & (is_st == 0)
         & np.isfinite(close)
         & (close > 2.0)
         & np.isfinite(amount)
-        & (amount >= 2e7)
-        & np.isfinite(ret60)
+        & (amount >= 3e7)
+        & np.isfinite(ret126)
     )
 
     if not eligible.any():
         return pd.DataFrame(
             columns=[
-                "symbol",
-                "name",
-                "close",
-                "amount",
-                "turnover_pct",
-                "change_pct",
-                "pe",
-                "pb",
-                "ret_60d",
-                "momentum_60d",
-                "volatility_proxy",
-                "volume_ratio",
+                "symbol", "name", "close", "amount", "turnover_pct", "change_pct",
+                "pe", "pb", "ret_126d", "ret_60d", "ret_21d", "ret_20d",
+                "momentum_126_21", "momentum_60d", "return_20d_pct",
+                "volatility_proxy", "volume_ratio",
             ]
         )
 
@@ -368,21 +460,28 @@ def build_strategy_frame(
             "change_pct": change_pct[eligible],
             "pe": pe[eligible],
             "pb": pb[eligible],
+            "ret_126d": ret126[eligible],
             "ret_60d": ret60[eligible],
+            "ret_21d": ret21[eligible],
+            "ret_20d": ret20[eligible],
+            "momentum_126_21": momentum_126_21[eligible] * 100.0,
             "momentum_60d": ret60[eligible] * 100.0,
+            "return_20d_pct": ret20[eligible] * 100.0,
             "volatility_proxy": volatility_proxy[eligible],
             "volume_ratio": volume_ratio[eligible],
         }
     )
+
+
 def select_targets(frame: pd.DataFrame, strategy_model: object, top_n: int) -> pd.DataFrame:
     if frame.empty:
         return frame
 
     scored = strategy_model.score_universe(frame)
-    scored = scored.sort_values(
-        ["score", "amount", "symbol"],
-        ascending=[False, False, True],
-    )
+    admission = getattr(strategy_model, "admit_candidates", None)
+    if callable(admission):
+        scored = admission(scored)
+
     return scored.head(top_n).reset_index(drop=True)
 
 
@@ -663,8 +762,8 @@ def run_backtest(
     strategy_model, strategy_version, strategy_commit = load_strategy()
     states = RollingFeatureState()
 
-    # The first 59 sessions are warm-up only; they cannot be traded until each
-    # stock has a complete 60-observation return window.
+    # The first 125 sessions are warm-up only; they cannot be traded until each
+    # stock has a complete 126-observation return window.
     daily_rows = []
     selection_rows = []
     prev_target: dict[str, float] = {}
