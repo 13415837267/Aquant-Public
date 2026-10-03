@@ -40,19 +40,11 @@ Public 不维护另一套独立策略。Private 修改并提交到 `main` 后，
 
 在评分前先执行沪深主板、ST/退市相关、停牌、价格和成交额等硬过滤；最终候选池按综合评分保留最高 3 只，不为凑数回填弱候选。
 
-并执行非 ST、非退市相关、非停牌、价格和成交额等基础过滤。
-
 **重要：候选股生产任务运行时跨仓库读取 Aquant-Private/main。**
 
 Public 不复制或维护独立策略版本。生产 Action 通过 `PRIVATE_REPO_TOKEN` 只读访问 Private，并将实际使用的 `strategy_version` 与 `strategy_commit` 写入候选股快照。
 
-## 三、组合与执行计划
-
-候选池生成后由 `scripts/portfolio.py` 构造目标组合，并生成 `data/portfolio.json`。组合采用逆波动率配置，单票权重上限 5%，保留 5% 现金。
-
-随后由 `scripts/execution_plan.py` 生成 `data/execution_plan.json`。该层负责 100 股整数手、T+1 可卖库存、停牌/ST 检查、单日换手上限、现金底线和成本估算；最新收盘价只用于计划参考，订单释放前必须使用实际 T+1 开盘数据再次检查涨跌停与可成交状态。
-
-## 四、历史数据库
+## 三、历史数据库
 
 数据库按**交易日逐日保存**，采用“近到远”的方式回补；数据库层可以保留更宽的股票数据范围，候选池阶段再限制为沪深主板。
 
@@ -91,7 +83,7 @@ Public 不复制或维护独立策略版本。生产 Action 通过 `PRIVATE_REPO
 
 用于 point-in-time join，避免回测中的未来函数。
 
-## 五、数据源
+## 四、数据源
 
 当前生产主数据源为 **zzshare**，依赖版本锁定在：
 
@@ -99,7 +91,7 @@ Public 不复制或维护独立策略版本。生产 Action 通过 `PRIVATE_REPO
 
 数据接口采用 provider 隔离设计，后续可以加入备用数据源进行故障切换和交叉校验。
 
-## 六、断点续传
+## 五、断点续传
 
 状态文件：
 
@@ -113,14 +105,14 @@ Public 不复制或维护独立策略版本。生产 Action 通过 `PRIVATE_REPO
 
 GitHub Actions 使用小批次 checkpoint，避免长时间任务因为单次提交失败而丢失进度。
 
-## 七、运行环境
+## 六、运行环境
 
 - **GitHub Actions**：唯一生产运行环境
 - **GitHub Pages**：公开静态展示
 - **本地电脑**：只用于编辑、提交和控制
 - **Aquant-Private**：提供唯一策略源；Public 生产任务运行时只读加载最新 `main` 策略
 
-## 八、数据质量要求
+## 七、数据质量要求
 
 正式历史库要求：
 
@@ -133,7 +125,7 @@ GitHub Actions 使用小批次 checkpoint，避免长时间任务因为单次提
 - 财务数据保留真实披露日期
 - 策略运行不使用未来数据
 
-## 九、项目结构
+## 八、项目结构
 
 ```text
 data/
@@ -161,7 +153,7 @@ app/
   # GitHub Pages 静态站点
 ```
 
-## 十、GitHub Pages
+## 九、GitHub Pages
 
 公开网站：
 
@@ -169,7 +161,7 @@ https://13415837267.github.io/Aquant-Public/
 
 Pages 使用 Next.js 静态导出。
 
-## 十一、维护规则
+## 十、维护规则
 
 - 数据提交使用 `data:` 前缀
 - 策略版本记录在 Private 的 `strategy/version.py`
@@ -178,7 +170,7 @@ Pages 使用 Next.js 静态导出。
 - Public 不保存私有策略研究、账户凭证或 API 密钥
 - 候选股生产任务显式依赖 `Aquant-Private/main`，通过 `PRIVATE_REPO_TOKEN` 只读加载策略
 
-## 十二、系统目标
+## 十一、系统目标
 
 当前阶段的第一目标是稳定、可审计地**每日生成候选池**：
 
