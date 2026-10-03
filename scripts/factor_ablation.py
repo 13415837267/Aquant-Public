@@ -188,6 +188,7 @@ def evaluate(
         "strategy_source": "Aquant-Private/main",
         "strategy_version": strategy_version,
         "strategy_commit": strategy_commit,
+        "future_function": False,
         "baseline_weights": base_weights,
         "results": [results[name] for name in VARIANTS],
         "audit": {
