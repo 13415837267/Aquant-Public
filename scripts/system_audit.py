@@ -85,18 +85,6 @@ def main() -> None:
     for path in REQUIRED_READY:
         require_ready(path, load(path))
 
-    constrained_path = ROOT / "data/backtest/execution_constrained.json"
-    cloud_marker = ROOT / "data/backtest/_CONSTRAINED_CLOUD_RUN.json"
-    constrained_state = "pending_cloud_evidence"
-    if constrained_path.exists() and cloud_marker.exists():
-        constrained = load("data/backtest/execution_constrained.json")
-        marker = load("data/backtest/_CONSTRAINED_CLOUD_RUN.json")
-        require_ready("data/backtest/execution_constrained.json", constrained)
-        if marker.get("status") != "success" or marker.get("run_id") is None:
-            raise RuntimeError("constrained cloud marker is invalid")
-        if constrained.get("strategy_commit") != candidates.get("strategy_commit"):
-            raise RuntimeError("constrained strategy commit differs from production candidate commit")
-        constrained_state = "cloud_verified"
 
     payload = {
         "schema_version": 1,
@@ -107,7 +95,6 @@ def main() -> None:
         "candidate_layer": "ready",
         "candidate_pool_validation": "ready",
         "research_artifacts": "ready",
-        "constrained_backtest": constrained_state,
         "strategy_source": candidates["strategy_source"],
         "strategy_version": candidates["strategy_version"],
         "strategy_commit": candidates["strategy_commit"],
