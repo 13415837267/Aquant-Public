@@ -59,7 +59,7 @@ def test_turnover_is_l1_target_weight_change():
 def test_run_backtest_executes_full_loop_on_tiny_history(tmp_path, monkeypatch):
     import scripts.backtest as backtest
 
-    dates = pd.date_range("2026-01-05", periods=62, freq="B")
+    dates = pd.date_range("2026-01-05", periods=130, freq="B")
     files = []
     for idx, dt in enumerate(dates):
         rows = []
