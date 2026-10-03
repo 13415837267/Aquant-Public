@@ -1,8 +1,8 @@
 """Walk-forward OOS evaluation for research-only factor ablations.
 
-The Private strategy remains frozen. Each factor variant is evaluated with the
+The Private strategy remains the production source. Each factor variant is evaluated with the
 same historical PIT state, T+1 execution model, and 9 calendar walk-forward
-folds used by the canonical frozen-strategy OOS report.
+folds used by the canonical strategy OOS report.
 """
 from __future__ import annotations
 
