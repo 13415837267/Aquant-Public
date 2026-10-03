@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "status": "ready",
-  "audited_at": "2026-10-03T18:40:31.949700+00:00",
+  "audited_at": "2026-10-03T18:43:46.001229+00:00",
   "historical_database": "complete",
   "fundamentals_database": "complete_pit",
   "candidate_layer": "ready",
@@ -11,6 +11,8 @@
   "strategy_version": "2.1.0",
   "strategy_commit": "dc6bf53b44f8e3ec26f4fa2063be6454d2964788",
   "future_function": false,
+  "production_candidate_strategy_version": "2.1.0",
+  "production_candidate_strategy_commit": "dc6bf53b44f8e3ec26f4fa2063be6454d2964788",
   "production_horizon": "T_close -> T+1_open -> max_5_sessions",
   "audit": {
     "strategy_metadata_locked": true,
