@@ -7,6 +7,8 @@ an actual next-open market snapshot into a paper-execution decision.
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
+import hashlib
+import json
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -94,6 +96,26 @@ def validate_market_snapshot(snapshot: dict[str, Any]) -> None:
         raise GateError("price limits must be positive")
     if low_limit > high_limit:
         raise GateError("low_limit exceeds high_limit")
+
+
+def derive_plan_id(execution_plan: dict[str, Any]) -> str:
+    existing = execution_plan.get("plan_id")
+    if existing:
+        return str(existing)
+    identity = {
+        "reference_date": str(execution_plan["reference_date"]),
+        "strategy_commit": str(execution_plan["strategy_commit"]),
+        "equity_reference": float(execution_plan["equity_reference"]),
+        "orders": execution_plan.get("orders", []),
+    }
+    return hashlib.sha256(
+        json.dumps(
+            identity,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()[:24]
 
 
 def build_paper_decisions(
@@ -201,6 +223,7 @@ def build_paper_decisions(
         "schema_version": 1,
         "mode": "paper",
         "status": "paper_released",
+        "plan_id": derive_plan_id(execution_plan),
         "plan_reference_date": execution_plan["reference_date"],
         "strategy_version": execution_plan["strategy_version"],
         "strategy_commit": execution_plan["strategy_commit"],
