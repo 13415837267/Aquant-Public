@@ -117,6 +117,7 @@ def build_portfolio(snapshot: dict, max_weight: float = 0.05, cash_buffer: float
         "strategy_source": snapshot["strategy_source"],
         "strategy_version": snapshot["strategy_version"],
         "strategy_commit": snapshot["strategy_commit"],
+        "future_function": False,
         "construction": "inverse_volatility_with_position_cap",
         "max_position_weight": max_weight,
         "cash_buffer": cash_buffer,
