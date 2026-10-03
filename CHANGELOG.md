@@ -1,4 +1,7 @@
 ## Unreleased — Broker-free Paper execution state machine
+- Added deterministic residual sell orders for holdings that fall out of the target portfolio, preventing stale long positions across rebalance cycles.
+- Added `scripts/paper_rebalance.py` to derive dynamic Paper equity/cash/holdings from the current Paper state and feed them into the normal execution-plan engine.
+- Kept Paper runtime state and fill ledgers out of source control via `.gitignore`.
 - Hardened the next-open paper gate with strict integer-lot validation, snapshot symbol/date checks, duplicate order IDs, and blocked-order rejection.
 - Added `scripts/paper_portfolio.py` for atomic paper fills, cash-floor enforcement, T+1 sellable inventory, average-cost accounting, realized/unrealized P&L, and idempotent fill application.
 - Added `scripts/paper_execution_cycle.py` to connect the gate, paper fills, portfolio state and JSONL fill ledger.
