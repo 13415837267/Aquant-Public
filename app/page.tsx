@@ -5,7 +5,7 @@ type Candidate = {
   rank:number; symbol:string; name:string; price:number; change_pct:number; overnight_1d_pct?:number; intraday_return_pct?:number;
   return_3d_pct:number; return_5d_pct:number; return_10d_pct:number;
   volume_ratio_5d:number; turnover_pct:number; amount:number;
-  volatility_10d_pct:number; close_strength:number; score:number; flags:string[];
+  volatility_10d_pct:number; close_strength:number; score:number;
 };
 type Snapshot = {
   as_of:string; status:string; strategy_version:string; strategy_commit:string; signal_horizon:string;
@@ -21,7 +21,7 @@ const provenanceMatches=audit.strategy_version===snapshot.strategy_version && au
 const productionReady=audit.production_gate==="passed" && audit.audit?.production_gate_passed===true && provenanceMatches;
 const fmt=(n:number,d=2)=>n.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct=(n:number)=>(n>=0?"+":"")+fmt(n)+"%";
-const dirClass=(n:number)=>n>0?"pos":n<0?"neg":"";
+const dirClass=(n:number)=>n>0?"rise":n<0?"fall":"flat";
 const amount=(n:number)=>n>=1e8?fmt(n/1e8,1)+"亿":fmt(n/1e4,0)+"万";
 const weight=(n:number)=>fmt(n*100,0)+"%";
 
@@ -31,7 +31,7 @@ export default function Home(){
   const m=snapshot.market;
   return <main className="container">
     <header className="header">
-      <div><div className="eyebrow">Aquant / Short-Term Runtime</div><h1>短线候选池</h1><div className="color-legend"><span className="legend-up">红涨</span><span className="legend-down">绿跌</span><span className="legend-flat">平盘中性</span></div>
+      <div><div className="eyebrow">Aquant / Short-Term Runtime</div><h1>短线候选池</h1><div className="color-legend"><span className="legend-rise">红涨</span><span className="legend-fall">绿跌</span><span className="legend-flat">平盘中性</span></div>
       <p className="subtitle">T 日收盘生成信号，T+1 开盘进入，最长持有 5 个交易日。弱市场允许无交易信号。</p></div>
       <div className="pill">策略 v{snapshot.strategy_version} · {productionReady?"生产可用":(provenanceMatches?"研究中 · 未通过生产门槛":"研究中 · 审计版本不一致")}</div>
     </header>
