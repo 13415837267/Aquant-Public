@@ -1,7 +1,7 @@
 """Short-term 1-5 session research for the production candidate strategy."""
 from __future__ import annotations
 
-import argparse, gzip, importlib, json, os, subprocess, sys
+import argparse, gzip, importlib, json, os, subprocess, sys, time, traceback
 from collections import deque
 from pathlib import Path
 
@@ -179,6 +179,62 @@ def managed_trade(symbol: str, future_days: list[pd.DataFrame]):
     return None
 
 
+def _state_to_jsonable(state):
+    return {
+        "returns": {k:list(v) for k,v in state.returns.items()},
+        "volumes": {k:list(v) for k,v in state.volumes.items()},
+        "amounts": {k:list(v) for k,v in state.amounts.items()},
+        "closes": {k:list(v) for k,v in state.closes.items()},
+        "overnights": {k:list(v) for k,v in state.overnights.items()},
+        "limitups": {k:list(v) for k,v in state.limitups.items()},
+    }
+
+
+def _state_from_jsonable(state, payload):
+    for name in ("returns","volumes","amounts","closes","overnights","limitups"):
+        target = getattr(state, name)
+        target.clear()
+        for symbol, values in payload.get(name, {}).items():
+            target[symbol] = deque(values, maxlen=20)
+
+
+def _log_event(path: Path, event: str, **fields):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    record = {"timestamp_utc": pd.Timestamp.utcnow().isoformat(), "event": event, **fields}
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    print(f"[进度] {event} {json.dumps(fields, ensure_ascii=False)}", flush=True)
+
+
+def _save_checkpoint(path: Path, payload):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with gzip.open(tmp, "wt", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))
+    tmp.replace(path)
+
+
+def _load_checkpoint(path: Path):
+    if not path.exists():
+        return None
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _checkpoint_payload(next_i, state, trade_rows, forward_rows, daily, candidate_days, args, version, commit, status="running"):
+    return {
+        "schema_version": 1, "status": status,
+        "start": args.start, "end": args.end,
+        "cost_bps": args.cost_bps, "slippage_bps": args.slippage_bps,
+        "strategy_version": version, "strategy_commit": commit,
+        "next_active_index": next_i, "state": _state_to_jsonable(state),
+        "trade_rows": trade_rows,
+        "forward_rows": {str(k):v for k,v in forward_rows.items()},
+        "daily": {str(k):v for k,v in daily.items()},
+        "candidate_days": candidate_days,
+    }
+
+
 def stats(rows, cost_bps, slippage_bps):
     if not rows:
         return {"samples":0,"win_rate_pct":None,"mean_return_pct":None,"median_return_pct":None,"total_return_pct":None,"max_drawdown_pct":None}
@@ -219,8 +275,33 @@ def run(args):
     forward_rows={1:[],3:[],5:[]}
     daily={1:[],2:[],3:[]}
     candidate_days=0
-    for i in range(len(active)):
+    checkpoint_path = Path(args.checkpoint)
+    progress_path = Path(args.progress_log)
+    checkpoint = _load_checkpoint(checkpoint_path)
+    resume_i = 0
+    if checkpoint:
+        expected = {"start":args.start,"end":args.end,"cost_bps":args.cost_bps,
+                    "slippage_bps":args.slippage_bps,"strategy_version":version,
+                    "strategy_commit":commit}
+        mismatches = {k:(checkpoint.get(k),v) for k,v in expected.items() if checkpoint.get(k) != v}
+        if mismatches:
+            raise RuntimeError(f"checkpoint parameters mismatch: {mismatches}")
+        _state_from_jsonable(state, checkpoint["state"])
+        trade_rows = checkpoint["trade_rows"]
+        forward_rows = {int(k):v for k,v in checkpoint["forward_rows"].items()}
+        daily = {int(k):v for k,v in checkpoint["daily"].items()}
+        candidate_days = int(checkpoint["candidate_days"])
+        resume_i = int(checkpoint["next_active_index"])
+        _log_event(progress_path, "retry_resume", resume_index=resume_i,
+                   resume_signal_date=active[resume_i].name[:10] if resume_i < len(active) else None)
+    else:
+        _log_event(progress_path, "research_started", start=args.start, end=args.end,
+                   strategy_version=version, strategy_commit=commit, total_active_days=len(active))
+    started = time.time()
+    for i in range(resume_i, len(active)):
         signal_date=active[i].name[:10]
+        _log_event(progress_path, "signal_date_started", signal_date=signal_date,
+                   active_index=i, total_active_days=len(active))
         frame=state.build(get(i))
         if signal_date < args.start or signal_date > args.end: continue
         # The latest signal dates may be censored because future sessions are
@@ -229,11 +310,19 @@ def run(args):
         # separately uses the latest available close, so a 2026-09-30 cutoff
         # can produce a valid post-holiday candidate snapshot.
         if i + MAX_HOLD >= len(active):
+            _save_checkpoint(checkpoint_path, _checkpoint_payload(i+1,state,trade_rows,forward_rows,daily,candidate_days,args,version,commit))
+            _log_event(progress_path, "signal_date_completed", signal_date=signal_date, active_index=i,
+                       candidate_days=candidate_days, progress_pct=round((i+1)/len(active)*100.0,2),
+                       performance_window_complete=False)
             continue
         scored=model.score_universe(frame) if not frame.empty else frame
         selected=getattr(model,"admit_candidates")(scored) if not frame.empty else frame
         if selected.empty:
             for n in (1,2,3): daily[n].append({"date":signal_date,"basket_return_pct":0.0,"candidate_count":0})
+            _save_checkpoint(checkpoint_path, _checkpoint_payload(i+1,state,trade_rows,forward_rows,daily,candidate_days,args,version,commit))
+            _log_event(progress_path, "signal_date_completed", signal_date=signal_date, active_index=i,
+                       candidate_days=candidate_days, progress_pct=round((i+1)/len(active)*100.0,2),
+                       candidate_count=0)
             continue
         candidate_days += 1
         futures=[get(i+j) for j in range(1,MAX_HOLD+1)]
@@ -260,6 +349,10 @@ def run(args):
             gross=float(np.mean([x["gross_return_pct"] for x in trs])) if trs else 0.0
             net=gross-2*(args.cost_bps+args.slippage_bps)/100.0 if trs else 0.0
             daily[n].append({"date":signal_date,"basket_return_pct":net,"candidate_count":len(syms),"executed_count":len(trs)})
+        _save_checkpoint(checkpoint_path, _checkpoint_payload(i+1,state,trade_rows,forward_rows,daily,candidate_days,args,version,commit))
+        _log_event(progress_path, "signal_date_completed", signal_date=signal_date, active_index=i,
+                   candidate_days=candidate_days, progress_pct=round((i+1)/len(active)*100.0,2),
+                   elapsed_seconds=round(time.time()-started,2))
 
     forward_signal_diagnostics={}
     for horizon, values in forward_rows.items():
@@ -319,6 +412,9 @@ def run(args):
            "trade_performance":result["trade_performance"],"strategy_source":"Aquant-Private/main",
            "strategy_version":version,"strategy_commit":commit,"future_function":False,"audit":result["audit"]}
     (OUT_DIR/"short_term_exit_diagnostics.json").write_text(json.dumps(exits,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    _save_checkpoint(checkpoint_path, _checkpoint_payload(len(active),state,trade_rows,forward_rows,daily,candidate_days,args,version,commit,status="completed"))
+    _log_event(progress_path, "research_completed", signal_days=result["signal_days"], candidate_days=candidate_days,
+               elapsed_seconds=round(time.time()-started,2))
     print(json.dumps({"status":"ready","strategy_version":version,"strategy_commit":commit,"signal_days":result["signal_days"],"candidate_days":candidate_days},ensure_ascii=False))
 
 
@@ -327,4 +423,12 @@ if __name__=="__main__":
     ap.add_argument("--start",required=True); ap.add_argument("--end",required=True)
     ap.add_argument("--cost-bps",type=float,default=3.0); ap.add_argument("--slippage-bps",type=float,default=2.0)
     ap.add_argument("--output",default=str(OUT_DIR/"short_term_latest.json"))
-    run(ap.parse_args())
+    ap.add_argument("--checkpoint",default="runtime/research_checkpoint.json.gz")
+    ap.add_argument("--progress-log",default="runtime/progress.jsonl")
+    parsed=ap.parse_args()
+    try:
+        run(parsed)
+    except Exception as exc:
+        _log_event(Path(parsed.progress_log), "research_failed", error_type=type(exc).__name__,
+                   error=str(exc), traceback=traceback.format_exc(limit=8))
+        raise
