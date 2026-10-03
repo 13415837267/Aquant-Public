@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: short-term-admission-research
+  group: short-term-admission-research-v2
   cancel-in-progress: false
 
 jobs:
