@@ -140,6 +140,8 @@ def apply_paper_fills(
     """Apply paper fills atomically and return (new_state, new_ledger_entries)."""
     if state.get("mode") != "paper":
         raise PortfolioError("state mode must be paper")
+    if not isinstance(state.get("applied_fills", {}), dict):
+        raise PortfolioError("applied_fills must be an object")
     if lot_size <= 0:
         raise PortfolioError("lot_size must be positive")
     if any(x < 0 for x in (commission_bps, stamp_duty_sell_bps, slippage_bps)):
@@ -154,7 +156,12 @@ def apply_paper_fills(
         fill_id = str(raw["fill_id"])
         previous = next_state["applied_fills"].get(fill_id)
         if previous is not None:
-            if previous != signature:
+            previous_signature = (
+                previous.get("signature", previous)
+                if isinstance(previous, dict)
+                else previous
+            )
+            if previous_signature != signature:
                 raise PortfolioError(f"fill_id reused with different payload: {fill_id}")
             continue
 
@@ -254,20 +261,22 @@ def apply_paper_fills(
         next_state["realized_pnl"] = float(
             Decimal(str(next_state["realized_pnl"])) + realized
         )
-        next_state["applied_fills"][fill_id] = signature
-        ledger_entries.append(
-            {
-                **signature,
-                "fill_id": fill_id,
-                "name": position.get("name", raw.get("name", symbol)),
-                "gross_notional": round(float(gross), 6),
-                "commission": round(float(commission), 6),
-                "stamp_duty": round(float(stamp), 6),
-                "slippage": round(float(slippage), 6),
-                "cash_delta": round(float(cash_delta), 6),
-                "realized_pnl": round(float(realized), 6),
-            }
-        )
+        ledger_entry = {
+            **signature,
+            "fill_id": fill_id,
+            "name": position.get("name", raw.get("name", symbol)),
+            "gross_notional": round(float(gross), 6),
+            "commission": round(float(commission), 6),
+            "stamp_duty": round(float(stamp), 6),
+            "slippage": round(float(slippage), 6),
+            "cash_delta": round(float(cash_delta), 6),
+            "realized_pnl": round(float(realized), 6),
+        }
+        next_state["applied_fills"][fill_id] = {
+            "signature": signature,
+            "ledger": ledger_entry,
+        }
+        ledger_entries.append(ledger_entry)
 
     next_state["as_of"] = str(execution_date)
     next_state["status"] = "ready"
