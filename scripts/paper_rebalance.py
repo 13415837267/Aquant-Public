@@ -114,6 +114,11 @@ def build_paper_plan(
     stamp_duty_bps: float = 5.0,
     slippage_bps: float = 2.0,
 ) -> dict[str, Any]:
+    if state.get("strategy_version") != portfolio.get("strategy_version"):
+        raise PortfolioError("paper state strategy version does not match target portfolio")
+    if state.get("strategy_commit") != portfolio.get("strategy_commit"):
+        raise PortfolioError("paper state strategy commit does not match target portfolio")
+
     holdings, equity, provenance = derive_paper_inputs(state, market)
     temp_path = _write_temp_holdings(holdings)
     try:
