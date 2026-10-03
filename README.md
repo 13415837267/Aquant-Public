@@ -27,17 +27,18 @@ Public 不维护另一套独立策略。Private 修改并提交到 `main` 后，
 
 `data/history/YYYY/YYYY-MM-DD.csv.gz`
 
-计算最近 60 个交易日的因子并生成：
+使用最近 126 个交易日历史窗口生成中期动量、价值、安全和流动性因子，并生成：
 
 `data/candidates.json`
 
-当前包含：
+当前正式生产策略包含 4 个因子：
 
-- 动量
-- 流动性
-- 估值
-- 风险
-- 活跃度
+- 动量：35%
+- 流动性：15%
+- 价值：30%
+- 安全：20%
+
+在评分前先执行沪深主板、ST/退市相关、停牌、价格和成交额等硬过滤；最终候选池按综合评分保留最高 3 只，不为凑数回填弱候选。
 
 并执行非 ST、非退市相关、非停牌、价格和成交额等基础过滤。
 
@@ -146,10 +147,15 @@ data/
     balance/
     cash_flow/
   candidates.json
+  candidates_history/
+    YYYY/
+      YYYY-MM-DD.json
 
 scripts/
   backfill_history.py
   update_candidates.py
+  validate_candidates.py
+  archive_candidates.py
 
 app/
   # GitHub Pages 静态站点
@@ -174,10 +180,19 @@ Pages 使用 Next.js 静态导出。
 
 ## 十二、系统目标
 
-最终形成：
+当前阶段的第一目标是稳定、可审计地**每日生成候选池**：
 
-`数据采集 → 历史数据库 → PIT基本面 → 硬过滤 → 评分 → 候选池 → 组合 → 执行计划 → 约束回测 → 研究展示`
+`市场数据 → 历史窗口 → 硬过滤 → 多因子评分 → Top-3 候选池 → 网页展示`
+
+组合、执行计划和更完整的交易状态属于后续扩展，不应改变候选池作为核心产物的定位。
+
+候选池生产还要求：
+
+- 每个交易日只使用该日及此前可用数据
+- 策略代码只来自 Aquant-Private/main
+- 候选快照经过独立质量门后才允许发布
+- 每日快照按交易日归档，避免历史候选被覆盖
 
 其中：
 
-> **Aquant-Private 是唯一策略源；Aquant-Public 是数据与生产运行平台。**
+> **Aquant-Private 是唯一策略源；Aquant-Public 是候选池的数据与生产运行平台。**
