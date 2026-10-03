@@ -6,23 +6,15 @@
 
 交易时序：`T 收盘信号 → T+1 开盘进入 → 最长 5 个交易日 → 退出`
 
-核心因子：
-
-- 短线动量 35%
-- 量能活跃度 25%
-- 价格强度 15%
-- 流动性 15%
-- 安全 10%
-
-生产候选最多 3 个；市场广度过弱时允许 0 个候选。
-
 ## 数据与策略
 
-`Aquant-Private` 是唯一策略源，当前版本为 2.0.0。
+`Aquant-Private/main` 是唯一策略源，当前策略版本为 **2.1.0**。
 
 `Aquant-Public` 负责历史数据、候选生产、短线研究、质量门、GitHub Actions 和 GitHub Pages。
 
-生产运行直接 checkout `Aquant-Private/main`，并在候选快照中记录策略版本与 commit。
+所有项目计算统一通过 GitHub Actions 云端运行；本地设备不是项目运行环境。仓库执行分支只保留 `main`。
+
+生产运行直接 checkout `Aquant-Private/main`，并在候选快照与研究结果中记录策略版本和 commit。
 
 ## 短线研究
 
@@ -31,17 +23,18 @@
 - `data/backtest/short_term_latest.json`
 - `data/backtest/short_term_sensitivity.json`
 - `data/backtest/short_term_exit_diagnostics.json`
+- `data/backtest/short_term_release_validation.json`
 
-研究同时检查未来函数、交易成本、止盈止损假设和候选样本覆盖。
+研究检查未来函数、交易成本、止盈止损假设、候选覆盖和策略来源一致性。
 
 ## 网页
 
 https://13415837267.github.io/Aquant-Public/
 
-网页展示最新生产候选、短线因子、市场状态和策略版本，不连接券商、不自动下单。
+网页统一采用中国 A 股显示习惯：**红涨、绿跌、平盘中性**。当前网页不连接券商、不自动下单。
 
-## 阶段边界
+## 系统边界
 
-当前生产层是**短线候选池 + 研究验证 + 网页展示**。
+生产层只负责短线候选池、研究验证、审计和网页展示。
 
-券商接入、纸上持仓账本和自动下单属于后续执行层，不与候选池生产混在一起。
+券商接入、纸上持仓账本和自动下单属于独立后续执行层，不与候选池生产混在一起。
