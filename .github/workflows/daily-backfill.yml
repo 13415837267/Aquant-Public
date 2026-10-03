@@ -55,6 +55,9 @@ jobs:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/validate_candidates.py
 
+      - name: Archive candidate pool
+        run: python scripts/archive_candidates.py
+
       - name: Build target portfolio
         run: python scripts/portfolio.py
 
@@ -94,7 +97,7 @@ jobs:
           set -euo pipefail
           git config user.name "aquant-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json data/universe.json data/portfolio.json data/execution_plan.json
+          git add data/candidates.json data/candidates_history/ data/universe.json data/portfolio.json data/execution_plan.json
           if git diff --cached --quiet; then
             echo "Candidate snapshot unchanged"
             exit 0
