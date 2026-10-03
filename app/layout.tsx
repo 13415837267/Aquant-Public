@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Aquant · Candidate Pool",
-  description: "Daily quantitative candidate pool for China A-shares.",
+  title: "Aquant · 短线候选池",
+  description: "中国A股每日量化短线候选池。",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
