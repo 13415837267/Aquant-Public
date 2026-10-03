@@ -1,3 +1,11 @@
+## Unreleased — Broker-free Paper execution state machine
+- Hardened the next-open paper gate with strict integer-lot validation, snapshot symbol/date checks, duplicate order IDs, and blocked-order rejection.
+- Added `scripts/paper_portfolio.py` for atomic paper fills, cash-floor enforcement, T+1 sellable inventory, average-cost accounting, realized/unrealized P&L, and idempotent fill application.
+- Added `scripts/paper_execution_cycle.py` to connect the gate, paper fills, portfolio state and JSONL fill ledger.
+- Added ledger reconciliation so a state/ledger write interruption can be repaired without double-applying fills; orphan or conflicting ledger records fail closed.
+- Added regression coverage for the gate, T+1, cash floor, idempotency, mark-to-market and end-to-end paper cycle.
+- Paper execution remains broker-free: no credentials, broker endpoint or live order submission.
+
 ## 2026-10-03
 
 - 完成共享组合权重接口，统一生产组合与约束回测的逆波动率配置、5%单票上限和5%现金缓冲。
