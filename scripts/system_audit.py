@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from scripts.validate_candidates import validate_candidates
+
 ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_READY = [
@@ -71,16 +73,8 @@ def main() -> None:
 
     candidates = load("data/candidates.json")
     require_ready("data/candidates.json", candidates)
+    validate_candidates(candidates)
 
-    if len(candidates.get("candidates", [])) != candidates.get("diagnostics", {}).get("candidate_count"):
-        raise RuntimeError("candidate count audit mismatch")
-    if len(candidates.get("candidates", [])) > 3:
-        raise RuntimeError("production candidate count exceeds top-three cap")
-    if candidates.get("candidate_admission_policy") != "top_score_3_max":
-        raise RuntimeError("candidate admission policy mismatch")
-    weights = candidates.get("factor_weights", {})
-    if set(weights) != {"momentum", "liquidity", "value", "safety"}:
-        raise RuntimeError("candidate factor weights are incomplete")
 
     for path in REQUIRED_READY:
         require_ready(path, load(path))
