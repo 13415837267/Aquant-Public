@@ -1,6 +1,6 @@
 """Research-only factor ablation for the frozen Private strategy.
 
-The Private strategy is never modified. This module reconstructs the canonical
+The Private strategy remains the production source; this module only tests nearby weight variants. This module reconstructs the canonical
 factor score from the Private model outputs, then evaluates research-only
 weight variants under the same PIT data and T+1 execution model.
 """
@@ -20,14 +20,13 @@ sys.path.insert(0, str(ROOT))
 from scripts import backtest as base
 
 EXPECTED_WEIGHTS = {
-    "momentum": 0.30,
-    "liquidity": 0.20,
-    "value": 0.20,
-    "risk": 0.15,
-    "activity": 0.15,
+    "momentum": 0.35,
+    "liquidity": 0.15,
+    "value": 0.30,
+    "safety": 0.20,
 }
 VARIANTS = ["baseline", "drop_momentum", "drop_liquidity", "drop_value",
-            "drop_risk", "drop_activity", "equal_weight"]
+            "drop_safety", "equal_weight"]
 
 
 def variant_weights(name: str, base_weights: dict[str, float]) -> dict[str, float]:
@@ -72,7 +71,7 @@ def evaluate(
     strategy_model, strategy_version, strategy_commit = base.load_strategy()
     base_weights = dict(getattr(strategy_model, "WEIGHTS", {}))
     if base_weights != EXPECTED_WEIGHTS:
-        raise ValueError(f"unexpected frozen strategy weights: {base_weights}")
+        raise ValueError(f"unexpected strategy weights: {base_weights}")
 
     files = base.history_files()
     selected_files, _ = base.iter_selected_dates(files, start, end)
