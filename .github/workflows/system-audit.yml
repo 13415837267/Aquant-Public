@@ -6,9 +6,6 @@ on:
       - "data/history/_BACKFILL_COMPLETE"
       - "data/fundamentals/_FUNDAMENTALS_COMPLETE"
       - "data/candidates.json"
-      - "data/portfolio.json"
-      - "data/execution_plan.json"
-      - "data/backtest/execution_constrained.json"
       - ".github/workflows/system-audit.yml"
       - "scripts/system_audit.py"
   workflow_dispatch:
