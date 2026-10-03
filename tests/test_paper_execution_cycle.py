@@ -76,3 +76,18 @@ def test_reconcile_ledger_recovers_missing_audit_lines(tmp_path: Path):
     assert reconcile_ledger(state, ledger) == 1
     assert len(ledger.read_text(encoding="utf-8").splitlines()) == 1
     assert reconcile_ledger(state, ledger) == 0
+
+
+def test_cycle_requires_valuation_snapshot_for_remaining_position():
+    plan = base_plan()
+    state, _, _ = run_cycle(plan, snapshot(), None)
+    # Remove the symbol from the valuation market while leaving the plan/order
+    # schema valid; the cycle must not silently produce stale equity.
+    incomplete = snapshot()
+    incomplete["symbols"] = {}
+    try:
+        run_cycle(base_plan(side="sell"), incomplete, state)
+    except Exception as exc:
+        assert "missing next-open snapshot" in str(exc)
+    else:
+        raise AssertionError("missing valuation snapshot must fail closed")
