@@ -14,6 +14,7 @@ def _payload():
         "strategy_commit": "abc123",
         "market_scope": "沪深主板",
         "universe": "沪深主板；排除 ST/退市相关标的",
+        "history_window_start": "2026-03-31",
         "history_window_end": "2026-09-30",
         "history_files_used": 126,
         "factor_weights": {
