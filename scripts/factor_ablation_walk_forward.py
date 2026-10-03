@@ -48,9 +48,9 @@ def evaluate_daily(start: str, end: str, top_n: int, cost_bps: float, slippage_b
         else:
             scored_base = strategy_model.score_universe(frame).copy()
             raw = 100.0 * sum(
-                float(frozen[k])
+                float(weights[k])
                 * pd.to_numeric(scored_base[f"f_{k}"], errors="coerce").fillna(0.5)
-                for k in frozen
+                for k in weights
             )
             penalty = pd.to_numeric(scored_base["score"], errors="coerce") - raw
 
@@ -94,7 +94,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default="2015-01-05")
     ap.add_argument("--end", default="2026-09-29")
-    ap.add_argument("--top-n", type=int, default=30)
+    ap.add_argument("--top-n", type=int, default=3)
     ap.add_argument("--cost-bps", type=float, default=3.0)
     ap.add_argument("--slippage-bps", type=float, default=2.0)
     ap.add_argument("--baseline-walk-forward",
