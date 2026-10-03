@@ -1,20 +1,17 @@
 name: System Layer Audit
 
 on:
-  pull_request:
-    paths:
-      - "data/history/_BACKFILL_COMPLETE"
-      - "data/fundamentals/_FUNDAMENTALS_COMPLETE"
-      - "data/candidates.json"
-      - ".github/workflows/system-audit.yml"
-      - "scripts/system_audit.py"
   push:
     paths:
       - "data/history/_BACKFILL_COMPLETE"
       - "data/fundamentals/_FUNDAMENTALS_COMPLETE"
       - "data/candidates.json"
+      - "data/backtest/short_term_latest.json"
+      - "data/backtest/short_term_sensitivity.json"
+      - "data/backtest/short_term_exit_diagnostics.json"
       - ".github/workflows/system-audit.yml"
       - "scripts/system_audit.py"
+      - "scripts/validate_candidates.py"
   workflow_dispatch:
   schedule:
     - cron: "30 12 * * 1-5"
