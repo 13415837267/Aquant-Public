@@ -181,3 +181,26 @@ Pages 使用 Next.js 静态导出。
 其中：
 
 > **Aquant-Private 是唯一策略源；Aquant-Public 是数据与生产运行平台。**
+
+
+## 十三、Paper 连续执行状态机
+
+当前执行链已经补上 broker-free 的 Paper 状态层：
+
+`执行计划 → 次日开盘安全复核 → Paper 成交 → 现金/持仓更新 → T+1 结算 → 成交账本 → 下一周期`
+
+核心脚本：
+
+- `scripts/paper_execution_gate.py`：只负责下一开盘安全复核，不调用券商接口；缺数据、停牌、ST、涨跌停风险、非法手数、过期快照等条件均 fail-closed。
+- `scripts/paper_portfolio.py`：负责现金、持仓、平均成本、已实现/未实现盈亏、T+1 可卖库存和幂等成交应用。
+- `scripts/paper_execution_cycle.py`：把执行计划和次日开盘快照串成一个可重复执行的 Paper 周期，并维护 `data/paper/portfolio.json` 与 `data/paper/fills.jsonl`。
+
+Paper 开盘快照要求至少包含：
+
+`execution_date`、`settlement_date`、以及每个计划股票的 `symbol/open/high_limit/low_limit/is_paused/is_st`。
+
+Paper 层仍然不接入任何实盘券商，不提交真实订单；真实订单释放仍需要独立的人工/账户授权层。
+
+## 十四、测试与质量门
+
+GitHub Actions 的 `Python Quality Gate` 对 `scripts/` 与 `tests/` 进行 Python 编译和 pytest 测试。Paper 模块覆盖安全闸门、T+1、现金底线、幂等成交、P&L、估值更新和整周期重复运行。
