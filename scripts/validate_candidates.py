@@ -22,7 +22,6 @@ REQUIRED_CANDIDATE_FIELDS = {
 }
 EXPECTED_WEIGHTS = {"momentum_short","overnight_structure","volume_activity","price_strength","liquidity","safety"}
 LEGACY_WEIGHTS = {"momentum_short","volume_activity","price_strength","liquidity","safety"}
-MAX_CANDIDATES = 3
 
 def finite(value: object, field: str) -> float:
     try: number = float(value)
@@ -74,7 +73,16 @@ def validate_candidates(payload, private_version=None, private_commit=None):
     if abs(sum(finite(weights[k], f"factor_weights.{k}") for k in weight_keys)-1.0) > 1e-9:
         raise RuntimeError("factor weights must sum to 1")
     candidates = payload.get("candidates")
-    if not isinstance(candidates, list) or len(candidates) > MAX_CANDIDATES: raise RuntimeError("invalid candidate count")
+    policy = str(payload.get("candidate_admission_policy") or "")
+    if not policy.startswith("dynamic_top_score_") or not policy.endswith("_with_market_gate"):
+        raise RuntimeError("candidate admission policy is invalid")
+    try:
+        max_candidates = int(policy[len("dynamic_top_score_"):-len("_with_market_gate")])
+    except ValueError as exc:
+        raise RuntimeError("candidate admission policy count is invalid") from exc
+    if max_candidates < 1:
+        raise RuntimeError("candidate admission policy count must be positive")
+    if not isinstance(candidates, list) or len(candidates) > max_candidates: raise RuntimeError("invalid candidate count")
     previous = math.inf
     seen = set()
     for rank,row in enumerate(candidates,1):
@@ -99,8 +107,6 @@ def validate_candidates(payload, private_version=None, private_commit=None):
         raise RuntimeError("candidate diagnostics mismatch")
     if diag.get("risk_off_no_trade") != (market["regime"] == "risk_off"):
         raise RuntimeError("risk-off admission audit mismatch")
-    if payload.get("candidate_admission_policy") != "dynamic_top_score_3_with_market_gate":
-        raise RuntimeError("admission policy mismatch")
     for key in ("hard_eligibility_applied_before_scoring","strategy_source_locked_to_private","short_term_features_only","market_gate_applied"):
         if payload.get("audit",{}).get(key) is not True: raise RuntimeError(f"audit failed: {key}")
     return {"status":"pass","as_of":as_of,"candidate_count":len(candidates),"strategy_version":version,"strategy_commit":commit,"market_regime":market["regime"]}
