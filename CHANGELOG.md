@@ -1,4 +1,7 @@
 ## Unreleased — Broker-free Paper execution state machine
+- Added deterministic multi-day `paper_replay.py` to carry one Paper state across sequential execution dates and verify strategy provenance continuity.
+- Added `paper_replay_report.py` for descriptive equity-curve summaries (total return, max drawdown, positive/negative cycles) with explicit no-trading audit flags.
+- Fixed the first integrated CI failures in the Paper chain: turnover fixture mismatch, empty-snapshot assertion, and inconsistent test market dates.
 - Added deterministic `plan_id` tracking so the same plan cannot be applied on a different execution date or against a changed snapshot.
 - Hardened execution planning to fail closed when any positive holding lacks a valid market close, and fixed latest-history selection to sort by year/date rather than filename alone.
 - Added `scripts/paper_snapshot_from_history.py` so historical next-open replay uses the same execution gate and valuation schema as the normal Paper cycle.
