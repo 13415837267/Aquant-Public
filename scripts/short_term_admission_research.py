@@ -151,17 +151,18 @@ def run(args):
 
     for i in range(len(active) - max_future):
         signal_date = active[i].name[:10]
-        if signal_date < args.start or signal_date > args.test_end:
-            continue
+        # Always advance the feature state through every trading day so the
+        # OOS window retains the full uninterrupted lookback history.
+        frame = state.build(get(i))
 
+        period = None
         if args.start <= signal_date <= args.train_end and i + max_future <= rel_train_end:
             period = "train"
         elif args.test_start <= signal_date <= args.test_end:
             period = "oos"
-        else:
+        if period is None:
             continue
 
-        frame = state.build(get(i))
         for policy_name, bucket_set in buckets.items():
             bucket_set[period]["signal_days"] += 1
 
