@@ -1,4 +1,7 @@
 ## Unreleased — Broker-free Paper execution state machine
+- Hardened next-open snapshot flags to accept only explicit boolean/0/1 values and require a real snapshot date.
+- Made paper-cycle state transitions copy-on-write so failed cycles cannot mutate the prior state; valuation also fails closed when any remaining position lacks a next-open snapshot.
+- Aligned the paper accounting cash floor with the current plan equity rather than the initial account value.
 - Added deterministic residual sell orders for holdings that fall out of the target portfolio, preventing stale long positions across rebalance cycles.
 - Added `scripts/paper_rebalance.py` to derive dynamic Paper equity/cash/holdings from the current Paper state and feed them into the normal execution-plan engine.
 - Kept Paper runtime state and fill ledgers out of source control via `.gitignore`.
