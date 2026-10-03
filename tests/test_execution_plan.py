@@ -109,3 +109,33 @@ def test_plan_identity_changes_when_orders_change(tmp_path):
     )
     second = build_plan(portfolio(), market(), path_b, equity=100000, min_notional=1)
     assert first["plan_id"] != second["plan_id"]
+
+
+def test_plan_identity_is_independent_of_input_order(tmp_path):
+    positions = [
+        {
+            "rank": 1,
+            "symbol": "600000",
+            "name": "A",
+            "score": 90,
+            "volatility_proxy": 1.0,
+            "target_weight": 0.025,
+        },
+        {
+            "rank": 1,
+            "symbol": "600001",
+            "name": "B",
+            "score": 89,
+            "volatility_proxy": 1.0,
+            "target_weight": 0.025,
+        },
+    ]
+    first_portfolio = portfolio()
+    first_portfolio["positions"] = positions
+    second_portfolio = portfolio()
+    second_portfolio["positions"] = list(reversed(positions))
+    empty_holdings = holdings_file(tmp_path, {})
+    first = build_plan(first_portfolio, market(), empty_holdings, equity=100000, min_notional=1)
+    second = build_plan(second_portfolio, market(), empty_holdings, equity=100000, min_notional=1)
+    assert first["orders"] == second["orders"]
+    assert first["plan_id"] == second["plan_id"]
