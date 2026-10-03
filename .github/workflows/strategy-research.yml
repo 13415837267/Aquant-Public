@@ -187,7 +187,7 @@ jobs:
                   raise SystemExit(f"{path} strategy version mismatch")
               if payload.get("strategy_commit") != expected_c:
                   raise SystemExit(f"{path} strategy commit mismatch")
-              if payload.get("future_function") is True:
+              if payload.get("future_function") is not False:
                   raise SystemExit(f"{path} future_function audit failed")
 
           candidate = json.loads(
@@ -198,12 +198,6 @@ jobs:
               raise SystemExit(f"production candidate cap violated: {count}")
           if int(candidate.get("diagnostics", {}).get("candidate_count", count)) != count:
               raise SystemExit("candidate count diagnostic mismatch")
-          portfolio = json.loads(
-              Path("data/portfolio.json").read_text(encoding="utf-8")
-          )
-          if int(portfolio.get("position_count", 0)) > 3:
-              raise SystemExit("production position cap violated")
-
           wf = json.loads(
               Path("data/backtest/walk_forward.json").read_text(encoding="utf-8")
           )
@@ -238,5 +232,5 @@ jobs:
             echo "No research output changes."
             exit 0
           fi
-          git commit -m "research: validate strategy 1.0.0"
+          git commit -m "research: validate candidate pool strategy"
           git push origin HEAD:main

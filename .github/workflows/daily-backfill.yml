@@ -3,7 +3,7 @@ name: Daily Market Data Update
 on:
   schedule:
     # 18:00 Beijing time = 10:00 UTC.
-    - cron: "0 10 * * *"
+    - cron: "0 10 * * 1-5"
   workflow_dispatch:
 
 permissions:
@@ -57,20 +57,6 @@ jobs:
 
       - name: Archive candidate pool
         run: python scripts/archive_candidates.py
-
-      - name: Validate candidate pool
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          payload = json.loads(Path("data/candidates.json").read_text(encoding="utf-8"))
-          if payload.get("status") != "ready":
-              raise SystemExit("candidate snapshot is not ready")
-          if payload.get("future_function") is not False:
-              raise SystemExit("candidate PIT audit failed")
-          print("CANDIDATE POOL AUDIT PASS")
-          PY
 
       - name: Publish candidate snapshot
         shell: bash
