@@ -59,7 +59,7 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--start",default="2015-01-05")
     ap.add_argument("--end",default="2026-09-29")
-    ap.add_argument("--top-n",default="8,12,16,20,24")
+    ap.add_argument("--top-n",default="1,2,3")
     ap.add_argument("--cost-bps",default="3,5,10")
     ap.add_argument("--slippage-bps",default="2")
     ap.add_argument("--output",default=str(OUT_FILE))
