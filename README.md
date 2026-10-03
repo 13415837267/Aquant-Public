@@ -1,194 +1,47 @@
 # Aquant-Public
 
-个人量化交易系统的**公开数据与生产运行仓库**。
+个人量化交易系统的**短线候选池生产与研究仓库**。
 
-本仓库负责公开、可复现的量化基础设施：沪深京股票历史数据库；生产候选池只面向沪深主板 A 股、数据采集、数据质量检查、候选股计算、回测基础设施、GitHub Actions 与 GitHub Pages。候选股计算运行时直接读取 Aquant-Private/main 的最新策略。
+当前生产目标：**1–5 个交易日短线**。
 
-## 一、两个仓库的分工
+交易时序：`T 收盘信号 → T+1 开盘进入 → 最长 5 个交易日 → 退出`
 
-| 仓库 | 定位 | 主要内容 | 是否生产运行 |
-|---|---|---|---|
-| **Aquant-Private** | 私有唯一策略源 | 策略研究、因子实验、参数、模型、策略版本 | 否 |
-| **Aquant-Public** | 公开生产运行面 | 数据库、数据管线、候选股、回测基础设施、Pages | 是 |
+核心因子：
 
-核心原则：
+- 短线动量 35%
+- 量能活跃度 25%
+- 价格强度 15%
+- 流动性 15%
+- 安全 10%
 
-> **Aquant-Private 是唯一策略源；Aquant-Public 每次生产运行时直接读取 Private/main 最新策略。**
+生产候选最多 3 个；市场广度过弱时允许 0 个候选。
 
-Public 不维护另一套独立策略。Private 修改并提交到 `main` 后，Public 下一次候选股计算自动使用新的策略代码，并在 `data/candidates.json` 记录策略版本和 commit。
+## 数据与策略
 
-## 二、当前候选股是怎么产生的
+`Aquant-Private` 是唯一策略源，当前版本为 2.0.0。
 
-当前候选股由：
+`Aquant-Public` 负责历史数据、候选生产、短线研究、质量门、GitHub Actions 和 GitHub Pages。
 
-`scripts/update_candidates.py`
+生产运行直接 checkout `Aquant-Private/main`，并在候选快照中记录策略版本与 commit。
 
-直接读取：
+## 短线研究
 
-`data/history/YYYY/YYYY-MM-DD.csv.gz`
+`scripts/short_term_research.py` 使用历史日线进行 T 收盘信号、T+1 开盘执行、最长 5 日持有的研究，并输出：
 
-使用最近 126 个交易日历史窗口生成中期动量、价值、安全和流动性因子，并生成：
+- `data/backtest/short_term_latest.json`
+- `data/backtest/short_term_sensitivity.json`
+- `data/backtest/short_term_exit_diagnostics.json`
 
-`data/candidates.json`
+研究同时检查未来函数、交易成本、止盈止损假设和候选样本覆盖。
 
-当前正式生产策略包含 4 个因子：
-
-- 动量：35%
-- 流动性：15%
-- 价值：30%
-- 安全：20%
-
-在评分前先执行沪深主板、ST/退市相关、停牌、价格和成交额等硬过滤；最终候选池按综合评分保留最高 3 只，不为凑数回填弱候选。
-
-**重要：候选股生产任务运行时跨仓库读取 Aquant-Private/main。**
-
-Public 不复制或维护独立策略版本。生产 Action 通过 `PRIVATE_REPO_TOKEN` 只读访问 Private，并将实际使用的 `strategy_version` 与 `strategy_commit` 写入候选股快照。
-
-## 三、历史数据库
-
-数据库按**交易日逐日保存**，采用“近到远”的方式回补；数据库层可以保留更宽的股票数据范围，候选池阶段再限制为沪深主板。
-
-每个交易日：
-
-`交易日 → 全市场 Bulk 日线 → 数据库股票范围整理 → 估值快照 → 数据质量检查 → 日文件 → checkpoint → 候选池再过滤沪深主板`
-
-历史回补从最近交易日向前推进，目标覆盖五年，并支持断点续传。
-
-### 每日历史文件
-
-`data/history/YYYY-MM-DD.csv.gz`
-
-一只股票一行，一个交易日一个文件。
-
-主要字段：
-
-- 身份：`symbol`、`date`
-- 行情：`open`、`high`、`low`、`close`、`pre_close`、`change`、`pct_chg`、`volume`、`amount`
-- 市场状态：`factor`、`high_limit`、`low_limit`、`turnover_pct`、`amplitude_pct`、`is_paused`、`is_st`
-- 市值：`capitalization`、`circulating_cap`、`market_cap`、`circulating_market_cap`
-- 估值：`turnover_ratio`、`pe_ratio`、`pe_ratio_lyr`、`pb_ratio`、`ps_ratio`、`pcf_ratio`
-
-数据源没有提供的估值字段保留为空，不人为填补。
-
-## 四、季度基本面
-
-位置：
-
-`data/fundamentals/{indicator,income,balance,cash_flow}/YYYYqN.csv.gz`
-
-保留：
-
-- `report_date`
-- `pub_date`
-
-用于 point-in-time join，避免回测中的未来函数。
-
-## 五、数据源
-
-当前生产主数据源为 **zzshare**，依赖版本锁定在：
-
-`zzshare>=0.4.11,<0.5`
-
-数据接口采用 provider 隔离设计，后续可以加入备用数据源进行故障切换和交叉校验。
-
-## 六、断点续传
-
-状态文件：
-
-`data/history/_BACKFILL_STATE.json`
-
-完成标记：
-
-`data/history/_BACKFILL_COMPLETE`
-
-每个交易日先完成文件写入和质量检查，再更新 checkpoint。
-
-GitHub Actions 使用小批次 checkpoint，避免长时间任务因为单次提交失败而丢失进度。
-
-## 七、运行环境
-
-- **GitHub Actions**：唯一生产运行环境
-- **GitHub Pages**：公开静态展示
-- **本地电脑**：只用于编辑、提交和控制
-- **Aquant-Private**：提供唯一策略源；Public 生产任务运行时只读加载最新 `main` 策略
-
-## 八、数据质量要求
-
-正式历史库要求：
-
-- 沪深京股票源数据可以留存，生产候选池只进入沪深主板
-- 交易日与文件日期一致
-- `symbol + date` 不重复
-- 收盘价不为空
-- 每日文件保持完整字段结构
-- 估值与交易日正确对应
-- 财务数据保留真实披露日期
-- 策略运行不使用未来数据
-
-## 九、项目结构
-
-```text
-data/
-  history/
-    YYYY-MM-DD.csv.gz
-    _BACKFILL_STATE.json
-    _BACKFILL_COMPLETE
-  fundamentals/
-    indicator/
-    income/
-    balance/
-    cash_flow/
-  candidates.json
-  candidates_history/
-    YYYY/
-      YYYY-MM-DD.json
-
-scripts/
-  backfill_history.py
-  update_candidates.py
-  validate_candidates.py
-  archive_candidates.py
-
-app/
-  # GitHub Pages 静态站点
-```
-
-## 十、候选池研究
-
-历史回测、Walk-forward、候选准入阈值、因子消融和候选数量/成本敏感性仅用于验证候选池规则，不参与每日生产发布。统一研究入口为 `.github/workflows/strategy-research.yml`，只在 `main` 上运行。
-
-## 十一、GitHub Pages
-
-公开网站：
+## 网页
 
 https://13415837267.github.io/Aquant-Public/
 
-Pages 使用 Next.js 静态导出。
+网页展示最新生产候选、短线因子、市场状态和策略版本，不连接券商、不自动下单。
 
-## 十二、维护规则
+## 阶段边界
 
-- 数据提交使用 `data:` 前缀
-- 策略版本记录在 Private 的 `strategy/version.py`
-- Public 生产运行时读取 Private/main，不保存独立策略母版
-- 代码和工作流变更同步记录到 `CHANGELOG.md`
-- Public 不保存私有策略研究、账户凭证或 API 密钥
-- 候选股生产任务显式依赖 `Aquant-Private/main`，通过 `PRIVATE_REPO_TOKEN` 只读加载策略
+当前生产层是**短线候选池 + 研究验证 + 网页展示**。
 
-## 十三、系统目标
-
-当前阶段的第一目标是稳定、可审计地**每日生成候选池**：
-
-`市场数据 → 历史窗口 → 硬过滤 → 多因子评分 → Top-3 候选池 → 网页展示`
-
-组合、执行计划和更完整的交易状态属于后续扩展，不应改变候选池作为核心产物的定位。
-
-候选池生产还要求：
-
-- 每个交易日只使用该日及此前可用数据
-- 策略代码只来自 Aquant-Private/main
-- 候选快照经过独立质量门后才允许发布
-- 每日快照按交易日归档，避免历史候选被覆盖
-
-其中：
-
-> **Aquant-Private 是唯一策略源；Aquant-Public 是候选池的数据与生产运行平台。**
+券商接入、纸上持仓账本和自动下单属于后续执行层，不与候选池生产混在一起。

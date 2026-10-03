@@ -1,17 +1,13 @@
-name: Candidate Pool Research 1.1
+name: Short-Term Strategy Research 2.0
 
 on:
   push:
     branches: [main]
     paths:
-      - "scripts/backtest.py"
+      - "scripts/short_term_research.py"
       - "scripts/update_candidates.py"
-      - "scripts/candidate_threshold_research.py"
-      - "scripts/walk_forward.py"
-      - "scripts/sensitivity.py"
-      - "scripts/factor_ablation.py"
-      - "scripts/factor_ablation_walk_forward.py"
-      - "scripts/regime_factor_diagnostics.py"
+      - "scripts/validate_candidates.py"
+      - "scripts/system_audit.py"
       - "requirements.txt"
   workflow_dispatch:
 
@@ -19,18 +15,15 @@ permissions:
   contents: write
 
 concurrency:
-  group: strategy-research-main
+  group: short-term-research-main
   cancel-in-progress: false
 
 jobs:
   research:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
-
     steps:
-      - name: Checkout public repository
-        uses: actions/checkout@v6
-
+      - uses: actions/checkout@v6
       - name: Checkout private strategy
         uses: actions/checkout@v6
         with:
@@ -38,196 +31,43 @@ jobs:
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: .private-strategy
           fetch-depth: 1
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: pip install -r requirements.txt
-
       - name: Resolve strategy
         id: strategy
         shell: bash
         run: |
           echo "version=$(python -c 'import sys; sys.path.insert(0, ".private-strategy"); from strategy.version import STRATEGY_VERSION; print(STRATEGY_VERSION)')" >> "$GITHUB_OUTPUT"
           echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
       - name: Python quality
         run: python -m pytest -q
-
-      - name: Generate production candidate snapshot
+      - name: Generate candidates
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
         run: python scripts/update_candidates.py
-
-      - name: Run candidate admission research
+      - name: Validate candidates
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+        run: python scripts/validate_candidates.py
+      - name: Run short-term research
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
-        run: |
-          python scripts/candidate_threshold_research.py \
-            --start 2015-01-05 \
-            --end 2026-09-29 \
-            --output data/research/candidate_thresholds.json
-
-      - name: Run walk-forward OOS
-        env:
-          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
-        run: |
-          python scripts/walk_forward.py \
-            --start 2015-01-05 \
-            --end 2026-09-29 \
-            --train-years 3 \
-            --test-years 1 \
-            --top-n 3 \
-            --cost-bps 3 \
-            --slippage-bps 2 \
-            --output data/backtest/walk_forward.json
-
-      - name: Run candidate-count sensitivity
-        env:
-          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
-        run: |
-          python scripts/sensitivity.py \
-            --start 2015-01-05 \
-            --end 2026-09-29 \
-            --top-n 1,2,3 \
-            --cost-bps 3,5,10 \
-            --slippage-bps 2 \
-            --output data/backtest/sensitivity.json
-
-      - name: Run candidate selection backtest
-        env:
-          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
-        run: |
-          python scripts/backtest.py \
-            --start 2015-01-05 \
-            --end 2026-09-29 \
-            --top-n 3 \
-            --cost-bps 3 \
-            --slippage-bps 2
-
-      - name: Run factor ablation
-        env:
-          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
-        run: |
-          python scripts/factor_ablation.py \
-            --start 2015-01-05 \
-            --end 2026-09-29 \
-            --top-n 3 \
-            --cost-bps 3 \
-            --slippage-bps 2 \
-            --output data/backtest/factor_ablation.json
-
-      - name: Run factor ablation walk-forward
-        env:
-          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
-        run: |
-          python scripts/factor_ablation_walk_forward.py \
-            --start 2015-01-05 \
-            --end 2026-09-29 \
-            --top-n 3 \
-            --cost-bps 3 \
-            --slippage-bps 2 \
-            --output data/backtest/factor_ablation_walk_forward.json
-
-      - name: Run regime factor diagnostics
-        env:
-          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
-        run: |
-          python scripts/regime_factor_diagnostics.py \
-            --start 2015-01-05 \
-            --end 2026-09-29 \
-            --top-n 3 \
-            --baseline data/backtest/latest.json \
-            --output data/backtest/regime_factor_diagnostics.json
-
-      - name: Validate research provenance
-        shell: bash
-        env:
-          STRATEGY_VERSION: ${{ steps.strategy.outputs.version }}
-          STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          expected_v = os.environ["STRATEGY_VERSION"]
-          expected_c = os.environ["STRATEGY_COMMIT"]
-
-          files = [
-              Path("data/candidates.json"),
-              Path("data/research/candidate_thresholds.json"),
-              Path("data/backtest/latest.json"),
-              Path("data/backtest/walk_forward.json"),
-              Path("data/backtest/sensitivity.json"),
-              Path("data/backtest/factor_ablation.json"),
-              Path("data/backtest/factor_ablation_walk_forward.json"),
-              Path("data/backtest/regime_factor_diagnostics.json"),
-          ]
-
-          for path in files:
-              payload = json.loads(path.read_text(encoding="utf-8"))
-              if payload.get("status") != "ready":
-                  raise SystemExit(f"{path} is not ready: {payload.get('status')}")
-              if payload.get("strategy_version") != expected_v:
-                  raise SystemExit(f"{path} strategy version mismatch")
-              if payload.get("strategy_commit") != expected_c:
-                  raise SystemExit(f"{path} strategy commit mismatch")
-              if payload.get("future_function") is not False:
-                  raise SystemExit(f"{path} future_function audit failed")
-
-          candidate = json.loads(
-              Path("data/candidates.json").read_text(encoding="utf-8")
-          )
-          count = len(candidate.get("candidates", []))
-          if count > 3:
-              raise SystemExit(f"production candidate cap violated: {count}")
-          if int(candidate.get("diagnostics", {}).get("candidate_count", count)) != count:
-              raise SystemExit("candidate count diagnostic mismatch")
-          wf = json.loads(
-              Path("data/backtest/walk_forward.json").read_text(encoding="utf-8")
-          )
-          if int(wf.get("fold_count", 0)) < 5:
-              raise SystemExit("walk-forward fold count too small")
-          audit = wf.get("audit", {})
-          if audit.get("126_session_warmup_before_oos") is not True:
-              raise SystemExit("walk-forward 126-session warmup audit missing")
-
-          print(f"validated candidate strategy={expected_v} commit={expected_c} candidates={count}")
-          PY
-
+        run: python scripts/short_term_research.py --start 2018-01-05 --end 2026-09-23 --cost-bps 3 --slippage-bps 2
       - name: Run system audit
         run: python scripts/system_audit.py
-
       - name: Commit research outputs
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            data/candidates.json \
-            data/research/candidate_thresholds.json \
-            data/backtest/latest.json \
-            data/backtest/walk_forward.json \
-            data/backtest/sensitivity.json \
-            data/backtest/factor_ablation.json \
-            data/backtest/factor_ablation_walk_forward.json \
-            data/backtest/regime_factor_diagnostics.json \
-            data/system_audit.json
-          if git diff --cached --quiet; then
-            echo "No research output changes."
-            exit 0
-          fi
-          git commit -m "research: validate candidate pool strategy"
+          git add data/candidates.json data/backtest/short_term_latest.json data/backtest/short_term_sensitivity.json data/backtest/short_term_exit_diagnostics.json data/system_audit.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: validate short-term strategy"
+          git fetch origin main
+          git rebase origin/main
           git push origin HEAD:main
