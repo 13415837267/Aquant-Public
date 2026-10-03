@@ -259,9 +259,24 @@ def build_plan(
 
     blocked_count = sum(1 for o in orders if o["blocked"])
     active_orders = [o for o in orders if o["shares"] > 0 and not o["blocked"]]
+    plan_identity = {
+        "reference_date": ref_date,
+        "strategy_commit": portfolio["strategy_commit"],
+        "equity_reference": round(float(equity), 2),
+        "orders": active_orders,
+    }
+    plan_id = hashlib.sha256(
+        json.dumps(
+            plan_identity,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()[:24]
     return {
         "schema_version": 1,
         "status": "ready_for_next_open_recheck",
+        "plan_id": plan_id,
         "reference_date": ref_date,
         "price_basis": "latest_close_reference_only",
         "strategy_source": portfolio["strategy_source"],
