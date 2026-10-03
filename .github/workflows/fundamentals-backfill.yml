@@ -1,10 +1,6 @@
 name: Fundamentals Database Backfill
 
 on:
-  push:
-    paths:
-      - "scripts/backfill_history.py"
-      - ".github/workflows/fundamentals-backfill.yml"
   schedule:
     - cron: "0 12 * * 1"
   workflow_dispatch:
