@@ -29,6 +29,8 @@ jobs:
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v6
+      - name: Lock public source revision
+        run: echo "PUBLIC_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - name: Checkout private strategy
         uses: actions/checkout@v6
         with:
@@ -78,11 +80,19 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json data/backtest/short_term_latest.json data/backtest/short_term_sensitivity.json data/backtest/short_term_exit_diagnostics.json data/system_audit.json
+          git fetch origin main
+          git -C .private-strategy fetch origin main
+          if [[ "$(git rev-parse origin/main)" != "$PUBLIC_SOURCE_SHA" ]]; then
+            echo "Public source revision changed during research; refusing stale result commit."
+            exit 1
+          fi
+          if [[ "$(git -C .private-strategy rev-parse origin/main)" != "${{ steps.strategy.outputs.commit }}" ]]; then
+            echo "Private/main strategy changed during research; refusing stale result commit."
+            exit 1
+          fi
+          git add data/candidates.json data/backtest/short_term_latest.json data/backtest/short_term_sensitivity.json data/backtest/short_term_exit_diagnostics.json data/backtest/short_term_release_validation.json data/system_audit.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "research: validate short-term strategy"
-          git fetch origin main
-          git rebase origin/main
           git push origin HEAD:main
 
 # Cloud research must follow the current Private/main strategy implementation.
