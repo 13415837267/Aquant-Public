@@ -3,24 +3,24 @@
   "status": "ready",
   "method": "short_term_exit_diagnostics",
   "start": "2018-01-05",
-  "end": "2026-09-21",
+  "end": "2026-09-30",
   "exit_distribution": {
-    "stop": 2306,
-    "target": 1205,
-    "max_hold": 233
+    "stop": 2044,
+    "target": 1012,
+    "max_hold": 712
   },
   "trade_performance": {
-    "samples": 3744,
-    "win_rate_pct": 36.27136752136752,
-    "mean_return_pct": 0.043459568620719626,
-    "median_return_pct": -3.1000000000000028,
-    "total_return_pct": -79.24689701988025,
-    "max_drawdown_pct": -93.86901726638169,
-    "mean_holding_days": 2.685363247863248
+    "samples": 3768,
+    "win_rate_pct": 37.818471337579616,
+    "mean_return_pct": 0.025351436398215077,
+    "median_return_pct": -3.0999999999999917,
+    "total_return_pct": -84.76519245852111,
+    "max_drawdown_pct": -99.80290401393171,
+    "mean_holding_days": 3.434447983014862
   },
   "strategy_source": "Aquant-Private/main",
-  "strategy_version": "2.0.1",
-  "strategy_commit": "1abba211e954545f921631548d165af32eb3d642",
+  "strategy_version": "2.1.0",
+  "strategy_commit": "dc6bf53b44f8e3ec26f4fa2063be6454d2964788",
   "future_function": false,
   "audit": {
     "signal_uses_only_T_close_information": true,
