@@ -1,4 +1,5 @@
 ## Unreleased — Broker-free Paper execution state machine
+- Added `scripts/paper_snapshot_from_history.py` so historical next-open replay uses the same execution gate and valuation schema as the normal Paper cycle.
 - Added an actual-next-open turnover recheck so opening-price gaps cannot silently push paper execution above the configured turnover cap.
 - Hardened next-open snapshot flags to accept only explicit boolean/0/1 values and require a real snapshot date.
 - Made paper-cycle state transitions copy-on-write so failed cycles cannot mutate the prior state; valuation also fails closed when any remaining position lacks a next-open snapshot.
