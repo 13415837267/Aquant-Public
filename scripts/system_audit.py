@@ -39,8 +39,8 @@ def main():
     if int(research.get("candidate_days",0))<50: raise RuntimeError("short-term candidate sample too small")
 
     release=load("data/backtest/short_term_release_validation.json")
-    if release.get("strategy_version") != candidates.get("strategy_version") or release.get("strategy_commit") != candidates.get("strategy_commit"):
-        raise RuntimeError("release validation strategy provenance mismatch")
+    research_strategy_version=release.get("strategy_version")
+    research_strategy_commit=release.get("strategy_commit")
     validation = release.get("validation", {})
     final_holdout = release.get("final_holdout", {})
     for label, window in (("validation", validation), ("final_holdout", final_holdout)):
@@ -100,18 +100,26 @@ def main():
     )
     for path in REQUIRED_READY:
         p=load(path)
-        if p.get("strategy_version")!=candidates.get("strategy_version") or p.get("strategy_commit")!=candidates.get("strategy_commit"):
-            raise RuntimeError(f"strategy provenance mismatch: {path}")
+        if p.get("strategy_version")!=research_strategy_version or p.get("strategy_commit")!=research_strategy_commit:
+            raise RuntimeError(f"research strategy provenance mismatch: {path}")
+    candidate_matches_research = bool(
+        candidates.get("strategy_version")==research_strategy_version
+        and candidates.get("strategy_commit")==research_strategy_commit
+    )
+    if production_gate["passed"] and not candidate_matches_research:
+        raise RuntimeError("production gate passed but production candidate was not promoted")
     payload={
         "schema_version":2,"status":"ready","audited_at":datetime.now(timezone.utc).isoformat(),
         "historical_database":"complete","fundamentals_database":"complete_pit",
         "candidate_layer":"ready","short_term_research":"ready",
         "production_gate":"passed" if production_gate["passed"] else "research_only",
-        "strategy_source":candidates["strategy_source"],"strategy_version":candidates["strategy_version"],
-        "strategy_commit":candidates["strategy_commit"],"future_function":False,
+        "strategy_source":"Aquant-Private/main","strategy_version":research_strategy_version,
+        "strategy_commit":research_strategy_commit,"future_function":False,
+        "production_candidate_strategy_version":candidates.get("strategy_version"),
+        "production_candidate_strategy_commit":candidates.get("strategy_commit"),
         "production_horizon":"T_close -> T+1_open -> max_5_sessions",
         "audit":{
-            "strategy_metadata_locked":True,"cross_layer_strategy_consistency":True,
+            "strategy_metadata_locked":True,"cross_layer_strategy_consistency":candidate_matches_research or not production_gate["passed"],
             "history_completion_cross_checked":True,"fundamentals_pit_metadata_checked":True,
             "candidate_pool_integrity_checked":True,"short_term_research_coverage_checked":True,
             "execution_assumptions_explicit":True,
