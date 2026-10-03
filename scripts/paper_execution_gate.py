@@ -13,6 +13,7 @@ from typing import Any
 
 REQUIRED_MARKET_FIELDS = {
     "symbol",
+    "date",
     "open",
     "high_limit",
     "low_limit",
@@ -48,6 +49,19 @@ def _decimal(value: Any, field: str) -> Decimal:
     return result
 
 
+def _strict_flag(value: Any, field: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float, Decimal)) and value in (0, 1):
+        return bool(value)
+    normalized = str(value).strip().lower()
+    if normalized in {"0", "false", "no", "n"}:
+        return False
+    if normalized in {"1", "true", "yes", "y"}:
+        return True
+    raise GateError(f"invalid {field} flag: {value!r}")
+
+
 def _strict_int(value: Any, field: str) -> int:
     if isinstance(value, bool):
         raise GateError(f"{field} must be an integer")
@@ -65,9 +79,9 @@ def validate_market_snapshot(snapshot: dict[str, Any]) -> None:
     if missing:
         raise GateError(f"missing market fields: {', '.join(missing)}")
 
-    if bool(snapshot["is_paused"]):
+    if _strict_flag(snapshot["is_paused"], "is_paused"):
         raise GateError("paused security")
-    if bool(snapshot["is_st"]):
+    if _strict_flag(snapshot["is_st"], "is_st"):
         raise GateError("ST security")
 
     opening = _decimal(snapshot["open"], "open")
