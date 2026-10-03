@@ -26,7 +26,7 @@ const pct=(n:number)=>(n>=0?"+":"")+fmt(n)+"%";
 const dirClass=(n:number)=>n>0?"rise":n<0?"fall":"flat";
 const amount=(n:number)=>n>=1e8?fmt(n/1e8,1)+"亿":fmt(n/1e4,0)+"万";
 const weight=(n:number)=>fmt(n*100,0)+"%";
-const maxCandidates=Number((snapshot.candidate_admission_policy.match(/dynamic_top_score_(\\d+)_with_market_gate/)||[])[1]||rows.length||0);
+const maxCandidates=Number((snapshot.candidate_admission_policy.match(/dynamic_top_score_(\\d+)_with_market_gate/)||[])[1]||0);
 
 export default function Home(){
   const rows=snapshot.candidates??[];
