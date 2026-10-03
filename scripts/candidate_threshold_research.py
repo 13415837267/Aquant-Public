@@ -25,8 +25,8 @@ OUTPUT = DATA / "research" / "candidate_thresholds.json"
 
 START_DEFAULT = "2015-01-05"
 END_DEFAULT = "2026-09-29"
-THRESHOLDS = tuple(range(60, 91, 2))
-PERCENTILES = (1, 2, 3, 5, 10, 15, 20)
+THRESHOLDS = tuple(range(72, 91, 2))
+PERCENTILES = (0.5, 1, 2, 3, 5)
 
 
 @dataclass
@@ -84,7 +84,9 @@ def feature_frame(day: pd.DataFrame, state: RollingFeatureState) -> pd.DataFrame
     symbols = day["symbol"].to_numpy(dtype=object)
     daily_ret = day["pct_chg"].to_numpy(dtype=float) / 100.0
     volumes = day["volume"].to_numpy(dtype=float)
-    ret60, vol, vol_ratio = state.update_and_features(symbols, daily_ret, volumes)
+    ret126, ret60, ret21, ret20, vol, vol_ratio = state.update_and_features(
+        symbols, daily_ret, volumes
+    )
 
     close = day["close"].to_numpy(dtype=float)
     amount = day["amount"].to_numpy(dtype=float)
@@ -112,8 +114,15 @@ def feature_frame(day: pd.DataFrame, state: RollingFeatureState) -> pd.DataFrame
         "change_pct": day.loc[eligible, "pct_chg"].to_numpy(dtype=float),
         "pe": day.loc[eligible, "pe_ratio"].to_numpy(dtype=float),
         "pb": day.loc[eligible, "pb_ratio"].to_numpy(dtype=float),
+        "ret_126d": ret126[eligible],
         "ret_60d": ret60[eligible],
+        "ret_21d": ret21[eligible],
+        "ret_20d": ret20[eligible],
+        "momentum_126_21": (
+            ((1.0 + ret126[eligible]) / (1.0 + ret21[eligible])) - 1.0
+        ) * 100.0,
         "momentum_60d": ret60[eligible] * 100.0,
+        "return_20d_pct": ret20[eligible] * 100.0,
         "volatility_proxy": vol[eligible],
         "volume_ratio": vol_ratio[eligible],
     })
@@ -221,7 +230,7 @@ def run(start: str, end: str) -> dict:
     }
 
     selected_dates = files[start_i:end_i + 1]
-    warmup_files = files[max(0, start_i - 60):start_i]
+    warmup_files = files[max(0, start_i - 126):start_i]
     replay_files = warmup_files + selected_dates
     total = len(selected_dates)
 
