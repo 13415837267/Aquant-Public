@@ -9,6 +9,9 @@ on:
       - "scripts/validate_candidates.py"
       - "scripts/system_audit.py"
       - "requirements.txt"
+      - "tests/test_validate_candidates.py"
+  schedule:
+    - cron: "0 13 * * 0"
   workflow_dispatch:
 
 permissions:
