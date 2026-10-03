@@ -65,6 +65,9 @@ class FeatureState:
         self.returns = {}
         self.volumes = {}
         self.amounts = {}
+        self.closes = {}
+        self.overnights = {}
+        self.limitups = {}
 
     def build(self, day: pd.DataFrame) -> pd.DataFrame:
         rows = []
@@ -76,7 +79,14 @@ class FeatureState:
             rr = self.returns.setdefault(s, deque(maxlen=20))
             vv = self.volumes.setdefault(s, deque(maxlen=20))
             aa = self.amounts.setdefault(s, deque(maxlen=20))
-            rr.append(ret); vv.append(vol); aa.append(amount)
+            cc = self.closes.setdefault(s, deque(maxlen=20))
+            oo = self.overnights.setdefault(s, deque(maxlen=20))
+            lu = self.limitups.setdefault(s, deque(maxlen=20))
+            prior_close = cc[-1] if cc else np.nan
+            open_px = float(r.open) if pd.notna(r.open) else np.nan
+            overnight = (open_px / prior_close - 1.0) * 100.0 if np.isfinite(open_px) and np.isfinite(prior_close) and prior_close > 0 else np.nan
+            limit_up = int(pd.notna(r.high_limit) and np.isfinite(float(r.high_limit)) and pd.notna(r.close) and float(r.close) >= float(r.high_limit)*(1.0-1e-6))
+            rr.append(ret); vv.append(vol); aa.append(amount); oo.append(overnight); lu.append(limit_up); cc.append(float(r.close) if pd.notna(r.close) else np.nan)
 
             def compound(n):
                 vals = list(rr)[-n:]
@@ -91,6 +101,10 @@ class FeatureState:
 
             vals10 = list(rr)[-10:]
             vol10 = float(np.std(vals10, ddof=1)*100.0) if len(vals10) == 10 and all(np.isfinite(vals10)) else np.nan
+            def compound_overnight(n):
+                vals = list(oo)[-n:]
+                return ((np.prod(1.0 + np.asarray(vals)/100.0) - 1.0) * 100.0
+                        if len(vals) == n and all(np.isfinite(vals)) else np.nan)
             hi = float(r.high) if pd.notna(r.high) else np.nan
             lo = float(r.low) if pd.notna(r.low) else np.nan
             cl = float(r.close) if pd.notna(r.close) else np.nan
@@ -103,9 +117,9 @@ class FeatureState:
                 "change_pct": float(r.pct_chg) if pd.notna(r.pct_chg) else np.nan,
                 "return_1d_pct": compound(1), "return_3d_pct": compound(3),
                 "return_5d_pct": compound(5), "return_10d_pct": compound(10),
-                "return_20d_pct": compound(20), "volume_ratio_5d": ratio,
+                "return_20d_pct": compound(20), "overnight_1d_pct": overnight, "overnight_3d_pct": compound_overnight(3), "overnight_5d_pct": compound_overnight(5), "overnight_10d_pct": compound_overnight(10), "volume_ratio_5d": ratio,
                 "amount_20d": float(np.nanmean(list(aa))) if len(aa) == 20 else np.nan,
-                "volatility_10d_pct": vol10, "close_strength": strength,
+                "volatility_10d_pct": vol10, "close_strength": strength, "intraday_return_pct": ((cl/open_px-1.0)*100.0 if np.isfinite(open_px) and open_px>0 else np.nan), "limit_up_close_flag": limit_up, "limit_up_5d_count": float(sum(list(lu)[-5:])),
                 "is_paused": float(r.is_paused) if pd.notna(r.is_paused) else 0.0,
                 "is_st": float(r.is_st) if pd.notna(r.is_st) else 0.0,
             })
