@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-03 — Runtime cleanup and A-share UI normalization
+
+- Consolidated the repository around the `main` branch only.
+- Removed obsolete admission/variant/next-generation research workflows, scripts and stale research artifacts.
+- Kept historical data, PIT fundamentals, candidate generation, short-term research, audit and Pages as the core runtime.
+- Restored the A-share color convention to red-up and green-down across directional return metrics.
+- Added stale-result protection so an old cloud research run cannot write results after the source strategy changes.
+- Standardized Aquant-Private/main as the sole strategy source; current baseline strategy is 2.1.0.
+
 ## 2026-10-03 — Short-term system pivot 2.0.0
 
 - Re-scoped the production system to a 1–5 trading-session short-term signal horizon.
