@@ -23,9 +23,9 @@ from scripts.walk_forward import build_folds
 
 def evaluate_daily(start: str, end: str, top_n: int, cost_bps: float, slippage_bps: float):
     strategy_model, strategy_version, strategy_commit = base.load_strategy()
-    frozen = dict(getattr(strategy_model, "WEIGHTS", {}))
-    if frozen != EXPECTED_WEIGHTS:
-        raise ValueError(f"unexpected frozen strategy weights: {frozen}")
+    weights = dict(getattr(strategy_model, "WEIGHTS", {}))
+    if weights != EXPECTED_WEIGHTS:
+        raise ValueError(f"unexpected strategy weights: {weights}")
 
     files = base.history_files()
     selected_files, _ = base.iter_selected_dates(files, start, end)
@@ -56,7 +56,7 @@ def evaluate_daily(start: str, end: str, top_n: int, cost_bps: float, slippage_b
 
         for name in VARIANTS:
             targets = (
-                score_variant(scored_base, variant_weights(name, frozen), penalty)
+                score_variant(scored_base, variant_weights(name, weights), penalty)
                 .head(top_n).reset_index(drop=True)
                 if not frame.empty else frame
             )
