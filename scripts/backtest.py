@@ -202,6 +202,7 @@ class RollingFeatureState:
         self.finite60 = np.zeros(initial_capacity, dtype=np.int64)
         self.finite21 = np.zeros(initial_capacity, dtype=np.int64)
         self.finite20 = np.zeros(initial_capacity, dtype=np.int64)
+        self.vol_finite20 = np.zeros(initial_capacity, dtype=np.int64)
         self.volume_valid20 = np.zeros(initial_capacity, dtype=np.int64)
 
     def _grow(self, required: int) -> None:
@@ -228,7 +229,7 @@ class RollingFeatureState:
             "pos126", "pos60", "pos21", "pos20",
             "count126", "count60", "count21", "count20",
             "finite126", "finite60", "finite21", "finite20",
-            "volume_valid20",
+            "vol_finite20", "volume_valid20",
         ):
             old = getattr(self, name)
             if name == "symbols":
@@ -309,7 +310,7 @@ class RollingFeatureState:
         vol_slots = slots20 % 20
         old_vol_ret = self.vol_rets20[idx, vol_slots]
         old_volume = self.volumes20[idx, vol_slots]
-        self.finite20[idx] += (
+        self.vol_finite20[idx] += (
             np.isfinite(daily_ret).astype(np.int64)
             - np.isfinite(old_vol_ret).astype(np.int64)
         )
@@ -349,7 +350,7 @@ class RollingFeatureState:
             )
 
         volatility = np.full(len(idx), np.nan, dtype=float)
-        enough_rets = self.finite20[idx] >= 10
+        enough_rets = self.vol_finite20[idx] >= 10
         if enough_rets.any():
             volatility[enough_rets] = np.nanstd(
                 self.vol_rets20[idx[enough_rets]],
