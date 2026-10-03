@@ -27,11 +27,13 @@ class GateError(ValueError):
 
 @dataclass(frozen=True)
 class PaperDecision:
+    order_id: str
     symbol: str
     side: str
     shares: int
     reference_price: float
     notional: float
+    execution_date: str | None
     status: str
     reason: str
 
@@ -44,6 +46,18 @@ def _decimal(value: Any, field: str) -> Decimal:
     if not result.is_finite():
         raise GateError(f"non-finite {field}: {value!r}")
     return result
+
+
+def _strict_int(value: Any, field: str) -> int:
+    if isinstance(value, bool):
+        raise GateError(f"{field} must be an integer")
+    try:
+        dec = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise GateError(f"invalid {field}: {value!r}") from exc
+    if not dec.is_finite() or dec != dec.to_integral_value():
+        raise GateError(f"{field} must be an integer: {value!r}")
+    return int(dec)
 
 
 def validate_market_snapshot(snapshot: dict[str, Any]) -> None:
@@ -85,14 +99,22 @@ def build_paper_decisions(
     if turnover > turnover_cap:
         raise GateError("planned turnover exceeds cap")
 
+    lot_size = _strict_int(execution_plan["lot_size"], "lot_size")
+    if lot_size <= 0:
+        raise GateError("lot_size must be positive")
+
     decisions: list[PaperDecision] = []
-    for order in orders:
-        symbol = str(order["symbol"])
+    seen_order_ids: set[str] = set()
+    for index, order in enumerate(orders, start=1):
+        symbol = str(order["symbol"]).zfill(6)
         snapshot = market_by_symbol.get(symbol)
         if snapshot is None:
             raise GateError(f"missing next-open snapshot: {symbol}")
 
         validate_market_snapshot(snapshot)
+        snapshot_symbol = str(snapshot["symbol"]).zfill(6)
+        if snapshot_symbol != symbol:
+            raise GateError(f"{symbol}: snapshot symbol mismatch")
 
         side = str(order["side"]).lower()
         if side not in {"buy", "sell"}:
@@ -107,18 +129,29 @@ def build_paper_decisions(
         if side == "sell" and opening <= low_limit:
             raise GateError(f"{symbol}: sell blocked at lower limit")
 
-        shares = int(order["shares"])
-        if shares <= 0 or shares % int(execution_plan["lot_size"]) != 0:
+        shares = _strict_int(order["shares"], f"{symbol}: shares")
+        if shares <= 0 or shares % lot_size != 0:
             raise GateError(f"{symbol}: invalid lot size")
+
+        order_id = str(order.get("order_id") or f"{execution_plan['reference_date']}:{symbol}:{side}:{index}")
+        if order_id in seen_order_ids:
+            raise GateError(f"duplicate order_id: {order_id}")
+        seen_order_ids.add(order_id)
+
+        execution_date = snapshot.get("date")
+        if execution_date is not None:
+            execution_date = str(execution_date)
 
         notional = opening * shares
         decisions.append(
             PaperDecision(
+                order_id=order_id,
                 symbol=symbol,
                 side=side,
                 shares=shares,
                 reference_price=float(opening),
                 notional=float(notional),
+                execution_date=execution_date,
                 status="paper_released",
                 reason="next-open safety gate passed",
             )
