@@ -9,7 +9,7 @@ def plan():
         "strategy_commit": "test",
         "lot_size": 100,
         "turnover_cap": 0.30,
-        "equity_reference": 100000.0,
+        "equity_reference": 200000.0,
         "minimum_order_notional": 1000.0,
         "summary": {"turnover": 0.149082},
         "orders": [
