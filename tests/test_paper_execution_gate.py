@@ -87,3 +87,14 @@ def test_rejects_snapshot_symbol_mismatch():
         assert "snapshot symbol mismatch" in str(exc)
     else:
         raise AssertionError("symbol mismatch must fail closed")
+
+
+def test_rejects_stale_snapshot_date():
+    data = snapshot()
+    data["date"] = "2026-09-30"
+    try:
+        build_paper_decisions(plan(), {"601988": data})
+    except GateError as exc:
+        assert "date must be after plan reference date" in str(exc)
+    else:
+        raise AssertionError("stale next-open snapshot must be rejected")
