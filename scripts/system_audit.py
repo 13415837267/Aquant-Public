@@ -85,6 +85,10 @@ def main() -> None:
 
     if len(candidates.get("candidates", [])) != candidates.get("diagnostics", {}).get("candidate_count"):
         raise RuntimeError("candidate count audit mismatch")
+    if len(candidates.get("candidates", [])) > 3:
+        raise RuntimeError("production candidate count exceeds top-three cap")
+    if int(portfolio.get("position_count", 0)) > 3:
+        raise RuntimeError("production position count exceeds top-three cap")
     if float(portfolio.get("gross_target_weight", 0)) > 1.0 + 1e-8:
         raise RuntimeError("portfolio gross target exceeds 100%")
     if portfolio.get("audit", {}).get("long_only") is not True or portfolio.get("audit", {}).get("leverage") is not False:
