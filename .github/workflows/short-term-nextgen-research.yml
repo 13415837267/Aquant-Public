@@ -24,6 +24,8 @@ jobs:
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v6
+      - name: Lock source revision
+        run: echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -52,9 +54,12 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          if [[ "$(git rev-parse origin/main)" != "$SOURCE_SHA" ]]; then
+            echo "Source revision changed during research; refusing stale result commit."
+            exit 1
+          fi
           git add data/backtest/short_term_nextgen_research.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "research: evaluate next-generation short-term signals"
-          git fetch origin main
-          git rebase origin/main
           git push origin HEAD:main
