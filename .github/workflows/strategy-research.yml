@@ -91,7 +91,7 @@ jobs:
             --slippage-bps 2 \
             --output data/backtest/walk_forward.json
 
-      - name: Run portfolio-cost sensitivity
+      - name: Run candidate-count sensitivity
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
@@ -104,7 +104,7 @@ jobs:
             --slippage-bps 2 \
             --output data/backtest/sensitivity.json
 
-      - name: Run strict historical backtest
+      - name: Run candidate selection backtest
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
@@ -213,7 +213,7 @@ jobs:
           if audit.get("126_session_warmup_before_oos") is not True:
               raise SystemExit("walk-forward 126-session warmup audit missing")
 
-          print(f"validated strategy={expected_v} commit={expected_c} candidates={count}")
+          print(f"validated candidate strategy={expected_v} commit={expected_c} candidates={count}")
           PY
 
       - name: Run system audit
