@@ -4,11 +4,12 @@ on:
   push:
     paths:
       - "scripts/regime_factor_diagnostics.py"
+      - ".github/workflows/regime-factor-diagnostics.yml"
   workflow_dispatch:
     inputs:
       start: {description: "History start", required: true, default: "2015-01-05"}
       end: {description: "History end", required: true, default: "2026-09-29"}
-      top_n: {description: "Portfolio size", required: true, default: "30"}
+      top_n: {description: "Portfolio size", required: true, default: "3"}
 
 permissions:
   contents: write
@@ -47,12 +48,19 @@ jobs:
         run: |
           echo "start=${WF_START:-2015-01-05}" >> "$GITHUB_OUTPUT"
           echo "end=${WF_END:-2026-09-29}" >> "$GITHUB_OUTPUT"
-          echo "top_n=${WF_TOP_N:-30}" >> "$GITHUB_OUTPUT"
+          echo "top_n=${WF_TOP_N:-3}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve strategy commit
         id: strategy
         shell: bash
         run: echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build fresh baseline backtest
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/backtest.py             --start "${{ steps.params.outputs.start }}"             --end "${{ steps.params.outputs.end }}"             --top-n "${{ steps.params.outputs.top_n }}"             --cost-bps 3             --slippage-bps 2
 
       - name: Run diagnostics
         env:
