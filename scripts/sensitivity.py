@@ -2,7 +2,7 @@
 
 The workflow publishes a synchronized, warmup-excluded result snapshot.
 
-Only portfolio-size and execution-cost assumptions vary. Historical data, PIT rules,
+Only candidate-pool size and execution-cost assumptions vary. Historical data, PIT rules,
 and the Private strategy commit remain fixed.
 """
 from __future__ import annotations
