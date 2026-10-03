@@ -86,7 +86,17 @@ def test_cycle_requires_valuation_snapshot_for_remaining_position():
     no_orders_plan["equity_reference"] = state["equity"]
     no_orders_plan["starting_cash_reference"] = state["cash"]
     incomplete = snapshot()
-    incomplete["symbols"] = {}
+    incomplete["symbols"] = {
+        "600001": {
+            "symbol": "600001",
+            "date": "2026-10-01",
+            "open": 20.0,
+            "high_limit": 22.0,
+            "low_limit": 18.0,
+            "is_paused": False,
+            "is_st": False,
+        }
+    }
     try:
         run_cycle(no_orders_plan, incomplete, state)
     except RuntimeError as exc:
