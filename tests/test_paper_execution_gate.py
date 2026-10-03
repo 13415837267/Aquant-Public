@@ -9,6 +9,8 @@ def plan():
         "strategy_commit": "test",
         "lot_size": 100,
         "turnover_cap": 0.30,
+        "equity_reference": 100000.0,
+        "minimum_order_notional": 1000.0,
         "summary": {"turnover": 0.149082},
         "orders": [
             {"order_id": "ord-1", "symbol": "601988", "side": "buy", "shares": 7400},
@@ -117,3 +119,19 @@ def test_rejects_ambiguous_status_flag():
         assert "invalid is_paused flag" in str(exc)
     else:
         raise AssertionError("ambiguous status flags must fail closed")
+
+
+def test_rechecks_turnover_at_actual_open():
+    data = plan()
+    data["orders"][0]["shares"] = 100
+    data["turnover_cap"] = 0.01
+    data["summary"]["turnover"] = 0.001
+    try:
+        build_paper_decisions(
+            data,
+            {"601988": snapshot(open_price=20.0, high_limit=22.0, low_limit=18.0)},
+        )
+    except GateError as exc:
+        assert "actual next-open turnover exceeds cap" in str(exc)
+    else:
+        raise AssertionError("actual opening turnover must be rechecked")
