@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
-from scripts.validate_candidates import validate_candidates
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from scripts.validate_candidates import validate_candidates
 
 REQUIRED_READY = [
     "data/backtest/latest.json",
