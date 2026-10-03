@@ -193,6 +193,10 @@ def build_paper_decisions(
             )
         )
 
+    actual_turnover = sum(item.notional for item in decisions) / float(equity_reference)
+    if actual_turnover > float(turnover_cap):
+        raise GateError("actual next-open turnover exceeds cap")
+
     return {
         "schema_version": 1,
         "mode": "paper",
@@ -205,6 +209,7 @@ def build_paper_decisions(
         "audit": {
             "fail_closed": True,
             "next_open_snapshot_required": True,
+            "actual_turnover_rechecked": True,
             "broker_api_used": False,
             "future_function": False,
         },
