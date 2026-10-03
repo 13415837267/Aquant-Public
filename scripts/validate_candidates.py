@@ -21,6 +21,7 @@ REQUIRED_CANDIDATE_FIELDS = {
     "volatility_10d_pct","close_strength","score",
 }
 EXPECTED_WEIGHTS = {"momentum_short","overnight_structure","volume_activity","price_strength","liquidity","safety"}
+LEGACY_WEIGHTS = {"momentum_short","volume_activity","price_strength","liquidity","safety"}
 MAX_CANDIDATES = 3
 
 def finite(value: object, field: str) -> float:
@@ -68,8 +69,9 @@ def validate_candidates(payload, private_version=None, private_commit=None):
     if private_version is not None and version != private_version: raise RuntimeError("strategy version mismatch")
     if private_commit is not None and commit != private_commit: raise RuntimeError("strategy commit mismatch")
     weights = payload.get("factor_weights")
-    if not isinstance(weights, dict) or set(weights) != EXPECTED_WEIGHTS: raise RuntimeError("factor weights are invalid")
-    if abs(sum(finite(weights[k], f"factor_weights.{k}") for k in EXPECTED_WEIGHTS)-1.0) > 1e-9:
+    if not isinstance(weights, dict) or set(weights) not in (EXPECTED_WEIGHTS, LEGACY_WEIGHTS): raise RuntimeError("factor weights are invalid")
+    weight_keys = set(weights)
+    if abs(sum(finite(weights[k], f"factor_weights.{k}") for k in weight_keys)-1.0) > 1e-9:
         raise RuntimeError("factor weights must sum to 1")
     candidates = payload.get("candidates")
     if not isinstance(candidates, list) or len(candidates) > MAX_CANDIDATES: raise RuntimeError("invalid candidate count")
