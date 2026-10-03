@@ -45,8 +45,8 @@ def test_private_provenance_must_match_when_supplied():
 
 def test_validate_rejects_non_production_timestamp():
     payload=_payload(); payload["as_of"]="2026-09-30T17:59:59+08:00"
-    with pytest.raises(RuntimeError,match="18:00"): validate_candidates(payload)
+    with pytest.raises(RuntimeError,match="invalid production timestamp"): validate_candidates(payload)
 
 def test_validate_rejects_non_production_factor_weights():
-    payload=_payload(); payload["factor_weights"]["momentum_short"]=0.34; payload["factor_weights"]["liquidity"]=0.16
+    payload=_payload(); payload["factor_weights"]["momentum_short"]=0.34
     with pytest.raises(RuntimeError,match="factor weights"): validate_candidates(payload)

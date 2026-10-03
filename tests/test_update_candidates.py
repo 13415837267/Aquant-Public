@@ -6,7 +6,7 @@ class FakeStrategy:
     WEIGHTS={"momentum_short":0.35,"volume_activity":0.25,"price_strength":0.15,"liquidity":0.15,"safety":0.10}
     @staticmethod
     def score_universe(frame):
-        out=frame.copy(); out["score"]=out["return_5d"]; return out.sort_values("score",ascending=False)
+        out=frame.copy(); out["score"]=out["return_5d_pct"]; return out.sort_values("score",ascending=False)
     @staticmethod
     def admit_candidates(frame): return frame.head(2).copy()
 
