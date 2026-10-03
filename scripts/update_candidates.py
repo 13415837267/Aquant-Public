@@ -106,21 +106,26 @@ def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> pd.DataF
     hist = hist.loc[hist["symbol"].map(is_main_board_symbol)].copy()
     if hist.empty:
         raise RuntimeError("No Shanghai/Shenzhen main-board rows in candidate input")
+
     numeric_cols = [
         "close", "pre_close", "volume", "amount", "turnover_pct", "pct_chg",
         "pe_ratio", "pb_ratio",
     ]
     for col in numeric_cols:
         hist[col] = pd.to_numeric(hist[col], errors="coerce")
+
     hist = hist.sort_values(["symbol", "date"])
     grouped = hist.groupby("symbol", sort=False)
-
-    # Provider pct_chg is the economic daily return series. Compounding it
-    # avoids raw-close discontinuities on corporate-action dates and does not
-    # inject hindsight from a future-adjusted factor series.
     hist["daily_ret"] = hist["pct_chg"] / 100.0
     hist["gross_ret"] = 1.0 + hist["daily_ret"]
-    hist["ret_1d"] = hist["daily_ret"]
+
+    hist["ret_126d"] = (
+        grouped["gross_ret"]
+        .rolling(126, min_periods=126)
+        .apply(np.prod, raw=True)
+        .reset_index(level=0, drop=True)
+        - 1.0
+    )
     hist["ret_60d"] = (
         grouped["gross_ret"]
         .rolling(60, min_periods=60)
@@ -128,15 +133,34 @@ def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> pd.DataF
         .reset_index(level=0, drop=True)
         - 1.0
     )
+    hist["ret_21d"] = (
+        grouped["gross_ret"]
+        .rolling(21, min_periods=21)
+        .apply(np.prod, raw=True)
+        .reset_index(level=0, drop=True)
+        - 1.0
+    )
+    hist["ret_20d"] = (
+        grouped["gross_ret"]
+        .rolling(20, min_periods=20)
+        .apply(np.prod, raw=True)
+        .reset_index(level=0, drop=True)
+        - 1.0
+    )
+    hist["momentum_126_21"] = (
+        (1.0 + hist["ret_126d"]) / (1.0 + hist["ret_21d"]) - 1.0
+    )
     hist["volatility_proxy"] = (
         grouped["daily_ret"].rolling(20, min_periods=10).std()
-        .reset_index(level=0, drop=True) * 100
+        .reset_index(level=0, drop=True) * 100.0
     )
     avg_volume_20d = (
         grouped["volume"].rolling(20, min_periods=10).mean()
         .reset_index(level=0, drop=True)
     )
-    hist["volume_ratio"] = hist["volume"] / avg_volume_20d.replace(0, float("nan"))
+    hist["volume_ratio"] = hist["volume"] / avg_volume_20d.replace(
+        0, float("nan")
+    )
 
     latest = hist.loc[hist["date"].eq(latest_date)].copy()
     names = _load_current_names()
@@ -155,21 +179,27 @@ def _prepare_strategy_frame(history: pd.DataFrame, latest_date: str) -> pd.DataF
         & latest["is_st"].eq(0)
         & latest["is_paused"].eq(0)
         & latest["close"].gt(2)
-        & latest["amount"].ge(2e7)
-        & latest["ret_60d"].notna()
+        & latest["amount"].ge(3e7)
+        & latest["ret_126d"].notna()
+        & latest["momentum_126_21"].notna()
     )
     latest = latest.loc[usable].copy()
 
-    strategy_frame = latest.rename(columns={
+    return latest.rename(columns={
         "pe_ratio": "pe",
         "pb_ratio": "pb",
         "pct_chg": "change_pct",
     })[
-        ["symbol", "name", "close", "amount", "turnover_pct", "change_pct",
-         "pe", "pb", "ret_60d", "volatility_proxy", "volume_ratio"]
-    ].copy()
-    strategy_frame["momentum_60d"] = strategy_frame["ret_60d"] * 100
-    return strategy_frame
+        [
+            "symbol", "name", "close", "amount", "turnover_pct", "change_pct",
+            "pe", "pb", "ret_126d", "ret_60d", "ret_21d", "ret_20d",
+            "momentum_126_21", "volatility_proxy", "volume_ratio",
+        ]
+    ].assign(
+        momentum_126_21=lambda x: x["momentum_126_21"] * 100.0,
+        momentum_60d=lambda x: x["ret_60d"] * 100.0,
+        return_20d_pct=lambda x: x["ret_20d"] * 100.0,
+    ).reset_index(drop=True)
 
 
 def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: str, strategy_commit: str) -> dict:
@@ -193,7 +223,7 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
         & latest_main_board["is_st"].eq(0)
         & latest_main_board["is_paused"].eq(0)
         & latest_main_board["close"].gt(2)
-        & latest_main_board["amount"].ge(2e7)
+        & latest_main_board["amount"].ge(3e7)
     )
 
     diagnostics = {
@@ -209,13 +239,16 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
         raise RuntimeError("No usable stocks after strategy universe filters")
 
     diagnostics["scorable_rows"] = int(len(strategy_frame))
-    diagnostics["dropped_no_60d_momentum_or_history"] = max(
+    diagnostics["dropped_no_126d_momentum_or_history"] = max(
         0,
         diagnostics["latest_basic_eligible_rows"] - diagnostics["scorable_rows"],
     )
 
     scored = strategy_model.score_universe(strategy_frame)
-    scored = scored.head(30).reset_index(drop=True)
+    admission = getattr(strategy_model, "admit_candidates", None)
+    if not callable(admission):
+        raise RuntimeError("Private strategy must expose admit_candidates()")
+    scored = admission(scored)
 
     rows = []
     for idx, row in scored.iterrows():
@@ -250,8 +283,8 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
         "strategy_version": strategy_version,
         "strategy_commit": strategy_commit,
         "market_scope": "沪深主板：000001-004999.SZ（排除001001-001199 CDR）+ 600/601/603/605.SH",
-        "universe": "沪深主板；排除 ST/退市相关标的、停牌、价格≤2元、最近交易日成交额<2000万元；60日动量必须有完整窗口",
-        "lookback_trading_days": 60,
+        "universe": "沪深主板；排除 ST/退市相关标的、停牌、价格≤2元、最近交易日成交额<3000万元；126日动量必须有完整窗口",
+        "lookback_trading_days": 126,
         "diagnostics": {
             **diagnostics,
             "candidate_count": len(rows),
@@ -259,18 +292,18 @@ def build_candidates(history: pd.DataFrame, strategy_model, strategy_version: st
         "candidates": rows,
         "factor_weights": weights,
         "future_function": False,
-        "candidate_admission_policy": "fixed_top_n_30_baseline",
+        "candidate_admission_policy": "dynamic_score_floor_plus_top_percentile",
         "audit": {
             "hard_eligibility_applied_before_scoring": True,
             "strategy_source_locked_to_private": True,
-            "top_n_is_not_a_score_threshold": True,
+            "top_n_is_not_a_score_threshold": False,
         },
     }
 
 
 def main() -> None:
     strategy_model, strategy_version, strategy_commit = _load_private_strategy()
-    history, dates = _read_history_window(61)
+    history, dates = _read_history_window(126)
     snapshot = build_candidates(history, strategy_model, strategy_version, strategy_commit)
     snapshot["history_files_used"] = len(dates)
     snapshot["history_window_start"] = dates[-1]
