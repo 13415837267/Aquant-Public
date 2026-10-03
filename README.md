@@ -157,7 +157,7 @@ app/
 
 历史回测、Walk-forward、候选准入阈值、因子消融和候选数量/成本敏感性仅用于验证候选池规则，不参与每日生产发布。统一研究入口为 `.github/workflows/strategy-research.yml`，只在 `main` 上运行。
 
-## 十、GitHub Pages
+## 十一、GitHub Pages
 
 公开网站：
 
@@ -165,7 +165,7 @@ https://13415837267.github.io/Aquant-Public/
 
 Pages 使用 Next.js 静态导出。
 
-## 十一、维护规则
+## 十二、维护规则
 
 - 数据提交使用 `data:` 前缀
 - 策略版本记录在 Private 的 `strategy/version.py`
