@@ -31,14 +31,14 @@ export default function Home(){
   const m=snapshot.market;
   return <main className="container">
     <header className="header">
-      <div><div className="eyebrow">Aquant / Short-Term Runtime</div><h1>短线候选池</h1><div className="color-legend"><span className="legend-rise">红涨</span><span className="legend-fall">绿跌</span><span className="legend-flat">平盘中性</span></div>
-      <p className="subtitle">T 日收盘生成信号，T+1 开盘进入，最长持有 5 个交易日。弱市场允许无交易信号。</p></div>
+      <div><div className="eyebrow">Aquant / 短线运行系统</div><h1>短线候选池</h1><div className="color-legend"><span className="legend-rise">红涨</span><span className="legend-fall">绿跌</span><span className="legend-flat">平盘中性</span></div>
+      <p className="subtitle">T 日收盘生成信号，T+1 开盘执行，最长持有 5 个交易日；弱市场允许空仓。</p></div>
       <div className="pill">策略 v{snapshot.strategy_version} · {productionReady?"生产可用":(provenanceMatches?"研究中 · 未通过生产门槛":"研究中 · 审计版本不一致")}</div>
     </header>
     <section className="grid">
       <div className="card"><div className="metric-label">候选数量</div><div className="metric-value">{rows.length}</div><div className="metric-note">动态上限 3</div></div>
       <div className="card"><div className="metric-label">可评分股票</div><div className="metric-value">{snapshot.diagnostics?.scorable_rows??"—"}</div><div className="metric-note">20日短线特征</div></div>
-      <div className="card"><div className="metric-label">市场状态</div><div className="metric-value">{m?.regime??"—"}</div><div className="metric-note">广度 {m?fmt(m.breadth_pct,1)+"%":"—"}</div></div>
+      <div className="card"><div className="metric-label">市场状态</div><div className="metric-value">{m?.regime==="neutral"?"中性":m?.regime==="risk_on"?"风险偏好":m?.regime==="risk_off"?"风险规避":m?.regime??"—"}</div><div className="metric-note">广度 {m?fmt(m.breadth_pct,1)+"%":"—"}</div></div>
       <div className="card"><div className="metric-label">交易窗口</div><div className="metric-value">1–5日</div><div className="metric-note">T+1 开盘执行</div></div>
     </section>
     <div className="main">
@@ -49,11 +49,11 @@ export default function Home(){
         <tbody>{rows.map(r=><tr key={r.symbol}><td className="rank">{r.rank}</td><td><span className="symbol">{r.symbol}</span><span className="name">{r.name}</span></td><td>{fmt(r.price)}</td><td className={r.overnight_1d_pct==null?"":dirClass(r.overnight_1d_pct)}>{r.overnight_1d_pct==null?"—":pct(r.overnight_1d_pct)}</td><td className={dirClass(r.change_pct)}>{pct(r.change_pct)}</td><td className={dirClass(r.return_3d_pct)}>{pct(r.return_3d_pct)}</td><td className={dirClass(r.return_5d_pct)}>{pct(r.return_5d_pct)}</td><td className={dirClass(r.return_10d_pct)}>{pct(r.return_10d_pct)}</td><td>{fmt(r.volume_ratio_5d,2)}x</td><td>{amount(r.amount)}</td><td>{fmt(r.volatility_10d_pct,2)}%</td><td>{fmt(r.close_strength*100,1)}%</td><td className="score">{fmt(r.score)}</td></tr>)}</tbody></table></div>}
       </section>
       <aside className="side">
-        <div className="card"><h2>短线因子</h2><p>核心驱动改为短周期价格行为、量能、价格强度、流动性和安全，不再用 PB/PE 作为生产信号核心。</p>
+        <div className="card"><h2>短线因子</h2><p>核心驱动为短周期价格行为、量能、价格强度、流动性和安全，不以 PB/PE 作为生产信号核心。</p>
         {[["短线动量","momentum_short"],["量能活跃","volume_activity"],["价格强度","price_strength"],["流动性","liquidity"],["安全","safety"]].map(([label,key])=><div className="factor" key={key}><div className="factor-row"><span className="factor-name">{label}</span><span className="factor-weight">{w[key]==null?"—":weight(w[key])}</span></div></div>)}</div>
-        <div className="card source-box"><h2>运行信息</h2><dl className="kv"><dt>信号</dt><dd>{snapshot.signal_horizon}</dd><dt>止盈参考</dt><dd>+6%</dd><dt>止损参考</dt><dd>-3%</dd><dt>候选规则</dt><dd>动态 Top-3 + 市场门控</dd><dt>生产门控</dt><dd>{productionReady?"已通过":(provenanceMatches?"研究阶段，未通过":"审计与候选版本不一致")}</dd><dt>策略版本</dt><dd>{snapshot.strategy_version}</dd></dl></div>
+        <div className="card source-box"><h2>运行信息</h2><dl className="kv"><dt>信号</dt><dd>{snapshot.signal_horizon.replace("T收盘信号","T日收盘信号").replace("T+1开盘进入","T+1开盘执行")}</dd><dt>止盈参考</dt><dd>+6%</dd><dt>止损参考</dt><dd>-3%</dd><dt>候选规则</dt><dd>动态 Top-3 + 市场门控</dd><dt>生产门控</dt><dd>{productionReady?"已通过":(provenanceMatches?"研究阶段，未通过":"审计与候选版本不一致")}</dd><dt>策略版本</dt><dd>{snapshot.strategy_version}</dd></dl></div>
       </aside>
     </div>
-    <footer className="footer"><span>Research / paper-trading system · not broker execution.</span><span>{productionReady?(snapshot.diagnostics?.risk_off_no_trade?"弱市：允许无候选":"生产候选可用"):"研究候选：未进入生产信号层"}</span></footer>
+    <footer className="footer"><span>研究 / 模拟交易系统 · 不连接券商执行。</span><span>{productionReady?(snapshot.diagnostics?.risk_off_no_trade?"弱市：允许无候选":"生产候选可用"):"研究候选：未进入生产信号层"}</span></footer>
   </main>;
 }
