@@ -97,6 +97,7 @@ def _prepare(history:pd.DataFrame,latest_date:str):
 def build_candidates(history,strategy_model,strategy_version,strategy_commit):
     latest_date=str(history["date"].dropna().max())
     frame,diag=_prepare(history,latest_date)
+    frame=frame.rename(columns={"pct_chg":"change_pct"})
     if frame.empty: raise RuntimeError("No usable rows after short-term eligibility/features")
     scored=strategy_model.score_universe(frame)
     admission=getattr(strategy_model,"admit_candidates",None)
