@@ -117,6 +117,16 @@ def build_paper_decisions(
     if lot_size <= 0:
         raise GateError("lot_size must be positive")
 
+    equity_reference = _decimal(execution_plan["equity_reference"], "equity_reference")
+    minimum_order_notional = _decimal(
+        execution_plan.get("minimum_order_notional", 0),
+        "minimum_order_notional",
+    )
+    if equity_reference <= 0:
+        raise GateError("equity_reference must be positive")
+    if minimum_order_notional < 0:
+        raise GateError("minimum_order_notional must be non-negative")
+
     decisions: list[PaperDecision] = []
     seen_order_ids: set[str] = set()
     for index, order in enumerate(orders, start=1):
@@ -167,6 +177,8 @@ def build_paper_decisions(
                 raise GateError(f"{symbol}: executable shares exceed requested shares")
 
         notional = opening * shares
+        if notional < minimum_order_notional:
+            raise GateError(f"{symbol}: actual order notional below minimum")
         decisions.append(
             PaperDecision(
                 order_id=order_id,
