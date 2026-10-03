@@ -1,0 +1,60 @@
+name: Short-Term Next-Generation Research
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/short_term_nextgen_research.py"
+      - ".github/workflows/short-term-nextgen-research.yml"
+      - "scripts/short_term_research.py"
+      - "scripts/market_scope.py"
+      - "requirements.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: short-term-nextgen-research
+  cancel-in-progress: false
+
+jobs:
+  research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Python quality
+        run: python -m pytest -q
+      - name: Next-generation research
+        run: |
+          python scripts/short_term_nextgen_research.py             --development-start 2018-01-05             --development-end 2024-12-20             --validation-start 2025-01-02             --validation-end 2025-12-31             --final-start 2026-01-05             --final-end 2026-09-21
+      - name: Validate artifact
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("data/backtest/short_term_nextgen_research.json")
+          x = json.loads(p.read_text(encoding="utf-8"))
+          assert x["status"] == "ready"
+          assert x["future_function"] is False
+          assert x["selection_rule"].startswith("All formulas")
+          assert len(x["variants"]) == 6
+          print("validated", len(x["variants"]), "variants")
+          PY
+      - name: Commit research output
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/backtest/short_term_nextgen_research.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: evaluate next-generation short-term signals"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
