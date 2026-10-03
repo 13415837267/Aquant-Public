@@ -294,6 +294,7 @@ def run_diagnostics(
         "strategy_source": "Aquant-Private/main",
         "strategy_version": strategy_version,
         "strategy_commit": strategy_commit,
+        "future_function": False,
         "strategy_weights": weights,
         "overall_market": overall_market,
         "regime_performance": regime_rows,
