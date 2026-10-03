@@ -44,6 +44,9 @@ jobs:
           echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Python quality
         run: python -m pytest -q
+      - name: Private strategy quality
+        working-directory: .private-strategy
+        run: python -m pytest -q
       - name: Generate candidates
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
