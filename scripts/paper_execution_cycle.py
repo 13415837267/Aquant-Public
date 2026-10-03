@@ -16,6 +16,7 @@ any order. It never calls a broker API.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from copy import deepcopy
@@ -85,6 +86,25 @@ def _append_ledger(path: Path, entries: list[dict[str, Any]], existing_ids: set[
     return written
 
 
+def _snapshot_fingerprint(
+    market: dict[str, dict[str, Any]],
+    required_symbols: set[str],
+) -> str:
+    payload = {
+        symbol: market[symbol]
+        for symbol in sorted(required_symbols)
+        if symbol in market
+    }
+    return hashlib.sha256(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()[:24]
+
+
 def reconcile_ledger(state: dict[str, Any], ledger_path: Path) -> int:
     """Repair missing audit rows and fail on orphan/conflicting ledger data."""
     records = _ledger_records(ledger_path)
@@ -142,6 +162,33 @@ def run_cycle(
         if state.get("strategy_commit") != plan.get("strategy_commit"):
             raise RuntimeError("paper state strategy commit does not match plan")
 
+    if not isinstance(state.get("applied_plans", {}), dict):
+        raise RuntimeError("paper state applied_plans must be an object")
+
+    plan_id = gate["plan_id"]
+    required_symbols = {
+        str(order["symbol"]).zfill(6)
+        for order in gate["orders"]
+    } | {
+        str(symbol).zfill(6)
+        for symbol in state.get("positions", {})
+        if int(state["positions"][symbol].get("shares", 0)) > 0
+    }
+    missing_valuation_inputs = sorted(required_symbols - set(market))
+    if missing_valuation_inputs:
+        raise RuntimeError(
+            "missing next-open snapshots: " + ", ".join(missing_valuation_inputs)
+        )
+
+    snapshot_fingerprint = _snapshot_fingerprint(market, required_symbols)
+    applied_plan = state["applied_plans"].get(plan_id)
+    if applied_plan is not None:
+        if str(applied_plan.get("execution_date")) != execution_date:
+            raise RuntimeError("execution plan already applied on a different date")
+        if str(applied_plan.get("snapshot_fingerprint")) != snapshot_fingerprint:
+            raise RuntimeError("execution plan already applied with a different snapshot")
+        return deepcopy(state), [], gate
+
     fills = []
     for order in gate["orders"]:
         fill_id = f"paper:{execution_date}:{order['order_id']}"
@@ -185,6 +232,10 @@ def run_cycle(
     next_state["plan_reference_date"] = plan["reference_date"]
     next_state["last_gate_status"] = gate["status"]
     next_state["broker_submission"] = False
+    next_state["applied_plans"][plan_id] = {
+        "execution_date": execution_date,
+        "snapshot_fingerprint": snapshot_fingerprint,
+    }
     return next_state, ledger_entries, gate
 
 
