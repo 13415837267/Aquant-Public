@@ -12,10 +12,7 @@ on:
       - "scripts/factor_ablation.py"
       - "scripts/factor_ablation_walk_forward.py"
       - "scripts/regime_factor_diagnostics.py"
-      - "scripts/system_audit.py"
-      - ".github/workflows/strategy-research.yml"
-      - "tests/test_backtest.py"
-      - "tests/test_update_candidates.py"
+      - "requirements.txt"
   workflow_dispatch:
 
 permissions:
