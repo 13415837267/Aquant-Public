@@ -29,8 +29,11 @@ def archive_candidates(payload: dict, root: Path = HISTORY_ROOT) -> Path:
     serialized = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
     if destination.exists():
-        existing = destination.read_text(encoding="utf-8")
-        if existing != serialized:
+        try:
+            existing_payload = json.loads(destination.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"candidate history is unreadable: {destination}") from exc
+        if existing_payload != payload:
             raise RuntimeError(f"candidate history is immutable and differs: {destination}")
         return destination
 
