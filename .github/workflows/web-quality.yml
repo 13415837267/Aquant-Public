@@ -1,0 +1,31 @@
+name: Web Quality Gate
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "data/candidates.json"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.*"
+      - "tsconfig.json"
+      - ".github/workflows/web-quality.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build static site
+        run: npm run build
