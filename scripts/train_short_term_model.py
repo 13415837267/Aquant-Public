@@ -71,34 +71,34 @@ def make_features(frame):
     return np.column_stack(cols)
 
 
-def future_label(symbol, future_days):
-    if not future_days:
-        return None
-    first = future_days[0]
-    row = first.loc[first["symbol"].eq(symbol)]
-    if row.empty or pd.isna(row.iloc[0].get("open")):
-        return None
-    entry = float(row.iloc[0]["open"])
-    if not np.isfinite(entry) or entry <= 0:
-        return None
-    highs = []
-    closes = []
+def build_targets(symbols, future_days):
+    if len(future_days) < MAX_FORWARD_SESSIONS:
+        n = len(symbols)
+        return np.zeros(n, dtype=bool), np.full(n, np.nan), np.full(n, np.nan), np.zeros(n, dtype=bool)
+    keys = pd.Index(pd.Series(symbols, dtype="string").astype(str).str.zfill(6))
+    first = future_days[0].set_index("symbol")
+    entry = pd.to_numeric(first["open"], errors="coerce").reindex(keys).to_numpy(dtype=float)
+    high_matrix = []
+    close_matrix = []
     for day in future_days[:MAX_FORWARD_SESSIONS]:
-        r = day.loc[day["symbol"].eq(symbol)]
-        if r.empty:
-            continue
-        hi = pd.to_numeric(r.iloc[0].get("high"), errors="coerce")
-        cl = pd.to_numeric(r.iloc[0].get("close"), errors="coerce")
-        if pd.notna(hi):
-            highs.append(float(hi))
-        if pd.notna(cl):
-            closes.append(float(cl))
-    if len(highs) < MAX_FORWARD_SESSIONS or len(closes) < MAX_FORWARD_SESSIONS:
-        return None
-    gross_best = max(highs) / entry - 1.0
-    net_best_pct = gross_best * 100.0 - ROUND_TRIP_COST_BPS / 100.0
-    net_close_pct = closes[-1] / entry * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
-    return int(net_best_pct >= NET_WIN_THRESHOLD_PCT), net_best_pct, net_close_pct
+        indexed = day.set_index("symbol")
+        high_matrix.append(pd.to_numeric(indexed["high"], errors="coerce").reindex(keys).to_numpy(dtype=float))
+        close_matrix.append(pd.to_numeric(indexed["close"], errors="coerce").reindex(keys).to_numpy(dtype=float))
+    highs = np.column_stack(high_matrix)
+    closes = np.column_stack(close_matrix)
+    complete = (
+        np.isfinite(entry) & (entry > 0)
+        & np.isfinite(highs).all(axis=1)
+        & np.isfinite(closes).all(axis=1)
+    )
+    best = np.full(len(keys), np.nan)
+    close5 = np.full(len(keys), np.nan)
+    best[complete] = np.max(highs[complete], axis=1) / entry[complete] * 100.0 - 100.0
+    close5[complete] = closes[complete, -1] / entry[complete] * 100.0 - 100.0
+    best_net = best - ROUND_TRIP_COST_BPS / 100.0
+    close_net = close5 - ROUND_TRIP_COST_BPS / 100.0
+    labels = complete & (best_net >= NET_WIN_THRESHOLD_PCT)
+    return labels, best_net, close_net, complete
 
 
 class LogisticModel:
@@ -142,7 +142,7 @@ def stream_dataset(files, start, end, state, mode, model=None, metrics=None, fea
 
     processed = 0
     samples = 0
-    for i in range(max(20, start_i - 1), end_i + 1):
+    for i in range(max(0, start_i - 20), end_i + 1):
         date = dates[i]
         if date < start or date > end:
             state.build(get(i))
@@ -154,19 +154,16 @@ def stream_dataset(files, start, end, state, mode, model=None, metrics=None, fea
         if frame.empty:
             continue
         x = make_features(frame)
-        ys, bests, closes, keep = [], [], [], []
-        for row_idx, symbol in enumerate(frame["symbol"].astype(str).str.zfill(6)):
-            label = future_label(symbol, futures)
-            if label is None:
-                continue
-            keep.append(row_idx)
-            ys.append(label[0]); bests.append(label[1]); closes.append(label[2])
-        if not keep:
+        labels, best_net, close_net, complete = build_targets(
+            frame["symbol"].astype(str).str.zfill(6).tolist(), futures
+        )
+        keep = np.flatnonzero(complete)
+        if len(keep) == 0:
             continue
-        x = x[np.asarray(keep)]
-        y = np.asarray(ys, dtype=np.float64)
-        best = np.asarray(bests, dtype=np.float64)
-        close = np.asarray(closes, dtype=np.float64)
+        x = x[keep]
+        y = labels[keep].astype(np.float64)
+        best = best_net[keep]
+        close = close_net[keep]
         samples += len(y)
         processed += 1
 
