@@ -290,6 +290,9 @@ jobs:
               Path("data/backtest/sensitivity.json"),
               Path("data/backtest/execution_constrained.json"),
               Path("data/backtest/execution_comparison.json"),
+              Path("data/backtest/factor_ablation.json"),
+              Path("data/backtest/factor_ablation_walk_forward.json"),
+              Path("data/backtest/regime_factor_diagnostics.json"),
           ]
 
           for path in files:
@@ -366,7 +369,11 @@ jobs:
             data/backtest/sensitivity.json \
             data/backtest/execution_constrained.json \
             data/backtest/execution_comparison.json \
-            data/backtest/_CONSTRAINED_CLOUD_RUN.json
+            data/backtest/factor_ablation.json \
+            data/backtest/factor_ablation_walk_forward.json \
+            data/backtest/regime_factor_diagnostics.json \
+            data/backtest/_CONSTRAINED_CLOUD_RUN.json \
+            data/system_audit.json
           if git diff --cached --quiet; then
             echo "No research output changes."
             exit 0
