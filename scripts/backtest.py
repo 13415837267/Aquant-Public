@@ -379,7 +379,7 @@ class RollingFeatureState:
         valid_momentum = (
             np.isfinite(ret126)
             & np.isfinite(ret21)
-            & (1.0 + ret21) > 0
+            & ((1.0 + ret21) > 0)
         )
         momentum_126_21[valid_momentum] = (
             (1.0 + ret126[valid_momentum])
