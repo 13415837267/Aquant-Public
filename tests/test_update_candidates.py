@@ -11,11 +11,17 @@ class FakeStrategy:
     def score_universe(frame):
         out = frame.copy()
         out["score"] = out["momentum_60d"]
+        out["f_safety"] = 0.8
+        out["f_liquidity"] = 0.8
         return out.sort_values("score", ascending=False)
+
+    @staticmethod
+    def admit_candidates(frame):
+        return frame.copy()
 
 
 def _history():
-    dates = pd.date_range("2026-07-01", periods=61, freq="B")
+    dates = pd.date_range("2026-03-02", periods=130, freq="B")
     rows = []
     for symbol, start, step in [
         ("000001", 10.0, 0.15),
@@ -84,7 +90,7 @@ def test_build_candidates_filters_to_main_board_and_metadata():
     assert snapshot["strategy_source"] == "Aquant-Private/main"
     assert snapshot["strategy_version"] == "test"
     assert snapshot["strategy_commit"] == "abc123"
-    assert snapshot["lookback_trading_days"] == 60
+    assert snapshot["lookback_trading_days"] == 126
     assert snapshot["market_scope"].startswith("沪深主板")
     assert snapshot["diagnostics"]["history_rows"] == len(_history())
     assert snapshot["diagnostics"]["latest_main_board_rows"] == 2
