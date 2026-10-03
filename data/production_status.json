@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "status": "not_released",
+  "production_version": null,
+  "production_strategy_commit": null,
+  "as_of": null,
+  "release_gate": false,
+  "system_audit": false,
+  "note": "当前尚无正式生产策略；历史候选与研究版本不得视为正式生产产物。"
+}
