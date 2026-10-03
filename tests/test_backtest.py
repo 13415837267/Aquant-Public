@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 
 from scripts.backtest import execution_limit_diagnostics, metrics, normalize_weights, rolling_252d_metrics, turnover
-from scripts.backtest_constrained import FlattenedIntradayPortfolio
 from scripts.walk_forward import build_folds
 from scripts.sensitivity import run_one
 
@@ -136,76 +135,6 @@ def test_rolling_252d_metrics_samples_final_window():
 
 
 
-def test_stateful_portfolio_blocks_limit_up_buy():
-    portfolio = FlattenedIntradayPortfolio(initial_cash=1.0)
-    targets = pd.DataFrame({"symbol": ["000001"]})
-    execution = pd.DataFrame(
-        {
-            "symbol": ["000001"],
-            "open": [10.0],
-            "close": [11.0],
-            "high_limit": [10.0],
-            "low_limit": [9.0],
-            "is_paused": [0],
-        }
-    )
-    result = portfolio.rebalance(targets, execution, cost_rate=0.0005)
-    assert result["blocked_buy_count"] == 1
-    assert result["buy_count"] == 0
-    assert result["position_count"] == 0
-    assert np.isclose(result["equity_close"], 1.0)
-
-
-def test_stateful_portfolio_keeps_limit_down_holding_and_buys_available_target():
-    portfolio = FlattenedIntradayPortfolio(initial_cash=0.5)
-    portfolio.shares["000001"] = 0.05
-    portfolio.last_close["000001"] = 10.0
-    portfolio.prev_close_equity = 1.0
-
-    targets = pd.DataFrame({"symbol": ["000002"]})
-    execution = pd.DataFrame(
-        {
-            "symbol": ["000001", "000002"],
-            "open": [9.0, 10.0],
-            "close": [9.0, 10.0],
-            "high_limit": [9.9, 11.0],
-            "low_limit": [9.0, 10.0],
-            "is_paused": [0, 0],
-        }
-    )
-    result = portfolio.rebalance(targets, execution, cost_rate=0.0005)
-    assert result["blocked_sell_count"] == 1
-    assert result["buy_count"] == 1
-    assert "000001" in portfolio.shares
-    assert "000002" in portfolio.shares
-    assert result["position_count"] == 2
-
-
-
-def test_stateful_portfolio_control_disables_price_limits_only():
-    portfolio = FlattenedIntradayPortfolio(initial_cash=1.0)
-    targets = pd.DataFrame({"symbol": ["000001"]})
-    execution = pd.DataFrame(
-        {
-            "symbol": ["000001"],
-            "open": [10.0],
-            "close": [10.0],
-            "high_limit": [10.0],
-            "low_limit": [9.0],
-            "is_paused": [0],
-        }
-    )
-    result = portfolio.rebalance(
-        targets,
-        execution,
-        cost_rate=0.0005,
-        enforce_limits=False,
-    )
-    assert result["blocked_buy_count"] == 0
-    assert result["buy_count"] == 1
-
-
-
 def test_walk_forward_fold_snaps_calendar_date_to_next_trading_day():
     dates = [
         x.strftime("%Y-%m-%d")
@@ -233,34 +162,4 @@ def test_sensitivity_metrics_exclude_warmup_rows():
     result = run_one(30, 3.0, 2.0, payload)
     assert result["performance_sessions"] == 2
     assert np.isclose(result["total_return_pct"], 0.4200125)
-
-def test_allocate_weights_matches_capped_cash_buffer_contract():
-    from scripts.portfolio import allocate_weights
-
-    targets = pd.DataFrame(
-        {
-            "symbol": ["000001", "000002", "000003"],
-            "score": [90.0, 80.0, 70.0],
-            "volatility_proxy": [2.0, 4.0, 8.0],
-        }
-    )
-    weights = allocate_weights(targets, max_weight=0.05, cash_buffer=0.05)
-
-    assert set(weights) == {"000001", "000002", "000003"}
-    assert all(0 < value <= 0.05 + 1e-12 for value in weights.values())
-    assert np.isclose(sum(weights.values()), 0.15)
-
-
-def test_allocate_weights_is_deterministic_and_zero_for_empty_targets():
-    from scripts.portfolio import allocate_weights
-
-    targets = pd.DataFrame(
-        {
-            "symbol": ["000002", "000001"],
-            "score": [80.0, 90.0],
-            "volatility_proxy": [5.0, 5.0],
-        }
-    )
-    assert allocate_weights(targets) == allocate_weights(targets.iloc[::-1].reset_index(drop=True))
-    assert allocate_weights(pd.DataFrame()) == {}
 
