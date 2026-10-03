@@ -43,6 +43,18 @@ jobs:
           fi
           echo "is_trading_day=$is_trading_day" >> "$GITHUB_OUTPUT"
 
+      - name: Check production strategy gate
+        id: production
+        if: steps.market.outputs.is_trading_day == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready="$(python -c 'import json; from pathlib import Path; p=Path("data/system_audit.json"); d=json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}; print("true" if d.get("production_gate") == "passed" else "false")')"
+          echo "production_ready=$ready" >> "$GITHUB_OUTPUT"
+          if [[ "$ready" != "true" ]]; then
+            echo "Production strategy gate is not passed; candidate publication is held."
+          fi
+
       - name: Update current year
         if: steps.market.outputs.is_trading_day == 'true'
         env:
@@ -56,7 +68,7 @@ jobs:
         run: python scripts/refresh_universe.py
 
       - name: Checkout private strategy
-        if: steps.market.outputs.is_trading_day == 'true'
+        if: steps.market.outputs.is_trading_day == 'true' && steps.production.outputs.production_ready == 'true'
         uses: actions/checkout@v5
         with:
           repository: 13415837267/Aquant-Private
@@ -65,23 +77,23 @@ jobs:
           path: .private-strategy
 
       - name: Generate candidates
-        if: steps.market.outputs.is_trading_day == 'true'
+        if: steps.market.outputs.is_trading_day == 'true' && steps.production.outputs.production_ready == 'true'
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/update_candidates.py
 
       - name: Validate candidate pool
-        if: steps.market.outputs.is_trading_day == 'true'
+        if: steps.market.outputs.is_trading_day == 'true' && steps.production.outputs.production_ready == 'true'
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/validate_candidates.py
 
       - name: Archive candidate pool
-        if: steps.market.outputs.is_trading_day == 'true'
+        if: steps.market.outputs.is_trading_day == 'true' && steps.production.outputs.production_ready == 'true'
         run: python scripts/archive_candidates.py
 
       - name: Publish candidate snapshot
-        if: steps.market.outputs.is_trading_day == 'true'
+        if: steps.market.outputs.is_trading_day == 'true' && steps.production.outputs.production_ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
