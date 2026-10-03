@@ -90,7 +90,7 @@ def test_cycle_requires_valuation_snapshot_for_remaining_position():
     try:
         run_cycle(no_orders_plan, incomplete, state)
     except RuntimeError as exc:
-        assert "missing next-open valuation snapshots" in str(exc)
+        assert "missing next-open snapshots" in str(exc)
     else:
         raise AssertionError("missing valuation snapshot must fail closed")
 
@@ -110,3 +110,25 @@ def test_cycle_failure_does_not_mutate_input_state():
     assert state["cash_floor"] == before_floor
     assert state["cash"] == before["cash"]
     assert state["positions"] == before["positions"]
+
+
+def test_same_plan_cannot_execute_on_different_date():
+    state, _, _ = run_cycle(base_plan(), snapshot(), None)
+    later = snapshot(execution_date="2026-10-02", settlement_date="2026-10-05")
+    try:
+        run_cycle(base_plan(), later, state)
+    except RuntimeError as exc:
+        assert "different date" in str(exc)
+    else:
+        raise AssertionError("same plan on another date must be rejected")
+
+
+def test_same_plan_cannot_use_changed_snapshot():
+    state, _, _ = run_cycle(base_plan(), snapshot(), None)
+    changed = snapshot(price=10.5)
+    try:
+        run_cycle(base_plan(), changed, state)
+    except RuntimeError as exc:
+        assert "different snapshot" in str(exc)
+    else:
+        raise AssertionError("changed snapshot must be rejected")
