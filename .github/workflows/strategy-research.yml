@@ -8,6 +8,7 @@ on:
       - "scripts/update_candidates.py"
       - "scripts/validate_candidates.py"
       - "scripts/system_audit.py"
+      - "scripts/short_term_release_validation.py"
       - "requirements.txt"
       - "tests/test_validate_candidates.py"
       - "tests/test_model.py"
@@ -64,6 +65,11 @@ jobs:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
         run: python scripts/short_term_research.py --start 2018-01-05 --end 2026-09-21 --cost-bps 3 --slippage-bps 2
+      - name: Release holdout validation
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: python scripts/short_term_release_validation.py --development-start 2018-01-05 --development-end 2024-12-20 --validation-start 2025-01-02 --validation-end 2025-12-31 --final-start 2026-01-05 --final-end 2026-09-21
       - name: Run system audit
         run: python scripts/system_audit.py
       - name: Commit research outputs
