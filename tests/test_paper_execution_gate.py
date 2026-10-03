@@ -98,3 +98,22 @@ def test_rejects_stale_snapshot_date():
         assert "date must be after plan reference date" in str(exc)
     else:
         raise AssertionError("stale next-open snapshot must be rejected")
+
+
+def test_accepts_string_zero_flags():
+    data = snapshot()
+    data["is_paused"] = "0"
+    data["is_st"] = "false"
+    result = build_paper_decisions(plan(), {"601988": data})
+    assert result["status"] == "paper_released"
+
+
+def test_rejects_ambiguous_status_flag():
+    data = snapshot()
+    data["is_paused"] = "unknown"
+    try:
+        build_paper_decisions(plan(), {"601988": data})
+    except GateError as exc:
+        assert "invalid is_paused flag" in str(exc)
+    else:
+        raise AssertionError("ambiguous status flags must fail closed")
