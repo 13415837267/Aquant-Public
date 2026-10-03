@@ -9,7 +9,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 CANDIDATES = ROOT / "data" / "candidates.json"
 OUTPUT = ROOT / "data" / "portfolio.json"
-MAX_POSITIONS = 20
+MAX_POSITIONS = 3
 
 
 def allocate_weights(
