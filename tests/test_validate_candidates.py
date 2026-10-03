@@ -41,7 +41,7 @@ def test_validate_rejects_inconsistent_snapshot(mutator):
 def test_private_provenance_must_match_when_supplied():
     payload=_payload()
     with pytest.raises(RuntimeError,match="version mismatch"): validate_candidates(payload,private_version="1.9.0",private_commit="abc123")
-    with pytest.raises(RuntimeError,match="commit mismatch"): validate_candidates(payload,private_version="2.0.0",private_commit="different")
+    with pytest.raises(RuntimeError,match="commit mismatch"): validate_candidates(payload,private_version="2.1.0",private_commit="different")
 
 def test_validate_rejects_non_production_timestamp():
     payload=_payload(); payload["as_of"]="2026-09-30T17:59:59+08:00"
