@@ -51,16 +51,23 @@ def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
     os.replace(temp, path)
 
 
-def _ledger_ids(path: Path) -> set[str]:
+def _ledger_records(path: Path) -> dict[str, dict[str, Any]]:
     if not path.exists():
-        return set()
-    ids: set[str] = set()
+        return {}
+    records: dict[str, dict[str, Any]] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         row = json.loads(line)
-        ids.add(str(row["fill_id"]))
-    return ids
+        fill_id = str(row["fill_id"])
+        if fill_id in records and records[fill_id] != row:
+            raise RuntimeError(f"duplicate fill_id with conflicting ledger rows: {fill_id}")
+        records[fill_id] = row
+    return records
+
+
+def _ledger_ids(path: Path) -> set[str]:
+    return set(_ledger_records(path))
 
 
 def _append_ledger(path: Path, entries: list[dict[str, Any]], existing_ids: set[str]) -> int:
@@ -78,14 +85,23 @@ def _append_ledger(path: Path, entries: list[dict[str, Any]], existing_ids: set[
 
 
 def reconcile_ledger(state: dict[str, Any], ledger_path: Path) -> int:
-    """Repair a ledger after a prior state-write/ledger-write interruption."""
-    existing = _ledger_ids(ledger_path)
-    missing_entries = []
-    for fill_id, record in state.get("applied_fills", {}).items():
+    """Repair missing audit rows and fail on orphan/conflicting ledger data."""
+    records = _ledger_records(ledger_path)
+    state_fills = state.get("applied_fills", {})
+    for fill_id, row in records.items():
+        record = state_fills.get(fill_id)
+        if record is None:
+            raise RuntimeError(f"ledger contains fill absent from state: {fill_id}")
         ledger = record.get("ledger") if isinstance(record, dict) else None
-        if ledger and fill_id not in existing:
+        if ledger != row:
+            raise RuntimeError(f"ledger/state mismatch for fill_id: {fill_id}")
+
+    missing_entries = []
+    for fill_id, record in state_fills.items():
+        ledger = record.get("ledger") if isinstance(record, dict) else None
+        if ledger and fill_id not in records:
             missing_entries.append(ledger)
-    return _append_ledger(ledger_path, missing_entries, existing)
+    return _append_ledger(ledger_path, missing_entries, set(records))
 
 
 def run_cycle(
@@ -104,6 +120,13 @@ def run_cycle(
         raise RuntimeError("symbols must be a non-empty object")
 
     gate = build_paper_decisions(plan, market)
+    decision_dates = {
+        str(order["execution_date"])
+        for order in gate["orders"]
+        if order.get("execution_date") is not None
+    }
+    if decision_dates and decision_dates != {execution_date}:
+        raise RuntimeError("next-open snapshots use inconsistent execution dates")
     if state is None:
         state = new_paper_state(
             initial_cash=float(plan["starting_cash_reference"]),
@@ -173,7 +196,7 @@ def main() -> None:
         next_state, entries, gate = run_cycle(plan, snapshot, state)
         _atomic_write(state_path, next_state)
         written = _append_ledger(ledger_path, entries, _ledger_ids(ledger_path))
-    except (GateError, PortfolioError, KeyError, TypeError, ValueError) as exc:
+    except (GateError, PortfolioError, KeyError, TypeError, ValueError, RuntimeError) as exc:
         raise SystemExit(f"PAPER_EXECUTION_BLOCKED: {exc}") from exc
 
     print(json.dumps({
