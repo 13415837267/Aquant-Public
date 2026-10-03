@@ -4,11 +4,15 @@ import json
 import math
 import os
 import subprocess
+import sys
 from datetime import date
 from pathlib import Path
-from scripts.market_scope import is_main_board_symbol
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from scripts.market_scope import is_main_board_symbol
+
 DEFAULT_CANDIDATES = ROOT / "data" / "candidates.json"
 REQUIRED_CANDIDATE_FIELDS = {
     "rank","symbol","name","price","change_pct",
