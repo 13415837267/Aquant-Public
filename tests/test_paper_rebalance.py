@@ -4,7 +4,7 @@ from scripts.paper_rebalance import build_paper_plan, derive_paper_inputs
 from scripts.paper_portfolio import new_paper_state, apply_paper_fills
 
 
-def market(date="2026-10-02"):
+def market(date="2026-10-01"):
     return pd.DataFrame(
         [
             {
@@ -19,7 +19,7 @@ def market(date="2026-10-02"):
             },
             {
                 "symbol": "600001",
-                "date": "2026-10-01",
+                "date": date,
                 "open": 20.0,
                 "close": 20.0,
                 "high_limit": 22.0,
