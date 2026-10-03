@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 HISTORY_DIR = ROOT / "data" / "history"
 OUT_DIR = ROOT / "data" / "backtest"
 MAX_HOLD = 6
