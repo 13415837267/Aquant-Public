@@ -12,6 +12,9 @@ on:
       - "scripts/portfolio.py"
       - "scripts/execution_plan.py"
       - ".github/workflows/strategy-research.yml"
+      - "tests/test_backtest.py"
+      - "tests/test_update_candidates.py"
+      - "tests/test_production_layers.py"
   workflow_dispatch:
 
 permissions:
