@@ -83,7 +83,13 @@ jobs:
       - name: Private strategy quality
         working-directory: .private-strategy
         run: python -m pytest -q
-      - name: Generate candidates
+      - name: Preserve current production candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runtime
+          cp data/candidates.json runtime/production_candidates.json
+      - name: Generate research candidates
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/update_candidates.py
@@ -115,6 +121,17 @@ jobs:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
         run: python scripts/short_term_release_validation.py --development-start 2018-01-05 --development-end 2024-12-20 --validation-start 2025-01-02 --validation-end 2025-12-31 --final-start 2026-01-05 --final-end 2026-09-21
+      - name: Promote research candidate only when production gate passes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp data/candidates.json data/backtest/research_candidates.json
+          if python -c 'import json; from pathlib import Path; raise SystemExit(0 if json.loads(Path("data/backtest/short_term_release_validation.json").read_text(encoding="utf-8")).get("release_gate") is True else 1)'; then
+            echo "Production gate passed; promoting research candidate to production."
+          else
+            echo "Production gate not passed; keeping previous production candidate."
+            cp runtime/production_candidates.json data/candidates.json
+          fi
       - name: Run system audit
         run: python scripts/system_audit.py
       - name: Record workflow failure or cancellation
@@ -139,7 +156,7 @@ jobs:
             echo "Private/main strategy changed during research; refusing stale result commit."
             exit 1
           fi
-          git add data/candidates.json data/backtest/short_term_latest.json data/backtest/short_term_sensitivity.json data/backtest/short_term_exit_diagnostics.json data/backtest/short_term_release_validation.json data/system_audit.json
+          git add data/candidates.json data/backtest/research_candidates.json data/backtest/short_term_latest.json data/backtest/short_term_sensitivity.json data/backtest/short_term_exit_diagnostics.json data/backtest/short_term_release_validation.json data/system_audit.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "research: validate short-term strategy"
           git push origin HEAD:main
