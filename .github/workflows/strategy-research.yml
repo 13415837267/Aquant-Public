@@ -1,0 +1,320 @@
+name: Strategy Research 1.0
+
+on:
+  push:
+    paths:
+      - "scripts/backtest.py"
+      - "scripts/update_candidates.py"
+      - "scripts/candidate_threshold_research.py"
+      - "scripts/walk_forward.py"
+      - "scripts/sensitivity.py"
+      - "scripts/backtest_constrained.py"
+      - "scripts/portfolio.py"
+      - "scripts/execution_plan.py"
+      - ".github/workflows/strategy-research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: strategy-research-main
+  cancel-in-progress: false
+
+jobs:
+  research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout public repository
+        uses: actions/checkout@v6
+
+      - name: Checkout private strategy
+        uses: actions/checkout@v6
+        with:
+          repository: 13415837267/Aquant-Private
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: .private-strategy
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Resolve strategy
+        id: strategy
+        shell: bash
+        run: |
+          echo "version=$(python -c 'import sys; sys.path.insert(0, ".private-strategy"); from strategy.version import STRATEGY_VERSION; print(STRATEGY_VERSION)')" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Python quality
+        run: python -m pytest -q
+
+      - name: Generate production candidate snapshot
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: python scripts/update_candidates.py
+
+      - name: Build portfolio
+        run: python scripts/portfolio.py
+
+      - name: Build execution plan
+        run: python scripts/execution_plan.py
+
+      - name: Run candidate admission research
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/candidate_threshold_research.py \
+            --start 2015-01-05 \
+            --end 2026-09-29 \
+            --output data/research/candidate_thresholds.json
+
+      - name: Run walk-forward OOS
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/walk_forward.py \
+            --start 2015-01-05 \
+            --end 2026-09-29 \
+            --train-years 3 \
+            --test-years 1 \
+            --top-n 20 \
+            --cost-bps 3 \
+            --slippage-bps 2 \
+            --output data/backtest/walk_forward.json
+
+      - name: Run portfolio-cost sensitivity
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/sensitivity.py \
+            --start 2015-01-05 \
+            --end 2026-09-29 \
+            --top-n 8,12,16,20,24 \
+            --cost-bps 3,5,10 \
+            --slippage-bps 2 \
+            --output data/backtest/sensitivity.json
+
+      - name: Run strict historical backtest
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/backtest.py \
+            --start 2015-01-05 \
+            --end 2026-09-29 \
+            --top-n 20 \
+            --cost-bps 3 \
+            --slippage-bps 2
+
+      - name: Run execution-constrained historical backtest
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python scripts/backtest_constrained.py \
+            --start 2015-01-05 \
+            --end 2026-09-29 \
+            --top-n 20 \
+            --cost-bps 3 \
+            --slippage-bps 2 \
+            --turnover-cap 0.30 \
+            --output data/backtest/execution_constrained.json
+
+      - name: Build execution comparison and cloud provenance
+        shell: bash
+        env:
+          STRATEGY_VERSION: ${{ steps.strategy.outputs.version }}
+          STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path("data/backtest")
+          latest = json.loads((root / "latest.json").read_text(encoding="utf-8"))
+          constrained = json.loads((root / "execution_constrained.json").read_text(encoding="utf-8"))
+
+          expected_v = os.environ["STRATEGY_VERSION"]
+          expected_c = os.environ["STRATEGY_COMMIT"]
+
+          for label, payload in (("strict", latest), ("constrained", constrained)):
+              if payload.get("strategy_version") != expected_v:
+                  raise SystemExit(f"{label} strategy version mismatch")
+              if payload.get("strategy_commit") != expected_c:
+                  raise SystemExit(f"{label} strategy commit mismatch")
+              if payload.get("future_function") is not False:
+                  raise SystemExit(f"{label} PIT audit failed")
+
+          fields = [
+              "total_return_pct",
+              "annualized_return_pct",
+              "annualized_volatility_pct",
+              "sharpe",
+              "max_drawdown_pct",
+              "win_rate_pct",
+              "average_turnover_pct",
+              "total_turnover_pct",
+          ]
+          b = latest["overall"]
+          c = constrained["overall"]
+          u = constrained["unconstrained_persistent"]["overall"]
+
+          def project(payload):
+              return {k: payload.get(k) for k in fields}
+
+          def diff(left, right):
+              return {
+                  k: (
+                      float(left[k]) - float(right[k])
+                      if left.get(k) is not None and right.get(k) is not None
+                      else None
+                  )
+                  for k in fields
+              }
+
+          comparison = {
+              "schema_version": 3,
+              "status": "ready",
+              "strategy_version": expected_v,
+              "strategy_commit": expected_c,
+              "strict_20_position": project(b),
+              "stateful_unconstrained": project(u),
+              "stateful_constrained": project(c),
+              "constraint_impact_vs_stateful_unconstrained": diff(c, u),
+              "execution_audit": constrained.get("audit", {}),
+              "future_function": False,
+          }
+
+          (root / "execution_comparison.json").write_text(
+              json.dumps(comparison, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          marker = {
+              "schema_version": 2,
+              "status": "success",
+              "generated_by": "github-actions",
+              "runner": "ubuntu-24.04",
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "run_number": int(os.environ["GITHUB_RUN_NUMBER"]),
+              "head_sha": os.environ["GITHUB_SHA"],
+              "strategy_version": expected_v,
+              "strategy_commit": expected_c,
+              "future_function": False,
+          }
+          (root / "_CONSTRAINED_CLOUD_RUN.json").write_text(
+              json.dumps(marker, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Validate research provenance
+        shell: bash
+        env:
+          STRATEGY_VERSION: ${{ steps.strategy.outputs.version }}
+          STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          expected_v = os.environ["STRATEGY_VERSION"]
+          expected_c = os.environ["STRATEGY_COMMIT"]
+
+          files = [
+              Path("data/candidates.json"),
+              Path("data/portfolio.json"),
+              Path("data/execution_plan.json"),
+              Path("data/research/candidate_thresholds.json"),
+              Path("data/backtest/latest.json"),
+              Path("data/backtest/walk_forward.json"),
+              Path("data/backtest/sensitivity.json"),
+              Path("data/backtest/execution_constrained.json"),
+              Path("data/backtest/execution_comparison.json"),
+          ]
+
+          for path in files:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              if payload.get("status") != "ready":
+                  raise SystemExit(f"{path} is not ready")
+              if payload.get("strategy_version") != expected_v:
+                  raise SystemExit(f"{path} strategy version mismatch")
+              if payload.get("strategy_commit") != expected_c:
+                  raise SystemExit(f"{path} strategy commit mismatch")
+              if payload.get("future_function") is True:
+                  raise SystemExit(f"{path} future_function audit failed")
+
+          candidate = json.loads(
+              Path("data/candidates.json").read_text(encoding="utf-8")
+          )
+          count = len(candidate.get("candidates", []))
+          if count < 8 or count > 24:
+              raise SystemExit(f"candidate pool out of operating range: {count}")
+
+          wf = json.loads(
+              Path("data/backtest/walk_forward.json").read_text(encoding="utf-8")
+          )
+          if int(wf.get("fold_count", 0)) < 5:
+              raise SystemExit("walk-forward fold count too small")
+          audit = wf.get("audit", {})
+          if audit.get("126_session_warmup_before_oos") is not True:
+              raise SystemExit("walk-forward 126-session warmup audit missing")
+
+          print(f"validated strategy={expected_v} commit={expected_c} candidates={count}")
+          PY
+
+      - name: Run system audit
+        run: python scripts/system_audit.py
+
+      - name: Delete obsolete strategy branches
+        shell: bash
+        env:
+          PUBLIC_TOKEN: ${{ github.token }}
+          PRIVATE_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          set +e
+          GH_TOKEN="$PUBLIC_TOKEN" gh api --silent --method DELETE \
+            "/repos/13415837267/Aquant-Public/git/refs/heads/strategy/0.3.0-candidate-admission"
+          public_status=$?
+          GH_TOKEN="$PRIVATE_TOKEN" gh api --silent --method DELETE \
+            "/repos/13415837267/Aquant-Private/git/refs/heads/strategy/0.3.0-candidate-admission"
+          private_status=$?
+          echo "public_branch_delete_status=$public_status"
+          echo "private_branch_delete_status=$private_status"
+
+      - name: Commit research outputs
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/candidates.json \
+            data/portfolio.json \
+            data/execution_plan.json \
+            data/research/candidate_thresholds.json \
+            data/backtest/latest.json \
+            data/backtest/walk_forward.json \
+            data/backtest/sensitivity.json \
+            data/backtest/execution_constrained.json \
+            data/backtest/execution_comparison.json \
+            data/backtest/_CONSTRAINED_CLOUD_RUN.json
+          if git diff --cached --quiet; then
+            echo "No research output changes."
+            exit 0
+          fi
+          git commit -m "research: validate strategy 1.0.0"
+          git push origin HEAD:main
