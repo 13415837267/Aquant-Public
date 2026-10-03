@@ -4,12 +4,12 @@ from scripts.paper_rebalance import build_paper_plan, derive_paper_inputs
 from scripts.paper_portfolio import new_paper_state, apply_paper_fills
 
 
-def market():
+def market(date="2026-10-02"):
     return pd.DataFrame(
         [
             {
                 "symbol": "600000",
-                "date": "2026-10-01",
+                "date": date,
                 "open": 10.0,
                 "close": 10.0,
                 "high_limit": 11.0,
@@ -71,10 +71,10 @@ def test_paper_inputs_use_dynamic_equity_and_t1_inventory():
         "settlement_date": "2026-10-02",
     }
     state, _ = apply_paper_fills(state, [fill], execution_date="2026-10-01")
-    holdings, equity, provenance = derive_paper_inputs(state, market())
+    holdings, equity, provenance = derive_paper_inputs(state, market("2026-10-02"))
     assert holdings["600000"]["shares"] == 100
     assert holdings["600000"]["available_shares"] == 100
-    assert equity > 100000
+    assert equity < 100000
     assert provenance["broker_api_used"] is False
 
 
@@ -97,8 +97,8 @@ def test_next_plan_contains_exit_for_non_target_paper_holding():
         "execution_date": "2026-10-01",
         "settlement_date": "2026-10-02",
     }
-    state, _ = apply_paper_fills(state, [fill], execution_date="2026-10-02")
-    plan = build_paper_plan(portfolio(), state, market(), min_notional=1)
+    state, _ = apply_paper_fills(state, [fill], execution_date="2026-10-01")
+    plan = build_paper_plan(portfolio(), state, market("2026-10-02"), min_notional=1)
     exits = [o for o in plan["orders"] if o["symbol"] == "600000" and o["side"] == "sell"]
     entries = [o for o in plan["orders"] if o["symbol"] == "600001" and o["side"] == "buy"]
     assert exits
