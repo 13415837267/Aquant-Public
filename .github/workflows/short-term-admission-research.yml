@@ -1,0 +1,74 @@
+name: Short-Term Admission Selectivity Research
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/short_term_admission_research.py"
+      - ".github/workflows/short-term-admission-research.yml"
+      - "scripts/short_term_research.py"
+      - "requirements.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: short-term-admission-research
+  cancel-in-progress: false
+
+jobs:
+  research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+      - name: Checkout private strategy
+        uses: actions/checkout@v6
+        with:
+          repository: 13415837267/Aquant-Private
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: .private-strategy
+          fetch-depth: 1
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Resolve strategy
+        id: strategy
+        shell: bash
+        run: |
+          echo "version=$(python -c 'import sys; sys.path.insert(0, ".private-strategy"); from strategy.version import STRATEGY_VERSION; print(STRATEGY_VERSION)')" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Python quality
+        run: python -m pytest -q
+      - name: Run admission research
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+        run: |
+          python scripts/short_term_admission_research.py             --strategy-version "${{ steps.strategy.outputs.version }}"             --strategy-commit "${{ steps.strategy.outputs.commit }}"             --start 2018-01-05             --train-end 2024-12-20             --test-start 2025-01-02             --test-end 2026-09-21
+      - name: Validate artifact
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open("data/backtest/short_term_admission_research.json"))
+          assert x["status"]=="ready"
+          assert x["future_function"] is False
+          assert len(x["policies"]) >= 8
+          assert all("train" in p and "oos" in p for p in x["policies"])
+          print("validated", len(x["policies"]), "policies")
+          PY
+      - name: Commit research output
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/backtest/short_term_admission_research.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: test short-term admission selectivity"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
