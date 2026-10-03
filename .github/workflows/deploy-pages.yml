@@ -6,6 +6,7 @@ on:
     paths:
       - "app/**"
       - "data/candidates.json"
+      - "data/system_audit.json"
       - "next.config.ts"
       - "tsconfig.json"
       - "package.json"
