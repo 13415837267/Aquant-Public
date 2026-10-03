@@ -18,6 +18,7 @@ MAX_HOLDING_SESSIONS = 5
 ENTRY_LIMIT_UP_BLOCK = True
 TARGET_PCT = 6.0
 STOP_PCT = 3.0
+WIN_THRESHOLD_PCT = 1.0
 
 
 def history_files():
@@ -246,6 +247,8 @@ def stats(rows, cost_bps, slippage_bps):
     return {
         "samples":int(len(net)),
         "win_rate_pct":float((net>0).mean()*100),
+        "threshold_win_rate_pct":float((net>=WIN_THRESHOLD_PCT).mean()*100),
+        "win_threshold_pct":float(WIN_THRESHOLD_PCT),
         "mean_return_pct":float(net.mean()),
         "median_return_pct":float(net.median()),
         "total_return_pct":float((eq.iloc[-1]-1)*100),
@@ -395,6 +398,7 @@ def run(args):
             "earliest_exit_day_after_entry":MIN_EXIT_DAY,
             "stop_loss_pct":STOP_PCT,
             "target_return_pct":TARGET_PCT,
+            "win_threshold_pct":WIN_THRESHOLD_PCT,
             "both_stop_and_target_same_day":"stop_first_conservative_assumption",
             "round_trip_cost_bps":2*(args.cost_bps+args.slippage_bps),
             "overlapping_signal_samples":True,
