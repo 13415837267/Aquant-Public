@@ -283,11 +283,15 @@ def run(args):
 
     state = FeatureState()
     dispersion_history = deque(maxlen=60)
+    periods = ("development", "validation", "final_holdout")
     buckets = {
         name: {
-            "signal_days": 0, "candidate_days": 0,
-            "forward": {h: {n: [] for n in TOP_N} for h in (1, 3, 5)},
-            "trades": {n: [] for n in TOP_N},
+            period: {
+                "signal_days": 0, "candidate_days": 0,
+                "forward": {h: {n: [] for n in TOP_N} for h in (1, 3, 5)},
+                "trades": {n: [] for n in TOP_N},
+            }
+            for period in periods
         }
         for name in VARIANTS
     }
