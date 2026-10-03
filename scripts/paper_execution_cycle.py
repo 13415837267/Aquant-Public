@@ -1,0 +1,192 @@
+"""Run one broker-free paper execution cycle.
+
+Input:
+  execution_plan.json
+  next-open snapshot JSON: {"execution_date": "...", "settlement_date": "...",
+  "symbols": {"600000": {...}}}
+
+Output:
+  data/paper/portfolio.json
+  data/paper/fills.jsonl
+
+The command fails closed if the next-open gate or portfolio accounting rejects
+any order. It never calls a broker API.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import Any
+
+from scripts.paper_execution_gate import GateError, build_paper_decisions
+from scripts.paper_portfolio import PortfolioError, apply_paper_fills, mark_to_market, new_paper_state
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_PLAN = ROOT / "data" / "execution_plan.json"
+DEFAULT_SNAPSHOT = ROOT / "data" / "paper" / "next_open_snapshot.json"
+DEFAULT_STATE = ROOT / "data" / "paper" / "portfolio.json"
+DEFAULT_LEDGER = ROOT / "data" / "paper" / "fills.jsonl"
+
+
+def _load(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise RuntimeError(f"missing input: {path}")
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise RuntimeError(f"JSON object required: {path}")
+    return raw
+
+
+def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as fh:
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+        temp = Path(fh.name)
+    os.replace(temp, path)
+
+
+def _ledger_ids(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    ids: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        ids.add(str(row["fill_id"]))
+    return ids
+
+
+def _append_ledger(path: Path, entries: list[dict[str, Any]], existing_ids: set[str]) -> int:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    written = 0
+    with path.open("a", encoding="utf-8") as fh:
+        for entry in entries:
+            fill_id = str(entry["fill_id"])
+            if fill_id in existing_ids:
+                continue
+            fh.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
+            existing_ids.add(fill_id)
+            written += 1
+    return written
+
+
+def reconcile_ledger(state: dict[str, Any], ledger_path: Path) -> int:
+    """Repair a ledger after a prior state-write/ledger-write interruption."""
+    existing = _ledger_ids(ledger_path)
+    missing_entries = []
+    for fill_id, record in state.get("applied_fills", {}).items():
+        ledger = record.get("ledger") if isinstance(record, dict) else None
+        if ledger and fill_id not in existing:
+            missing_entries.append(ledger)
+    return _append_ledger(ledger_path, missing_entries, existing)
+
+
+def run_cycle(
+    plan: dict[str, Any],
+    snapshot_payload: dict[str, Any],
+    state: dict[str, Any] | None,
+) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
+    execution_date = str(snapshot_payload.get("execution_date", ""))
+    settlement_date = str(snapshot_payload.get("settlement_date", ""))
+    market = snapshot_payload.get("symbols")
+    if not execution_date or not settlement_date:
+        raise RuntimeError("execution_date and settlement_date are required")
+    if settlement_date <= execution_date:
+        raise RuntimeError("settlement_date must be after execution_date")
+    if not isinstance(market, dict) or not market:
+        raise RuntimeError("symbols must be a non-empty object")
+
+    gate = build_paper_decisions(plan, market)
+    if state is None:
+        state = new_paper_state(
+            initial_cash=float(plan["starting_cash_reference"]),
+            as_of=str(plan["reference_date"]),
+            strategy_version=str(plan["strategy_version"]),
+            strategy_commit=str(plan["strategy_commit"]),
+            cash_floor=float(plan["equity_reference"]) * float(plan["cash_buffer"]),
+        )
+    else:
+        if state.get("strategy_version") != plan.get("strategy_version"):
+            raise RuntimeError("paper state strategy version does not match plan")
+        if state.get("strategy_commit") != plan.get("strategy_commit"):
+            raise RuntimeError("paper state strategy commit does not match plan")
+
+    fills = []
+    for order in gate["orders"]:
+        fill_id = f"paper:{execution_date}:{order['order_id']}"
+        fills.append(
+            {
+                "fill_id": fill_id,
+                "order_id": order["order_id"],
+                "symbol": order["symbol"],
+                "name": next(
+                    (o.get("name", order["symbol"]) for o in plan["orders"] if str(o["symbol"]).zfill(6) == order["symbol"]),
+                    order["symbol"],
+                ),
+                "side": order["side"],
+                "shares": order["shares"],
+                "price": order["reference_price"],
+                "execution_date": execution_date,
+                "settlement_date": settlement_date,
+            }
+        )
+
+    next_state, ledger_entries = apply_paper_fills(
+        state,
+        fills,
+        execution_date=execution_date,
+        lot_size=int(plan["lot_size"]),
+        commission_bps=float(plan["cost_assumptions_bps"]["commission"]),
+        stamp_duty_sell_bps=float(plan["cost_assumptions_bps"]["stamp_duty_sell"]),
+        slippage_bps=float(plan["cost_assumptions_bps"]["slippage"]),
+    )
+    next_state = mark_to_market(next_state, market)
+    next_state["plan_reference_date"] = plan["reference_date"]
+    next_state["last_gate_status"] = gate["status"]
+    next_state["broker_submission"] = False
+    return next_state, ledger_entries, gate
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run broker-free paper execution cycle")
+    parser.add_argument("--plan", default=str(DEFAULT_PLAN))
+    parser.add_argument("--snapshot", default=str(DEFAULT_SNAPSHOT))
+    parser.add_argument("--state", default=str(DEFAULT_STATE))
+    parser.add_argument("--ledger", default=str(DEFAULT_LEDGER))
+    args = parser.parse_args()
+
+    try:
+        plan = _load(Path(args.plan))
+        snapshot = _load(Path(args.snapshot))
+        state_path = Path(args.state)
+        state = _load(state_path) if state_path.exists() else None
+        ledger_path = Path(args.ledger)
+        if state is not None:
+            reconcile_ledger(state, ledger_path)
+        next_state, entries, gate = run_cycle(plan, snapshot, state)
+        _atomic_write(state_path, next_state)
+        written = _append_ledger(ledger_path, entries, _ledger_ids(ledger_path))
+    except (GateError, PortfolioError, KeyError, TypeError, ValueError) as exc:
+        raise SystemExit(f"PAPER_EXECUTION_BLOCKED: {exc}") from exc
+
+    print(json.dumps({
+        "status": "paper_cycle_complete",
+        "execution_date": next_state["as_of"],
+        "orders_released": len(gate["orders"]),
+        "fills_written": written,
+        "cash": round(float(next_state["cash"]), 2),
+        "equity": round(float(next_state.get("equity", next_state["cash"])), 2),
+        "position_count": len(next_state["positions"]),
+        "broker_submission": False,
+    }, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
