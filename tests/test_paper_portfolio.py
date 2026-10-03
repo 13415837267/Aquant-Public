@@ -71,10 +71,17 @@ def test_t1_prevents_same_day_sell():
         cash_floor=5000,
     )
     state, _ = apply_paper_fills(state, [buy_fill()], execution_date="2026-10-01")
+    same_day_sell = sell_fill(
+        fill_id="f2-same-day",
+        execution_date="2026-10-01",
+        settlement_date="2026-10-02",
+    )
     try:
-        apply_paper_fills(state, [sell_fill()], execution_date="2026-10-02")
-    except PortfolioError:
-        raise AssertionError("settlement should occur on 2026-10-02")
+        apply_paper_fills(state, [same_day_sell], execution_date="2026-10-01")
+    except PortfolioError as exc:
+        assert "insufficient T+1 sellable shares" in str(exc)
+    else:
+        raise AssertionError("same-day buy must not be sellable")
 
 
 def test_settled_shares_can_be_sold_and_realized_pnl_is_recorded():
