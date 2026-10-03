@@ -120,7 +120,27 @@ def build_plan(
     }
     orders = []
     raw_turnover = 0.0
-    for p in positions:
+
+    # Include explicit target positions plus deterministic exits for holdings
+    # that are no longer in the target portfolio. This prevents stale long
+    # positions from surviving indefinitely across rebalance cycles.
+    target_symbols = {str(p["symbol"]).zfill(6) for p in positions}
+    plan_items = list(positions)
+    residual_rank = max([int(p.get("rank", 0)) for p in positions] + [0]) + 1_000
+    for symbol in sorted(set(total_shares) - target_symbols):
+        if total_shares.get(symbol, 0) <= 0:
+            continue
+        plan_items.append({
+            "rank": residual_rank,
+            "symbol": symbol,
+            "name": symbol,
+            "target_weight": 0.0,
+        })
+
+    if len(target_symbols) != len(positions):
+        raise ValueError("portfolio positions contain duplicate symbols")
+
+    for p in plan_items:
         symbol = str(p["symbol"]).zfill(6)
         target_value = equity * float(p["target_weight"])
         current_value = current_values.get(symbol, 0.0)
@@ -140,26 +160,26 @@ def build_plan(
         ref_price = float(row["close"]) if row is not None and valid_price(row["close"]) else np.nan
         raw_shares = abs(delta_value) / ref_price if valid_price(ref_price) else 0.0
         requested_shares = round_lot(raw_shares)
-        if requested_shares > 0 and requested_shares * ref_price < min_notional:
-            requested_shares = 0
-            reason = reason or "below_min_notional"
-        if side == "sell":
+        if side == "sell" and symbol in total_shares:
             requested_shares = min(requested_shares, round_lot(available_shares.get(symbol, 0.0)))
             if requested_shares == 0 and abs(delta_value) > 0:
                 reason = reason or "t_plus_1_or_no_available_shares"
+        if requested_shares > 0 and valid_price(ref_price) and requested_shares * ref_price < min_notional:
+            requested_shares = 0
+            reason = reason or "below_min_notional"
         if side == "hold":
             requested_shares = 0
+
         blocked = reason is not None and requested_shares > 0
-        if blocked:
-            executable_shares = 0
-        else:
-            executable_shares = requested_shares
+        executable_shares = 0 if blocked else requested_shares
         raw_notional = executable_shares * ref_price if valid_price(ref_price) else 0.0
         raw_turnover += raw_notional
+
         orders.append({
-            "rank": int(p["rank"]),
+            "order_id": f"{ref_date}:{symbol}:{side}:{int(p.get('rank', residual_rank))}",
+            "rank": int(p.get("rank", residual_rank)),
             "symbol": symbol,
-            "name": p["name"],
+            "name": p.get("name", symbol),
             "side": side,
             "target_weight": float(p["target_weight"]),
             "current_weight": current_value / equity if equity > 0 else 0.0,
