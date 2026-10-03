@@ -18,11 +18,10 @@ from scripts import backtest as base
 
 OUT_FILE = ROOT / "data" / "backtest" / "regime_factor_diagnostics.json"
 EXPECTED_WEIGHTS = {
-    "momentum": 0.30,
-    "liquidity": 0.20,
-    "value": 0.20,
-    "risk": 0.15,
-    "activity": 0.15,
+    "momentum": 0.35,
+    "liquidity": 0.15,
+    "value": 0.30,
+    "safety": 0.20,
 }
 
 
@@ -327,7 +326,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default="2015-01-05")
     ap.add_argument("--end", default="2026-09-29")
-    ap.add_argument("--top-n", type=int, default=30)
+    ap.add_argument("--top-n", type=int, default=3)
     ap.add_argument("--baseline", default=str(ROOT / "data" / "backtest" / "latest.json"))
     ap.add_argument("--output", default=str(OUT_FILE))
     args = ap.parse_args()
