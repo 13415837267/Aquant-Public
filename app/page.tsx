@@ -29,7 +29,6 @@ export default function Home() {
   const scores = rows.map(r=>r.score);
   const avgScore = scores.length ? scores.reduce((a,b)=>a+b,0)/scores.length : 0;
   const positive = rows.filter(r=>r.change_pct>0).length;
-  const highMomentum = rows.filter(r=>r.momentum_60d>=10).length;
   const diagnostics = snapshot.diagnostics ?? {};
   const factorWeights = snapshot.factor_weights ?? {};
 
