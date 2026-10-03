@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "status": "ready",
-  "audited_at": "2026-10-02T19:04:27.545898+00:00",
+  "audited_at": "2026-10-03T09:24:46.628384+00:00",
   "historical_database": "complete",
   "fundamentals_database": "complete_pit",
   "candidate_layer": "ready",
@@ -10,8 +10,8 @@
   "research_artifacts": "ready",
   "constrained_backtest": "cloud_verified",
   "strategy_source": "Aquant-Private/main",
-  "strategy_version": "0.2.0",
-  "strategy_commit": "e5c91b03a3254f0b35ee597803ce72dbf4eec51f",
+  "strategy_version": "1.1.0",
+  "strategy_commit": "8365bcf0f7853b8d3fea861b45fae679eafce79c",
   "future_function": false,
   "audit": {
     "strategy_metadata_locked": true,
