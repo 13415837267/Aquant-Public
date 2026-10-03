@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "status": "ready",
+  "method": "short_term_exit_diagnostics",
+  "start": "2018-01-05",
+  "end": "2026-09-21",
+  "exit_distribution": {
+    "stop": 2306,
+    "target": 1205,
+    "max_hold": 233
+  },
+  "trade_performance": {
+    "samples": 3744,
+    "win_rate_pct": 36.27136752136752,
+    "mean_return_pct": 0.043459568620719626,
+    "median_return_pct": -3.1000000000000028,
+    "total_return_pct": -79.24689701988025,
+    "max_drawdown_pct": -93.86901726638169,
+    "mean_holding_days": 2.685363247863248
+  },
+  "strategy_source": "Aquant-Private/main",
+  "strategy_version": "2.0.1",
+  "strategy_commit": "1abba211e954545f921631548d165af32eb3d642",
+  "future_function": false,
+  "audit": {
+    "signal_uses_only_T_close_information": true,
+    "entry_uses_T_plus_1_open": true,
+    "entry_limit_up_block": true,
+    "earliest_exit_is_T_plus_2": true,
+    "future_function": false,
+    "max_holding_sessions": 5,
+    "earliest_exit_day_after_entry": 2,
+    "stop_loss_pct": 3.0,
+    "target_return_pct": 6.0,
+    "both_stop_and_target_same_day": "stop_first_conservative_assumption",
+    "round_trip_cost_bps": 10.0,
+    "overlapping_signal_samples": true,
+    "interpretation": "signal-quality research sample, not broker-connected capital simulation"
+  }
+}
