@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections import deque
 from pathlib import Path
@@ -371,6 +372,7 @@ def run(args):
         "schema_version": 1,
         "status": "ready",
         "method": "short_term_nextgen_research",
+        "source_public_commit": os.environ.get("SOURCE_SHA", ""),
         "future_function": False,
         "entry": "T+1_open",
         "max_holding_sessions": 5,
