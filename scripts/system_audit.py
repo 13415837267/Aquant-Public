@@ -36,6 +36,31 @@ def main():
     research=load(REQUIRED_READY[0])
     if int(research.get("signal_days",0))<500: raise RuntimeError("short-term research coverage too small")
     if int(research.get("candidate_days",0))<50: raise RuntimeError("short-term candidate sample too small")
+
+    forward = research.get("forward_signal_diagnostics", {})
+    trade = research.get("trade_performance", {})
+    one = forward.get("1d", {})
+    three = forward.get("3d", {})
+    five = forward.get("5d", {})
+    round_trip_cost_bps = float(research.get("audit", {}).get("round_trip_cost_bps", 10.0))
+    production_gate = {
+        "min_forward_3d_mean_return_pct": 0.10,
+        "min_forward_5d_mean_return_pct": 0.10,
+        "min_forward_5d_positive_rate_pct": 50.0,
+        "min_managed_trade_mean_return_pct": 0.10,
+        "min_managed_trade_win_rate_pct": 45.0,
+        "max_managed_trade_drawdown_pct": -40.0,
+        "round_trip_cost_bps": round_trip_cost_bps,
+    }
+    production_gate["checks"] = {
+        "forward_3d_mean": float(three.get("mean_return_pct", -999)) >= production_gate["min_forward_3d_mean_return_pct"],
+        "forward_5d_mean": float(five.get("mean_return_pct", -999)) >= production_gate["min_forward_5d_mean_return_pct"],
+        "forward_5d_positive_rate": float(five.get("positive_rate_pct", -999)) >= production_gate["min_forward_5d_positive_rate_pct"],
+        "managed_trade_mean": float(trade.get("mean_return_pct", -999)) >= production_gate["min_managed_trade_mean_return_pct"],
+        "managed_trade_win_rate": float(trade.get("win_rate_pct", -999)) >= production_gate["min_managed_trade_win_rate_pct"],
+        "managed_trade_drawdown": float(trade.get("max_drawdown_pct", -999)) >= production_gate["max_managed_trade_drawdown_pct"],
+    }
+    production_gate["passed"] = all(production_gate["checks"].values())
     for path in REQUIRED_READY:
         p=load(path)
         if p.get("strategy_version")!=candidates.get("strategy_version") or p.get("strategy_commit")!=candidates.get("strategy_commit"):
@@ -44,6 +69,7 @@ def main():
         "schema_version":2,"status":"ready","audited_at":datetime.now(timezone.utc).isoformat(),
         "historical_database":"complete","fundamentals_database":"complete_pit",
         "candidate_layer":"ready","short_term_research":"ready",
+        "production_gate":"passed" if production_gate["passed"] else "research_only",
         "strategy_source":candidates["strategy_source"],"strategy_version":candidates["strategy_version"],
         "strategy_commit":candidates["strategy_commit"],"future_function":False,
         "production_horizon":"T_close -> T+1_open -> max_5_sessions",
@@ -51,7 +77,9 @@ def main():
             "strategy_metadata_locked":True,"cross_layer_strategy_consistency":True,
             "history_completion_cross_checked":True,"fundamentals_pit_metadata_checked":True,
             "candidate_pool_integrity_checked":True,"short_term_research_coverage_checked":True,
-            "execution_assumptions_explicit":True
+            "execution_assumptions_explicit":True,
+            "production_gate_evaluated":True,
+            "production_gate_passed":production_gate["passed"]
         }
     }
     out=ROOT/args.output; out.parent.mkdir(parents=True,exist_ok=True)
