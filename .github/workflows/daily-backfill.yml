@@ -50,37 +50,26 @@ jobs:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/update_candidates.py
 
-      - name: Build target portfolio
-        run: python scripts/portfolio.py
+      - name: Validate candidate pool
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+        run: python scripts/validate_candidates.py
 
-      - name: Build execution plan
-        run: python scripts/execution_plan.py
+      - name: Archive candidate pool
+        run: python scripts/archive_candidates.py
 
-      - name: Validate production snapshots
+      - name: Validate candidate pool
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
-          for path in [
-              Path("data/candidates.json"),
-              Path("data/portfolio.json"),
-              Path("data/execution_plan.json"),
-          ]:
-              payload = json.loads(path.read_text(encoding="utf-8"))
-              if path.name == "candidates.json" and payload.get("status") != "ready":
-                  raise SystemExit("candidate snapshot is not ready")
-              if path.name == "portfolio.json" and (
-                  payload.get("status") != "ready"
-                  or payload.get("audit", {}).get("future_function") is not False
-              ):
-                  raise SystemExit("portfolio audit failed")
-              if path.name == "execution_plan.json" and (
-                  payload.get("status") != "ready_for_next_open_recheck"
-                  or payload.get("audit", {}).get("future_function") is not False
-              ):
-                  raise SystemExit("execution plan audit failed")
-          print("PRODUCTION SNAPSHOT AUDIT PASS")
+          payload = json.loads(Path("data/candidates.json").read_text(encoding="utf-8"))
+          if payload.get("status") != "ready":
+              raise SystemExit("candidate snapshot is not ready")
+          if payload.get("future_function") is not False:
+              raise SystemExit("candidate PIT audit failed")
+          print("CANDIDATE POOL AUDIT PASS")
           PY
 
       - name: Publish candidate snapshot
@@ -89,7 +78,7 @@ jobs:
           set -euo pipefail
           git config user.name "aquant-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json data/universe.json data/portfolio.json data/execution_plan.json
+          git add data/candidates.json data/candidates_history/ data/universe.json
           if git diff --cached --quiet; then
             echo "Candidate snapshot unchanged"
             exit 0
