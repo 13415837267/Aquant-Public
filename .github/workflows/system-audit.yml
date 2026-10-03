@@ -1,6 +1,13 @@
 name: System Layer Audit
 
 on:
+  pull_request:
+    paths:
+      - "data/history/_BACKFILL_COMPLETE"
+      - "data/fundamentals/_FUNDAMENTALS_COMPLETE"
+      - "data/candidates.json"
+      - ".github/workflows/system-audit.yml"
+      - "scripts/system_audit.py"
   push:
     paths:
       - "data/history/_BACKFILL_COMPLETE"
@@ -31,6 +38,7 @@ jobs:
       - name: Run cross-layer audit
         run: python scripts/system_audit.py
       - name: Commit audit result
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
