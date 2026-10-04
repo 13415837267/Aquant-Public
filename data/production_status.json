@@ -3,8 +3,12 @@
   "status": "not_released",
   "production_version": null,
   "production_strategy_commit": null,
-  "as_of": null,
+  "as_of": "2026-10-04T12:24:09Z",
   "release_gate": false,
   "system_audit": false,
-  "note": "当前尚无正式生产策略；历史候选与研究版本不得视为正式生产产物。"
+  "strategy_source_repo": "13415837267/Aquant-Private",
+  "strategy_source_branch": "main",
+  "research_strategy_version": "2.5.0",
+  "research_strategy_commit": "41118d2ea019df87f67b240f418beafb31d4897a",
+  "note": "本次运维已重置 Actions 运行记录；当前仍未通过正式生产发布门禁，因此不创建生产部署。"
 }
