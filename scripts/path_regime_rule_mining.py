@@ -1,13 +1,12 @@
 """Market-regime conditioned rule mining for the strict 1% path objective.
 
-Research only. Discovery uses 2015-2022, rule selection uses 2023-2024,
-and the final holdout is 2025-2026-09-30. No production strategy changes.
+Research only. Discovery uses 2015-2022, validation selection uses 2023-2024,
+and the final holdout is 2025-2026-09-30. Formal production is never changed.
 
 Trade label:
-T+1 open entry, executable only when not already at the upper limit.
-Within the next five sessions, net +1% must be reached before a gross -3%
-stop. When both are touched in the same daily bar, stop is conservatively
-treated as first.
+T+1 open entry, executable only if the entry is below the upper limit.
+Within the next five sessions, net +1% must be reached before a gross -3% stop.
+If both are touched in the same daily bar, stop is treated as first.
 """
 from __future__ import annotations
 
@@ -35,12 +34,12 @@ STOCK_FEATURES = [
     "intraday_return_pct", "limit_up_5d_count", "turnover_pct", "change_pct",
 ]
 RANK_THRESHOLDS = (0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80)
-MIN_TRAIN_RULE_SAMPLES = 10_000
-MIN_VALIDATION_RULE_SAMPLES = 5_000
-MIN_REGIME_SAMPLES = 25_000
-TOP_STOCK_ATOMICS_PER_REGIME = 10
-TOP_OUTPUT_RULES = 30
-TARGET_WIN_RATE_PCT = 80.0
+
+TRAIN_END = "2022-12-30"
+VALIDATION_START = "2023-01-03"
+VALIDATION_END = "2024-12-31"
+FINAL_START = "2025-01-02"
+FINAL_END = "2026-09-30"
 
 NET_WIN_THRESHOLD_PCT = 1.0
 STOP_LOSS_PCT = 3.0
@@ -48,8 +47,15 @@ ROUND_TRIP_COST_BPS = 10.0
 MAX_FORWARD_SESSIONS = 5
 ENTRY_LIMIT_UP_BLOCK = True
 
-# Non-overlapping market regimes. Their boundaries are centralized and are
-# intentionally independent of the final stock rule selection.
+MIN_TRAIN_RULE_SAMPLES = 10_000
+MIN_VALIDATION_RULE_SAMPLES = 5_000
+MIN_REGIME_SAMPLES = 25_000
+TOP_STOCK_ATOMICS_PER_REGIME = 10
+MAX_TRAIN_PAIR_OUTPUT = 120
+TOP_OUTPUT_RULES = 30
+MAX_SELECTED_PER_REGIME = 3
+TARGET_WIN_RATE_PCT = 80.0
+
 BREADTH_BINS = (-np.inf, 40.0, 50.0, 60.0, 70.0, np.inf)
 MEDIAN_BINS = (-np.inf, -1.0, -0.5, 0.0, 0.5, 1.0, np.inf)
 
@@ -63,7 +69,7 @@ def make_stock_features(frame: pd.DataFrame) -> np.ndarray:
     return np.column_stack([percentile_rank(frame[name]) for name in STOCK_FEATURES])
 
 
-def regime_defs() -> list[dict]:
+def build_regimes() -> list[dict]:
     out = []
     for bi in range(len(BREADTH_BINS) - 1):
         for mi in range(len(MEDIAN_BINS) - 1):
@@ -77,35 +83,46 @@ def regime_defs() -> list[dict]:
     return out
 
 
-REGIMES = regime_defs()
+REGIMES = build_regimes()
 
 
 def regime_masks(frame: pd.DataFrame) -> np.ndarray:
     breadth = pd.to_numeric(frame["market_breadth_pct"], errors="coerce").fillna(50.0).to_numpy(dtype=float)
     median = pd.to_numeric(frame["market_median_return_pct"], errors="coerce").fillna(0.0).to_numpy(dtype=float)
-    masks = []
+    result = []
     for rule in REGIMES:
-        b = np.ones(len(frame), dtype=bool)
-        m = np.ones(len(frame), dtype=bool)
+        mask = np.ones(len(frame), dtype=bool)
         if rule["breadth_low"] is not None:
-            b &= breadth >= rule["breadth_low"]
+            mask &= breadth >= rule["breadth_low"]
         if rule["breadth_high"] is not None:
-            b &= breadth < rule["breadth_high"]
+            mask &= breadth < rule["breadth_high"]
         if rule["median_low"] is not None:
-            m &= median >= rule["median_low"]
+            mask &= median >= rule["median_low"]
         if rule["median_high"] is not None:
-            m &= median < rule["median_high"]
-        masks.append(b & m)
-    return np.column_stack(masks).astype(np.uint8)
+            mask &= median < rule["median_high"]
+        result.append(mask)
+    return np.column_stack(result).astype(np.uint8)
 
 
 def stock_rule_defs() -> list[dict]:
-    out = []
+    rules = []
     for feature_idx, feature in enumerate(STOCK_FEATURES):
         for threshold in RANK_THRESHOLDS:
-            out.append({"rule_index": len(out), "feature": feature, "feature_index": feature_idx, "op": ">=", "threshold": threshold})
-            out.append({"rule_index": len(out), "feature": feature, "feature_index": feature_idx, "op": "<=", "threshold": threshold})
-    return out
+            rules.append({
+                "rule_index": len(rules),
+                "feature": feature,
+                "feature_index": feature_idx,
+                "op": ">=",
+                "threshold": threshold,
+            })
+            rules.append({
+                "rule_index": len(rules),
+                "feature": feature,
+                "feature_index": feature_idx,
+                "op": "<=",
+                "threshold": threshold,
+            })
+    return rules
 
 
 RULES = stock_rule_defs()
@@ -125,9 +142,8 @@ def wilson_lower_bound(wins: int, samples: int, z: float = 1.96) -> float:
     return (center - spread) / denom
 
 
-def path_targets(symbols: list[str], future_days: list[pd.DataFrame]):
-    n = len(symbols)
-    empty = (
+def empty_target_arrays(n: int):
+    return (
         np.zeros(n, dtype=bool),
         np.full(n, np.nan),
         np.full(n, np.nan),
@@ -137,29 +153,34 @@ def path_targets(symbols: list[str], future_days: list[pd.DataFrame]):
         np.full(n, np.nan),
         np.full(n, np.nan),
     )
+
+
+def path_targets(symbols: list[str], future_days: list[pd.DataFrame]):
+    n = len(symbols)
     if len(future_days) < MAX_FORWARD_SESSIONS:
-        return empty
+        return empty_target_arrays(n)
 
     keys = pd.Index(pd.Series(symbols, dtype="string").astype(str).str.zfill(6))
     first = future_days[0].set_index("symbol")
     entry = pd.to_numeric(first["open"], errors="coerce").reindex(keys).to_numpy(dtype=float)
+
     if ENTRY_LIMIT_UP_BLOCK and "high_limit" in first.columns:
         high_limit = pd.to_numeric(first["high_limit"], errors="coerce").reindex(keys).to_numpy(dtype=float)
         executable = ~np.isfinite(high_limit) | (entry < high_limit * (1.0 - 1e-6))
     else:
         executable = np.ones(n, dtype=bool)
 
-    target_gross = NET_WIN_THRESHOLD_PCT + ROUND_TRIP_COST_BPS / 100.0
-    target = entry * (1.0 + target_gross / 100.0)
+    target_gross_pct = NET_WIN_THRESHOLD_PCT + ROUND_TRIP_COST_BPS / 100.0
+    target = entry * (1.0 + target_gross_pct / 100.0)
     stop = entry * (1.0 - STOP_LOSS_PCT / 100.0)
 
     opens, highs, lows, closes = [], [], [], []
-    for day in future_days:
-        idx = day.set_index("symbol")
-        opens.append(pd.to_numeric(idx["open"], errors="coerce").reindex(keys).to_numpy(dtype=float))
-        highs.append(pd.to_numeric(idx["high"], errors="coerce").reindex(keys).to_numpy(dtype=float))
-        lows.append(pd.to_numeric(idx["low"], errors="coerce").reindex(keys).to_numpy(dtype=float))
-        closes.append(pd.to_numeric(idx["close"], errors="coerce").reindex(keys).to_numpy(dtype=float))
+    for day in future_days[:MAX_FORWARD_SESSIONS]:
+        indexed = day.set_index("symbol")
+        opens.append(pd.to_numeric(indexed["open"], errors="coerce").reindex(keys).to_numpy(dtype=float))
+        highs.append(pd.to_numeric(indexed["high"], errors="coerce").reindex(keys).to_numpy(dtype=float))
+        lows.append(pd.to_numeric(indexed["low"], errors="coerce").reindex(keys).to_numpy(dtype=float))
+        closes.append(pd.to_numeric(indexed["close"], errors="coerce").reindex(keys).to_numpy(dtype=float))
 
     opens = np.column_stack(opens)
     highs = np.column_stack(highs)
@@ -181,12 +202,12 @@ def path_targets(symbols: list[str], future_days: list[pd.DataFrame]):
     target_day = np.full(n, np.nan)
     stop_day = np.full(n, np.nan)
 
-    valid_rows = np.flatnonzero(complete)
-    for row in valid_rows:
+    for row in np.flatnonzero(complete):
         best_net[row] = np.max(highs[row]) / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         close_net[row] = closes[row, -1] / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         mae[row] = np.min(lows[row]) / entry[row] * 100.0 - 100.0
         mfe[row] = np.max(highs[row]) / entry[row] * 100.0 - 100.0
+
         for d in range(MAX_FORWARD_SESSIONS):
             day_open, day_high, day_low = opens[row, d], highs[row, d], lows[row, d]
             if day_open <= stop[row] or day_low <= stop[row]:
@@ -196,46 +217,57 @@ def path_targets(symbols: list[str], future_days: list[pd.DataFrame]):
                 target_day[row] = d + 1
                 win[row] = True
                 break
+
     return win, best_net, close_net, complete, mae, mfe, target_day, stop_day
 
 
-def accumulate(acc: dict, mask: np.ndarray, y: np.ndarray, best: np.ndarray, close: np.ndarray, mae: np.ndarray, mfe: np.ndarray, target_day: np.ndarray, stop_day: np.ndarray):
-    m = mask.astype(np.uint8)
+def make_stock_masks(x: np.ndarray) -> np.ndarray:
+    masks = np.empty((len(x), len(RULES)), dtype=np.uint8)
+    for pos, rule in enumerate(RULES):
+        values = x[:, rule["feature_index"]]
+        masks[:, pos] = (
+            values >= rule["threshold"] if rule["op"] == ">=" else values <= rule["threshold"]
+        ).astype(np.uint8)
+    return masks
+
+
+def new_acc(shape) -> dict:
+    return {
+        "samples": np.zeros(shape, dtype=np.int64),
+        "wins": np.zeros(shape, dtype=np.int64),
+        "best_sum": np.zeros(shape, dtype=np.float64),
+        "close_sum": np.zeros(shape, dtype=np.float64),
+        "mae_sum": np.zeros(shape, dtype=np.float64),
+        "mfe_sum": np.zeros(shape, dtype=np.float64),
+        "target_day_sum": np.zeros(shape, dtype=np.float64),
+        "target_day_count": np.zeros(shape, dtype=np.int64),
+        "stop_day_sum": np.zeros(shape, dtype=np.float64),
+        "stop_day_count": np.zeros(shape, dtype=np.int64),
+    }
+
+
+def accumulate_matrix(acc, masks, y, best, close, mae, mfe, target_day, stop_day):
     valid_target = np.isfinite(target_day) & (target_day > 0)
     valid_stop = np.isfinite(stop_day) & (stop_day > 0)
     target_clean = np.where(valid_target, target_day, 0.0)
     stop_clean = np.where(valid_stop, stop_day, 0.0)
-    acc["samples"] += m.sum(axis=0, dtype=np.int64)
-    acc["wins"] += (m * y[:, None]).sum(axis=0, dtype=np.int64)
-    acc["best_sum"] += (m * best[:, None]).sum(axis=0)
-    acc["close_sum"] += (m * close[:, None]).sum(axis=0)
-    acc["mae_sum"] += (m * mae[:, None]).sum(axis=0)
-    acc["mfe_sum"] += (m * mfe[:, None]).sum(axis=0)
-    acc["target_day_sum"] += (m * target_clean[:, None]).sum(axis=0)
-    acc["target_day_count"] += (m * valid_target[:, None]).sum(axis=0, dtype=np.int64)
-    acc["stop_day_sum"] += (m * stop_clean[:, None]).sum(axis=0)
-    acc["stop_day_count"] += (m * valid_stop[:, None]).sum(axis=0, dtype=np.int64)
+
+    acc["samples"] += masks.T @ np.ones(len(y), dtype=np.int64)
+    acc["wins"] += masks.T @ y.astype(np.int64)
+    acc["best_sum"] += masks.T @ best
+    acc["close_sum"] += masks.T @ close
+    acc["mae_sum"] += masks.T @ mae
+    acc["mfe_sum"] += masks.T @ mfe
+    acc["target_day_sum"] += masks.T @ target_clean
+    acc["target_day_count"] += masks.T @ valid_target.astype(np.int64)
+    acc["stop_day_sum"] += masks.T @ stop_clean
+    acc["stop_day_count"] += masks.T @ valid_stop.astype(np.int64)
 
 
-def new_acc(n: int) -> dict:
-    return {
-        "samples": np.zeros(n, dtype=np.int64),
-        "wins": np.zeros(n, dtype=np.int64),
-        "best_sum": np.zeros(n, dtype=np.float64),
-        "close_sum": np.zeros(n, dtype=np.float64),
-        "mae_sum": np.zeros(n, dtype=np.float64),
-        "mfe_sum": np.zeros(n, dtype=np.float64),
-        "target_day_sum": np.zeros(n, dtype=np.float64),
-        "target_day_count": np.zeros(n, dtype=np.int64),
-        "stop_day_sum": np.zeros(n, dtype=np.float64),
-        "stop_day_count": np.zeros(n, dtype=np.int64),
-    }
-
-
-def row_from_acc(rule_type: str, rule_payload: dict, acc: dict, pos: int, regime: dict | None = None) -> dict:
+def row_from_acc(rule_type, rule_payload, acc, pos, regime=None):
     n = int(acc["samples"][pos])
     w = int(acc["wins"][pos])
-    payload = {
+    row = {
         "rule_type": rule_type,
         "samples": n,
         "wins": w,
@@ -245,13 +277,19 @@ def row_from_acc(rule_type: str, rule_payload: dict, acc: dict, pos: int, regime
         "mean_5d_close_return_pct": acc["close_sum"][pos] / n if n else None,
         "mean_mae_pct": acc["mae_sum"][pos] / n if n else None,
         "mean_mfe_pct": acc["mfe_sum"][pos] / n if n else None,
-        "target_day_mean": acc["target_day_sum"][pos] / acc["target_day_count"][pos] if acc["target_day_count"][pos] else None,
-        "stop_day_mean": acc["stop_day_sum"][pos] / acc["stop_day_count"][pos] if acc["stop_day_count"][pos] else None,
+        "target_day_mean": (
+            acc["target_day_sum"][pos] / acc["target_day_count"][pos]
+            if acc["target_day_count"][pos] else None
+        ),
+        "stop_day_mean": (
+            acc["stop_day_sum"][pos] / acc["stop_day_count"][pos]
+            if acc["stop_day_count"][pos] else None
+        ),
     }
-    payload.update(rule_payload)
+    row.update(rule_payload)
     if regime is not None:
-        payload["regime"] = regime
-    return payload
+        row["regime"] = regime
+    return row
 
 
 def iter_split(files, start, end, state):
@@ -275,185 +313,279 @@ def iter_split(files, start, end, state):
             continue
         futures = [get(i + j) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
         x = make_stock_features(frame)
-        y, best, close, complete, mae, mfe, target_day, stop_day = path_targets(
+        targets = path_targets(
             frame["symbol"].astype(str).str.zfill(6).tolist(), futures
         )
-        keep = np.flatnonzero(complete)
+        keep = np.flatnonzero(targets[3])
         if not len(keep):
             continue
+        y, best, close, _, mae, mfe, target_day, stop_day = targets
         yield (
-            date, x[keep], y[keep], best[keep], close[keep], mae[keep], mfe[keep],
-            target_day[keep], stop_day[keep], regime_masks(frame)[keep]
+            date,
+            x[keep],
+            y[keep],
+            best[keep],
+            close[keep],
+            mae[keep],
+            mfe[keep],
+            target_day[keep],
+            stop_day[keep],
+            regime_masks(frame)[keep],
         )
 
 
-def discover_train(files, start, end):
+def summarize_atomic_by_regime(files, start, end):
     state = FeatureState()
-    rule_acc = [new_acc(len(RULES)) for _ in REGIMES]
+    acc = new_acc((len(REGIMES), len(RULES)))
     regime_counts = np.zeros(len(REGIMES), dtype=np.int64)
     processed = samples = 0
 
     for date, x, y, best, close, mae, mfe, target_day, stop_day, rmask in iter_split(files, start, end, state):
-        stock_masks = np.column_stack([
-            (x[:, rule["feature_index"]] >= rule["threshold"] if rule["op"] == ">=" else x[:, rule["feature_index"]] <= rule["threshold"]).astype(np.uint8)
-            for rule in RULES
-        ])
-        for ridx in range(len(REGIMES)):
-            rm = rmask[:, ridx].astype(bool)
-            if not rm.any():
-                continue
-            regime_counts[ridx] += int(rm.sum())
-            accumulate(rule_acc[ridx], stock_masks[rm], y[rm], best[rm], close[rm], mae[rm], mfe[rm], target_day[rm], stop_day[rm])
+        stock_masks = make_stock_masks(x)
+        r_counts = stock_masks.T @ rmask
+        r_wins = stock_masks.T @ (rmask * y[:, None].astype(np.uint8))
+        r_best = stock_masks.T @ (rmask * best[:, None])
+        r_close = stock_masks.T @ (rmask * close[:, None])
+        r_mae = stock_masks.T @ (rmask * mae[:, None])
+        r_mfe = stock_masks.T @ (rmask * mfe[:, None])
+        valid_target = (np.isfinite(target_day) & (target_day > 0)).astype(np.uint8)
+        valid_stop = (np.isfinite(stop_day) & (stop_day > 0)).astype(np.uint8)
+        r_target = stock_masks.T @ (rmask * np.where(valid_target[:, None], target_day[:, None], 0.0))
+        r_target_count = stock_masks.T @ (rmask * valid_target[:, None])
+        r_stop = stock_masks.T @ (rmask * np.where(valid_stop[:, None], stop_day[:, None], 0.0))
+        r_stop_count = stock_masks.T @ (rmask * valid_stop[:, None])
+
+        acc["samples"] += r_counts.T
+        acc["wins"] += r_wins.T
+        acc["best_sum"] += r_best.T
+        acc["close_sum"] += r_close.T
+        acc["mae_sum"] += r_mae.T
+        acc["mfe_sum"] += r_mfe.T
+        acc["target_day_sum"] += r_target.T
+        acc["target_day_count"] += r_target_count.T
+        acc["stop_day_sum"] += r_stop.T
+        acc["stop_day_count"] += r_stop_count.T
+        regime_counts += rmask.sum(axis=0, dtype=np.int64)
+
         processed += 1
         samples += len(y)
         if processed % 50 == 0:
-            print(f"[状态挖掘] 训练 {start}-{end} 已处理{processed}日，样本{samples}", flush=True)
+            print(f"[状态挖掘] 原子条件 {start}-{end} 已处理{processed}日，样本{samples}", flush=True)
 
-    candidates_by_regime = {}
-    for ridx, acc in enumerate(rule_acc):
+    candidates = {}
+    for ridx, regime in enumerate(REGIMES):
         rows = []
-        for pos, rule in enumerate(RULES):
-            n = int(acc["samples"][pos])
+        for rule_idx, rule in enumerate(RULES):
+            n = int(acc["samples"][ridx, rule_idx])
             if n < max(MIN_TRAIN_RULE_SAMPLES, MIN_REGIME_SAMPLES):
                 continue
             row = row_from_acc(
                 "regime_stock_atomic",
                 {
-                    "rule_index": rule["rule_index"],
+                    "rule_index": rule_idx,
                     "stock_rule": rule,
                     "stock_rule_label": rule_label(rule),
+                    "rule_label": f'regime_{ridx} | {rule_label(rule)}',
                 },
-                acc, pos, REGIMES[ridx],
+                {k: v[ridx] for k, v in acc.items()},
+                rule_idx,
+                regime,
             )
             rows.append(row)
         rows.sort(key=lambda r: (r["wilson_lower_pct"], r["path_win_1pct_rate_pct"], r["samples"]), reverse=True)
-        candidates_by_regime[ridx] = rows[:TOP_STOCK_ATOMICS_PER_REGIME]
-    return candidates_by_regime, regime_counts, processed, samples
+        candidates[ridx] = rows[:TOP_STOCK_ATOMICS_PER_REGIME]
+    return candidates, regime_counts, processed, samples
 
 
-def pair_train(files, start, end, candidates_by_regime):
-    specs = []
-    for ridx, rows in candidates_by_regime.items():
-        indices = [row["rule_index"] for row in rows]
+def pair_specs_by_regime(candidates):
+    all_specs = []
+    for ridx, rows in candidates.items():
+        indices = [r["rule_index"] for r in rows]
         for pos, left in enumerate(indices):
             for right in indices[pos + 1:]:
-                specs.append((ridx, left, right))
+                if RULES[left]["feature"] == RULES[right]["feature"]:
+                    continue
+                all_specs.append((ridx, left, right))
+    return all_specs
+
+
+def scan_pairs(files, start, end, specs):
     if not specs:
-        return [], {}, 0, 0
+        return [], None, 0, 0
+
+    groups = {}
+    for spec in specs:
+        groups.setdefault(spec[0], []).append(spec)
+
+    accumulators = {}
+    for ridx, group in groups.items():
+        accumulators[ridx] = new_acc(len(group))
 
     state = FeatureState()
-    acc = new_acc(len(specs))
-    spec_pos = {spec: pos for pos, spec in enumerate(specs)}
     processed = samples = 0
 
     for date, x, y, best, close, mae, mfe, target_day, stop_day, rmask in iter_split(files, start, end, state):
-        stock_masks = np.column_stack([
-            (x[:, rule["feature_index"]] >= rule["threshold"] if rule["op"] == ">=" else x[:, rule["feature_index"]] <= rule["threshold"]).astype(np.uint8)
-            for rule in RULES
-        ])
-        for ridx, left, right in specs:
-            rm = rmask[:, ridx].astype(bool)
+        stock_masks = make_stock_masks(x)
+        for ridx, group in groups.items():
+            rm = rmask[:, ridx].astype(np.uint8)
             if not rm.any():
                 continue
-            mask = rm & (stock_masks[:, left].astype(bool)) & (stock_masks[:, right].astype(bool))
-            local = np.zeros(len(y), dtype=np.uint8)
-            local[mask] = 1
-            pos = spec_pos[(ridx, left, right)]
-            accumulate(acc, local[:, None], y, best, close, mae, mfe, target_day, stop_day)
+            unique = sorted({idx for _, left, right in group for idx in (left, right)})
+            local = stock_masks[:, unique] * rm[:, None]
+            pos_map = {idx: pos for pos, idx in enumerate(unique)}
+            a = len(group)
+            acc = accumulators[ridx]
+
+            pair_counts = np.zeros(a, dtype=np.int64)
+            pair_wins = np.zeros(a, dtype=np.int64)
+            pair_best = np.zeros(a, dtype=np.float64)
+            pair_close = np.zeros(a, dtype=np.float64)
+            pair_mae = np.zeros(a, dtype=np.float64)
+            pair_mfe = np.zeros(a, dtype=np.float64)
+            pair_target = np.zeros(a, dtype=np.float64)
+            pair_target_count = np.zeros(a, dtype=np.int64)
+            pair_stop = np.zeros(a, dtype=np.float64)
+            pair_stop_count = np.zeros(a, dtype=np.int64)
+
+            valid_target = np.isfinite(target_day) & (target_day > 0)
+            valid_stop = np.isfinite(stop_day) & (stop_day > 0)
+            target_clean = np.where(valid_target, target_day, 0.0)
+            stop_clean = np.where(valid_stop, stop_day, 0.0)
+
+            for p, (_, left, right) in enumerate(group):
+                mask = (local[:, pos_map[left]] & local[:, pos_map[right]]).astype(np.uint8)
+                pair_counts[p] = int(mask.sum())
+                pair_wins[p] = int(np.dot(mask, y.astype(np.uint8)))
+                pair_best[p] = float(np.dot(mask, best))
+                pair_close[p] = float(np.dot(mask, close))
+                pair_mae[p] = float(np.dot(mask, mae))
+                pair_mfe[p] = float(np.dot(mask, mfe))
+                pair_target[p] = float(np.dot(mask, target_clean))
+                pair_target_count[p] = int(np.dot(mask, valid_target.astype(np.uint8)))
+                pair_stop[p] = float(np.dot(mask, stop_clean))
+                pair_stop_count[p] = int(np.dot(mask, valid_stop.astype(np.uint8)))
+
+            acc["samples"] += pair_counts
+            acc["wins"] += pair_wins
+            acc["best_sum"] += pair_best
+            acc["close_sum"] += pair_close
+            acc["mae_sum"] += pair_mae
+            acc["mfe_sum"] += pair_mfe
+            acc["target_day_sum"] += pair_target
+            acc["target_day_count"] += pair_target_count
+            acc["stop_day_sum"] += pair_stop
+            acc["stop_day_count"] += pair_stop_count
+
         processed += 1
         samples += len(y)
         if processed % 50 == 0:
-            print(f"[状态挖掘] 三条件训练 {start}-{end} 已处理{processed}日，样本{samples}", flush=True)
+            print(f"[状态挖掘] 双个股条件 {start}-{end} 已处理{processed}日，样本{samples}", flush=True)
+
     rows = []
-    for pos, spec in enumerate(specs):
-        ridx, left, right = spec
-        left_rule, right_rule = RULES[left], RULES[right]
-        n = int(acc["samples"][pos])
-        if n < MIN_TRAIN_RULE_SAMPLES:
-            continue
-        rows.append(row_from_acc(
-            "regime_stock_pair",
-            {
-                "rule_indices": [int(left), int(right)],
-                "stock_rules": [left_rule, right_rule],
-                "stock_rule_labels": [rule_label(left_rule), rule_label(right_rule)],
-                "rule_label": f'{REGIMES[ridx]} | {rule_label(left_rule)} AND {rule_label(right_rule)}',
-            },
-            acc, pos, REGIMES[ridx],
-        ))
+    for ridx, group in groups.items():
+        acc = accumulators[ridx]
+        for pos, (_, left, right) in enumerate(group):
+            if int(acc["samples"][pos]) < MIN_TRAIN_RULE_SAMPLES:
+                continue
+            left_rule, right_rule = RULES[left], RULES[right]
+            row = row_from_acc(
+                "regime_stock_pair",
+                {
+                    "rule_indices": [left, right],
+                    "stock_rules": [left_rule, right_rule],
+                    "stock_rule_labels": [rule_label(left_rule), rule_label(right_rule)],
+                    "rule_label": f'regime_{ridx} | {rule_label(left_rule)} AND {rule_label(right_rule)}',
+                },
+                acc,
+                pos,
+                REGIMES[ridx],
+            )
+            rows.append(row)
+
     rows.sort(key=lambda r: (r["wilson_lower_pct"], r["path_win_1pct_rate_pct"], r["samples"]), reverse=True)
-    return rows, {spec: pos for pos, spec in enumerate(specs)}, processed, samples
+    return rows[:MAX_TRAIN_PAIR_OUTPUT], None, processed, samples
 
 
 def evaluate_specs(files, start, end, specs):
     if not specs:
         return []
+
+    groups = {}
+    for pos, spec in enumerate(specs):
+        groups.setdefault(spec[0], []).append((pos, spec))
+
+    accumulators = {}
+    for ridx, group in groups.items():
+        accumulators[ridx] = new_acc(len(group))
+
     state = FeatureState()
-    acc = new_acc(len(specs))
-    spec_pos = {spec: pos for pos, spec in enumerate(specs)}
     processed = samples = 0
 
     for date, x, y, best, close, mae, mfe, target_day, stop_day, rmask in iter_split(files, start, end, state):
-        stock_masks = np.column_stack([
-            (x[:, rule["feature_index"]] >= rule["threshold"] if rule["op"] == ">=" else x[:, rule["feature_index"]] <= rule["threshold"]).astype(np.uint8)
-            for rule in RULES
-        ])
-        for pos, spec in enumerate(specs):
-            ridx, left, right = spec
-            mask = rmask[:, ridx].astype(bool) & stock_masks[:, left].astype(bool) & stock_masks[:, right].astype(bool)
-            local = np.zeros(len(y), dtype=np.uint8)
-            local[mask] = 1
-            accumulate(acc, local[:, None], y, best, close, mae, mfe, target_day, stop_day)
+        stock_masks = make_stock_masks(x)
+        for ridx, group in groups.items():
+            rm = rmask[:, ridx].astype(np.uint8)
+            if not rm.any():
+                continue
+            unique = sorted({
+                idx
+                for _, spec in group
+                for idx in ((spec[1],) if spec[2] is None else (spec[1], spec[2]))
+            })
+            local = stock_masks[:, unique] * rm[:, None]
+            pos_map = {idx: pos for pos, idx in enumerate(unique)}
+            acc = accumulators[ridx]
+            valid_target = np.isfinite(target_day) & (target_day > 0)
+            valid_stop = np.isfinite(stop_day) & (stop_day > 0)
+            target_clean = np.where(valid_target, target_day, 0.0)
+            stop_clean = np.where(valid_stop, stop_day, 0.0)
+
+            for local_pos, (_, spec) in enumerate(group):
+                left, right = spec[1], spec[2]
+                if right is None:
+                    mask = local[:, pos_map[left]]
+                else:
+                    mask = local[:, pos_map[left]] & local[:, pos_map[right]]
+                mask = mask.astype(np.uint8)
+                acc["samples"][local_pos] += int(mask.sum())
+                acc["wins"][local_pos] += int(np.dot(mask, y.astype(np.uint8)))
+                acc["best_sum"][local_pos] += float(np.dot(mask, best))
+                acc["close_sum"][local_pos] += float(np.dot(mask, close))
+                acc["mae_sum"][local_pos] += float(np.dot(mask, mae))
+                acc["mfe_sum"][local_pos] += float(np.dot(mask, mfe))
+                acc["target_day_sum"][local_pos] += float(np.dot(mask, target_clean))
+                acc["target_day_count"][local_pos] += int(np.dot(mask, valid_target.astype(np.uint8)))
+                acc["stop_day_sum"][local_pos] += float(np.dot(mask, stop_clean))
+                acc["stop_day_count"][local_pos] += int(np.dot(mask, valid_stop.astype(np.uint8)))
+
         processed += 1
         samples += len(y)
+        if processed % 50 == 0:
+            print(f"[状态挖掘] 评估 {start}-{end} 已处理{processed}日，样本{samples}", flush=True)
 
     rows = []
-    for pos, (ridx, left, right) in enumerate(specs):
-        left_rule, right_rule = RULES[left], RULES[right]
-        rows.append(row_from_acc(
-            "regime_stock_pair",
-            {
-                "rule_indices": [int(left), int(right)],
-                "stock_rules": [left_rule, right_rule],
-                "stock_rule_labels": [rule_label(left_rule), rule_label(right_rule)],
-                "rule_label": f'regime_{ridx} | {rule_label(left_rule)} AND {rule_label(right_rule)}',
-            },
-            acc, pos, REGIMES[ridx],
-        ))
-    return rows
-
-
-def evaluate_atomic(files, start, end, specs):
-    if not specs:
-        return []
-    state = FeatureState()
-    acc = new_acc(len(specs))
-    processed = samples = 0
-    for date, x, y, best, close, mae, mfe, target_day, stop_day, rmask in iter_split(files, start, end, state):
-        stock_masks = np.column_stack([
-            (x[:, rule["feature_index"]] >= rule["threshold"] if rule["op"] == ">=" else x[:, rule["feature_index"]] <= rule["threshold"]).astype(np.uint8)
-            for rule in RULES
-        ])
-        for pos, (ridx, rule_idx) in enumerate(specs):
-            mask = rmask[:, ridx].astype(bool) & stock_masks[:, rule_idx].astype(bool)
-            local = np.zeros(len(y), dtype=np.uint8)
-            local[mask] = 1
-            accumulate(acc, local[:, None], y, best, close, mae, mfe, target_day, stop_day)
-        processed += 1
-        samples += len(y)
-    rows = []
-    for pos, (ridx, rule_idx) in enumerate(specs):
-        rule = RULES[rule_idx]
-        rows.append(row_from_acc(
-            "regime_stock_atomic",
-            {
-                "rule_index": int(rule_idx),
-                "stock_rule": rule,
-                "stock_rule_label": rule_label(rule),
-                "rule_label": f'regime_{ridx} | {rule_label(rule)}',
-            },
-            acc, pos, REGIMES[ridx],
-        ))
+    for ridx, group in groups.items():
+        acc = accumulators[ridx]
+        for local_pos, (global_pos, spec) in enumerate(group):
+            rule_type, left, right = spec
+            if rule_type == "regime_stock_atomic":
+                rule = RULES[left]
+                payload = {
+                    "rule_index": left,
+                    "stock_rule": rule,
+                    "stock_rule_label": rule_label(rule),
+                    "rule_label": f'regime_{ridx} | {rule_label(rule)}',
+                }
+            else:
+                left_rule, right_rule = RULES[left], RULES[right]
+                payload = {
+                    "rule_indices": [left, right],
+                    "stock_rules": [left_rule, right_rule],
+                    "stock_rule_labels": [rule_label(left_rule), rule_label(right_rule)],
+                    "rule_label": f'regime_{ridx} | {rule_label(left_rule)} AND {rule_label(right_rule)}',
+                }
+            rows.append(row_from_acc(rule_type, payload, acc, local_pos, REGIMES[ridx]))
+    rows.sort(key=lambda r: (r["path_win_1pct_rate_pct"] or -1, r["wilson_lower_pct"] or -1, r["samples"]), reverse=True)
     return rows
 
 
@@ -470,68 +602,88 @@ def main():
     if args.start not in dates or args.final_end not in dates:
         raise ValueError("训练区间必须落在历史数据范围内")
 
-    train_candidates, regime_counts, train_days, train_samples = discover_train(files, args.start, TRAIN_END)
-    train_specs = []
-    for ridx, rows in train_candidates.items():
-        train_specs.extend((ridx, row["rule_index"]) for row in rows)
+    train_atomic, regime_counts, train_days, train_samples = summarize_atomic_by_regime(
+        files, args.start, TRAIN_END
+    )
+    train_pair_rows, _, pair_days, pair_samples = scan_pairs(
+        files, args.start, TRAIN_END, pair_specs_by_regime(train_atomic)
+    )
 
-    # Build regime-conditioned stock-pair candidates from training only.
-    pair_train_rows, _, pair_days, pair_samples = pair_train(files, args.start, TRAIN_END, train_candidates)
-    pair_train_rows = pair_train_rows[:TOP_OUTPUT_RULES * 4]
-    pair_specs = []
-    for row in pair_train_rows:
-        ridx = REGIMES.index(row["regime"])
-        pair_specs.append((ridx, row["rule_indices"][0], row["rule_indices"][1]))
+    train_atomic_specs = [
+        ("regime_stock_atomic", ridx, row["rule_index"])
+        for ridx, rows in train_atomic.items()
+        for row in rows
+    ]
+    train_pair_specs = [
+        ("regime_stock_pair", row["regime"]["regime_index"], row["rule_indices"][0], row["rule_indices"][1])
+        for row in train_pair_rows
+    ]
 
-    validation_atomic = evaluate_atomic(files, VALIDATION_START, VALIDATION_END, train_specs)
-    validation_pair = evaluate_specs(files, VALIDATION_START, VALIDATION_END, pair_specs)
-    validation_rows = validation_atomic + validation_pair
+    validation_specs = []
+    validation_specs.extend(("regime_stock_atomic", ridx, row["rule_index"], None)
+                            for ridx, rows in train_atomic.items() for row in rows)
+    validation_specs.extend(("regime_stock_pair", ridx, left, right)
+                            for _, ridx, left, right in train_pair_specs)
+
+    validation_rows = evaluate_specs(files, VALIDATION_START, VALIDATION_END, validation_specs)
     validation_rows = [
         row for row in validation_rows
         if row["samples"] >= MIN_VALIDATION_RULE_SAMPLES
     ]
-    validation_rows.sort(key=lambda r: (r["path_win_1pct_rate_pct"] or -1, r["wilson_lower_pct"] or -1, r["samples"]), reverse=True)
-    selected = validation_rows[:TOP_OUTPUT_RULES]
+    validation_rows.sort(
+        key=lambda r: (r["path_win_1pct_rate_pct"] or -1, r["wilson_lower_pct"] or -1, r["samples"]),
+        reverse=True,
+    )
 
-    selected_atomic_specs = []
-    selected_pair_specs = []
-    selected_source = []
+    selected = []
+    regime_selected = {}
+    for row in validation_rows:
+        ridx = row["regime"]["regime_index"]
+        if regime_selected.get(ridx, 0) >= MAX_SELECTED_PER_REGIME:
+            continue
+        selected.append(row)
+        regime_selected[ridx] = regime_selected.get(ridx, 0) + 1
+        if len(selected) >= TOP_OUTPUT_RULES:
+            break
+
+    final_specs = []
     for row in selected:
-        regime = row["regime"]
-        ridx = REGIMES.index(regime)
+        ridx = row["regime"]["regime_index"]
         if row["rule_type"] == "regime_stock_atomic":
-            selected_atomic_specs.append((ridx, row["rule_index"]))
+            final_specs.append(("regime_stock_atomic", ridx, row["rule_index"], None))
         else:
-            selected_pair_specs.append((ridx, row["rule_indices"][0], row["rule_indices"][1]))
-        selected_source.append(row)
+            final_specs.append(("regime_stock_pair", ridx, row["rule_indices"][0], row["rule_indices"][1]))
 
-    final_atomic = evaluate_atomic(files, FINAL_START, args.final_end, selected_atomic_specs)
-    final_pairs = evaluate_specs(files, FINAL_START, args.final_end, selected_pair_specs)
-    final_rows = final_atomic + final_pairs
+    final_rows = evaluate_specs(files, FINAL_START, args.final_end, final_specs)
     final_map = {}
     for row in final_rows:
-        if row["rule_type"] == "regime_stock_atomic":
-            key = ("atomic", REGIMES.index(row["regime"]), row["rule_index"])
-        else:
-            key = ("pair", REGIMES.index(row["regime"]), *row["rule_indices"])
+        key = (
+            row["rule_type"],
+            row["regime"]["regime_index"],
+            row["rule_index"] if row["rule_type"] == "regime_stock_atomic" else tuple(row["rule_indices"]),
+        )
         final_map[key] = row
 
+    train_maps = {}
+    for row in train_atomic_specs:
+        train_maps[("regime_stock_atomic", row[1], row[2])] = next(
+            r for r in train_atomic[row[1]] if r["rule_index"] == row[2]
+        )
+    for row in train_pair_rows:
+        train_maps[("regime_stock_pair", row["regime"]["regime_index"], tuple(row["rule_indices"]))] = row
+
     selected_output = []
-    for row in selected_source:
-        ridx = REGIMES.index(row["regime"])
+    for row in selected:
+        ridx = row["regime"]["regime_index"]
         if row["rule_type"] == "regime_stock_atomic":
-            key = ("atomic", ridx, row["rule_index"])
+            key = ("regime_stock_atomic", ridx, row["rule_index"])
         else:
-            key = ("pair", ridx, *row["rule_indices"])
+            key = ("regime_stock_pair", ridx, tuple(row["rule_indices"]))
         selected_output.append({
             "rule_type": row["rule_type"],
             "regime": row["regime"],
             "rule_label": row["rule_label"],
-            "train": next((x for x in pair_train_rows + sum(train_candidates.values(), []) if x.get("rule_label") == row["rule_label"] or (
-                x["rule_type"] == row["rule_type"] and REGIMES.index(x["regime"]) == ridx and (
-                    x.get("rule_index") == row.get("rule_index") or x.get("rule_indices") == row.get("rule_indices")
-                )
-            )), None),
+            "train": train_maps.get(key),
             "validation": row,
             "final": final_map.get(key),
             "validation_target_80pct": row["path_win_1pct_rate_pct"] >= TARGET_WIN_RATE_PCT,
@@ -559,7 +711,10 @@ def main():
             "min_validation_rule_samples": MIN_VALIDATION_RULE_SAMPLES,
             "min_regime_samples": MIN_REGIME_SAMPLES,
             "top_stock_atomics_per_regime": TOP_STOCK_ATOMICS_PER_REGIME,
+            "max_train_pair_output": MAX_TRAIN_PAIR_OUTPUT,
             "top_output_rules": TOP_OUTPUT_RULES,
+            "max_selected_per_regime": MAX_SELECTED_PER_REGIME,
+            "target_win_rate_pct": TARGET_WIN_RATE_PCT,
             "rank_thresholds": list(RANK_THRESHOLDS),
             "breadth_bins": list(BREADTH_BINS),
             "median_bins": list(MEDIAN_BINS),
@@ -570,17 +725,19 @@ def main():
             "processed_days": train_days,
             "regime_sample_counts": regime_counts.tolist(),
         },
-        "train_top_atomic_by_regime": train_candidates,
-        "train_top_pairs": pair_train_rows,
+        "train_top_atomic_by_regime": train_atomic,
+        "train_top_pairs": train_pair_rows,
         "validation_top_rules": selected,
         "validation_qualified_rules_ge_80pct": [
             row for row in selected if row["path_win_1pct_rate_pct"] >= TARGET_WIN_RATE_PCT
         ],
         "selected_rules": selected_output,
         "final_qualified_rules_ge_80pct": [
-            row for row in final_rows
-            if row["samples"] >= MIN_VALIDATION_RULE_SAMPLES
-            and row["path_win_1pct_rate_pct"] >= TARGET_WIN_RATE_PCT
+            item["final"]
+            for item in selected_output
+            if item["final"] is not None
+            and item["final"]["samples"] >= MIN_VALIDATION_RULE_SAMPLES
+            and item["final"]["path_win_1pct_rate_pct"] >= TARGET_WIN_RATE_PCT
         ],
         "audit": {
             "no_future_features": True,
@@ -592,17 +749,22 @@ def main():
             "rule_discovery_split": "train",
             "rule_selection_split": "validation",
             "final_holdout_split": "final",
+            "same_feature_pairs_blocked": True,
             "formal_production_changed": False,
         },
         "elapsed_seconds": round(time.time() - started, 2),
     }
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    Path(args.output).write_text(__import__("json").dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    Path(args.output).write_text(
+        __import__("json").dumps(result, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     print(__import__("json").dumps({
         "status": result["status"],
         "train_samples": train_samples,
-        "validation_rules": len(validation_rows),
+        "validation_samples": sum(r["samples"] for r in selected),
+        "selected_rules": len(selected),
         "validation_ge_80pct": len(result["validation_qualified_rules_ge_80pct"]),
         "final_ge_80pct": len(result["final_qualified_rules_ge_80pct"]),
         "top_validation_rule": selected[0]["rule_label"] if selected else None,
