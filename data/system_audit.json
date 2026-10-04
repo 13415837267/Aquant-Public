@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "status": "ready",
+  "status": "stale",
   "audited_at": "2026-10-03T18:43:46.001229+00:00",
   "historical_database": "complete",
   "fundamentals_database": "complete_pit",
@@ -24,5 +24,6 @@
     "execution_assumptions_explicit": true,
     "production_gate_evaluated": true,
     "production_gate_passed": false
-  }
+  },
+  "stale_reason": "策略源已回退/更新且研究退出规则已修复；旧研究结果尚未按当前策略重新验证，禁止作为当前信号或生产依据。"
 }
