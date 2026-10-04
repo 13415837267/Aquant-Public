@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "status": "research_only",
+  "method": "full_market_path_aware_short_term_training",
+  "objective": "net_profit_at_least_1pct_before_3pct_stop_within_5_sessions",
+  "data_start": "2015-01-05",
+  "data_end": "2026-09-30",
+  "splits": {
+    "train": [
+      "2015-01-05",
+      "2022-12-30"
+    ],
+    "validation": [
+      "2023-01-03",
+      "2024-12-31"
+    ],
+    "final": [
+      "2025-01-02",
+      "2026-09-30"
+    ]
+  },
+  "features": [
+    "return_1d_pct",
+    "return_3d_pct",
+    "return_5d_pct",
+    "return_10d_pct",
+    "return_20d_pct",
+    "overnight_1d_pct",
+    "overnight_3d_pct",
+    "overnight_5d_pct",
+    "overnight_10d_pct",
+    "volume_ratio_5d",
+    "amount_20d",
+    "volatility_10d_pct",
+    "close_strength",
+    "intraday_return_pct",
+    "limit_up_5d_count",
+    "turnover_pct",
+    "change_pct",
+    "market_breadth_pct",
+    "market_median_return_pct"
+  ],
+  "stock_features_are_cross_sectional_percentile_ranked": true,
+  "net_win_threshold_pct": 1.0,
+  "stop_loss_pct": 3.0,
+  "round_trip_cost_bps": 10.0,
+  "model": {
+    "type": "logistic_regression_sgd",
+    "learning_rate": 0.08,
+    "l2": 0.02,
+    "epochs_per_day": 2,
+    "intercept": 1.0768878746779862,
+    "coefficients": {
+      "return_1d_pct": -0.020528712332506065,
+      "return_3d_pct": 0.003817091692096674,
+      "return_5d_pct": -0.021593629162212843,
+      "return_10d_pct": 0.0008099529482278938,
+      "return_20d_pct": -0.058319301191632936,
+      "overnight_1d_pct": 0.03179090188020929,
+      "overnight_3d_pct": 0.033367654662262845,
+      "overnight_5d_pct": 0.020567274403002087,
+      "overnight_10d_pct": 0.02426147648528005,
+      "volume_ratio_5d": -0.00505617056259111,
+      "amount_20d": -0.032245147543289145,
+      "volatility_10d_pct": -0.09594561212588343,
+      "close_strength": -0.04360688681095355,
+      "intraday_return_pct": -0.014064764987774004,
+      "limit_up_5d_count": -0.08492862731005374,
+      "turnover_pct": -0.06608008403074923,
+      "change_pct": -0.02052871233250624,
+      "market_breadth_pct": 0.047413817506427446,
+      "market_median_return_pct": -0.06386150665006403
+    }
+  },
+  "train": {
+    "processed_days": 1938,
+    "samples": 3487561
+  },
+  "validation": {
+    "processed_days": 484,
+    "samples": 1134319,
+    "base_path_win_1pct_rate_pct": 65.42436475100921,
+    "base_mean_best_return_pct": 4.6930142439176326,
+    "base_mean_5d_close_return_pct": -0.06468596596242189,
+    "thresholds": [
+      {
+        "probability_threshold": 0.7,
+        "samples": 967262,
+        "sample_share_pct": 85.27248507694925,
+        "path_win_1pct_rate_pct": 66.31191962467253,
+        "mean_best_return_pct": 4.281479654140248,
+        "mean_5d_close_return_pct": 0.02428843908507074
+      },
+      {
+        "probability_threshold": 0.75,
+        "samples": 610,
+        "sample_share_pct": 0.05377675944773913,
+        "path_win_1pct_rate_pct": 71.80327868852459,
+        "mean_best_return_pct": 5.979782823285039,
+        "mean_5d_close_return_pct": 2.0161118195606167
+      },
+      {
+        "probability_threshold": 0.8,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "path_win_1pct_rate_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.82,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "path_win_1pct_rate_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.85,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "path_win_1pct_rate_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.88,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "path_win_1pct_rate_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.9,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "path_win_1pct_rate_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      }
+    ],
+    "yearly": [
+      {
+        "year": "2023",
+        "samples": 551849,
+        "base_path_win_1pct_rate_pct": 65.46337856913757,
+        "threshold_0_8_samples": 0,
+        "threshold_0_8_path_win_1pct_rate_pct": null,
+        "threshold_0_85_samples": 0,
+        "threshold_0_85_path_win_1pct_rate_pct": null
+      },
+      {
+        "year": "2024",
+        "samples": 582470,
+        "base_path_win_1pct_rate_pct": 65.38740192627947,
+        "threshold_0_8_samples": 0,
+        "threshold_0_8_path_win_1pct_rate_pct": null,
+        "threshold_0_85_samples": 0,
+        "threshold_0_85_path_win_1pct_rate_pct": null
+      }
+    ]
+  },
+  "final": {
+    "processed_days": 419,
+    "samples": 1169615,
+    "base_path_win_1pct_rate_pct": 66.85345177686675,
+    "base_mean_best_return_pct": 4.862487982318768,
+    "base_mean_5d_close_return_pct": 0.2841806302869042,
+    "thresholds": [
+      {
+        "probability_threshold": 0.7,
+        "samples": 991614,
+        "sample_share_pct": 84.78123143085546,
+        "path_win_1pct_rate_pct": 68.15756937679379,
+        "mean_best_return_pct": 4.371726935960837,
+        "mean_5d_close_return_pct": 0.34502620947046436
+      },
+      {
+        "probability_threshold": 0.75,
+        "samples": 562,
+        "sample_share_pct": 0.048049999358763355,
+        "path_win_1pct_rate_pct": 65.12455516014235,
+        "mean_best_return_pct": 6.086758811635533,
+        "mean_5d_close_return_pct": 3.8452602868540824
+      },
+      {
+        "probability_threshold": 0.8,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "path_win_1pct_rate_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.82,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "path_win_1pct_rate_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.85,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "path_win_1pct_rate_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.88,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "path_win_1pct_rate_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.9,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "path_win_1pct_rate_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      }
+    ],
+    "yearly": [
+      {
+        "year": "2025",
+        "samples": 672115,
+        "base_path_win_1pct_rate_pct": 68.7354098628955,
+        "threshold_0_8_samples": 0,
+        "threshold_0_8_path_win_1pct_rate_pct": null,
+        "threshold_0_85_samples": 0,
+        "threshold_0_85_path_win_1pct_rate_pct": null
+      },
+      {
+        "year": "2026",
+        "samples": 497500,
+        "base_path_win_1pct_rate_pct": 64.31095477386934,
+        "threshold_0_8_samples": 0,
+        "threshold_0_8_path_win_1pct_rate_pct": null,
+        "threshold_0_85_samples": 0,
+        "threshold_0_85_path_win_1pct_rate_pct": null
+      }
+    ]
+  },
+  "selected_validation_operating_point": {
+    "probability_threshold": 0.7,
+    "samples": 967262,
+    "sample_share_pct": 85.27248507694925,
+    "path_win_1pct_rate_pct": 66.31191962467253,
+    "mean_best_return_pct": 4.281479654140248,
+    "mean_5d_close_return_pct": 0.02428843908507074
+  },
+  "audit": {
+    "no_future_features": true,
+    "entry_is_T_plus_1_open": true,
+    "target_is_net_profit_at_least_1pct": true,
+    "target_gross_equivalent_pct": 1.1,
+    "stop_loss_gross_pct": 3.0,
+    "same_day_stop_first": true,
+    "formal_production_changed": false
+  },
+  "elapsed_seconds": 1040.53
+}\n
