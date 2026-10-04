@@ -1,4 +1,4 @@
-name: System Layer Audit
+name: 系统层审计
 
 on:
   push:
