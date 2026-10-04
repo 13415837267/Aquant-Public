@@ -14,28 +14,31 @@ concurrency:
 
 jobs:
   fundamentals:
+    name: 基本面数据回填
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v5
+      - name: 检出公开仓库
+        uses: actions/checkout@v6
         with:
           ref: main
           fetch-depth: 0
-      - uses: actions/setup-python@v6
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install dependencies
+      - name: 安装依赖
         run: pip install -r requirements.txt
-      - name: Backfill five-year point-in-time fundamentals
+      - name: 回填五年时点基本面数据
         env:
           ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
         run: python scripts/backfill_history.py --mode fundamentals
-      - name: Validate persisted fundamentals
+      - name: 验证已保存基本面数据
         env:
           ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
         run: python scripts/backfill_history.py --mode validate_fundamentals
-      - name: Verify completeness markers
+      - name: 验证完整性标记
         run: |
           test -f data/fundamentals/_FUNDAMENTALS_STATE.json
           test -f data/fundamentals/_FUNDAMENTALS_COMPLETE
