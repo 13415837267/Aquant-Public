@@ -246,6 +246,16 @@ def new_acc(shape) -> dict:
     }
 
 
+def int_dot(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    """Integer matrix products must use int64; uint8 matmul silently wraps."""
+    return left.astype(np.int64) @ right.astype(np.int64)
+
+
+def int_vector_dot(left: np.ndarray, right: np.ndarray) -> int:
+    """Integer vector products must use int64 to avoid overflow on large samples."""
+    return int(np.dot(left.astype(np.int64), right.astype(np.int64)))
+
+
 def accumulate_matrix(acc, masks, y, best, close, mae, mfe, target_day, stop_day):
     valid_target = np.isfinite(target_day) & (target_day > 0)
     valid_stop = np.isfinite(stop_day) & (stop_day > 0)
@@ -342,8 +352,8 @@ def summarize_atomic_by_regime(files, start, end):
 
     for date, x, y, best, close, mae, mfe, target_day, stop_day, rmask in iter_split(files, start, end, state):
         stock_masks = make_stock_masks(x)
-        r_counts = stock_masks.T @ rmask
-        r_wins = stock_masks.T @ (rmask * y[:, None].astype(np.uint8))
+        r_counts = int_dot(stock_masks, rmask)
+        r_wins = int_dot(stock_masks, rmask * y[:, None].astype(np.int64))
         r_best = stock_masks.T @ (rmask * best[:, None])
         r_close = stock_masks.T @ (rmask * close[:, None])
         r_mae = stock_masks.T @ (rmask * mae[:, None])
@@ -351,9 +361,9 @@ def summarize_atomic_by_regime(files, start, end):
         valid_target = (np.isfinite(target_day) & (target_day > 0)).astype(np.uint8)
         valid_stop = (np.isfinite(stop_day) & (stop_day > 0)).astype(np.uint8)
         r_target = stock_masks.T @ (rmask * np.where(valid_target[:, None], target_day[:, None], 0.0))
-        r_target_count = stock_masks.T @ (rmask * valid_target[:, None])
+        r_target_count = int_dot(stock_masks, rmask * valid_target[:, None].astype(np.int64))
         r_stop = stock_masks.T @ (rmask * np.where(valid_stop[:, None], stop_day[:, None], 0.0))
-        r_stop_count = stock_masks.T @ (rmask * valid_stop[:, None])
+        r_stop_count = int_dot(stock_masks, rmask * valid_stop[:, None].astype(np.int64))
 
         acc["samples"] += r_counts.T
         acc["wins"] += r_wins.T
@@ -455,15 +465,15 @@ def scan_pairs(files, start, end, specs):
             for p, (_, left, right) in enumerate(group):
                 mask = (local[:, pos_map[left]] & local[:, pos_map[right]]).astype(np.uint8)
                 pair_counts[p] = int(mask.sum())
-                pair_wins[p] = int(np.dot(mask, y.astype(np.uint8)))
+                pair_wins[p] = int_vector_dot(mask, y.astype(np.uint8))
                 pair_best[p] = float(np.dot(mask, best))
                 pair_close[p] = float(np.dot(mask, close))
                 pair_mae[p] = float(np.dot(mask, mae))
                 pair_mfe[p] = float(np.dot(mask, mfe))
                 pair_target[p] = float(np.dot(mask, target_clean))
-                pair_target_count[p] = int(np.dot(mask, valid_target.astype(np.uint8)))
+                pair_target_count[p] = int_vector_dot(mask, valid_target.astype(np.uint8))
                 pair_stop[p] = float(np.dot(mask, stop_clean))
-                pair_stop_count[p] = int(np.dot(mask, valid_stop.astype(np.uint8)))
+                pair_stop_count[p] = int_vector_dot(mask, valid_stop.astype(np.uint8))
 
             acc["samples"] += pair_counts
             acc["wins"] += pair_wins
