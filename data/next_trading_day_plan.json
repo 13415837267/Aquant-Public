@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-10-05T01:02:36.076360+08:00",
+  "generated_at": "2026-10-05T02:49:56.723662+08:00",
   "timezone": "Asia/Shanghai",
   "next_trading_day": "2026-10-08",
   "signal_date": "2026-09-30",
@@ -10,7 +10,7 @@
   "title": "2026年10月8日下一交易日计划",
   "summary": "2026-09-30 收盘候选快照直接作为 2026-10-08 开盘执行计划。候选身份、排序、分数与精度概率全部逐项继承 data/candidates.json，不重新选股、不重新打分，不读取执行日或之后的行情数据，因此不存在未来函数。",
   "strategy_version": "2.5.0",
-  "strategy_commit": "41118d2ea019df87f67b240f418beafb31d4897a",
+  "strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
   "candidate_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
   "market": {
     "breadth_pct": 54.387,
@@ -64,6 +64,6 @@
     "path": "data/candidates.json",
     "as_of": "2026-09-30T18:00:00+08:00",
     "strategy_version": "2.5.0",
-    "strategy_commit": "41118d2ea019df87f67b240f418beafb31d4897a"
+    "strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
   }
 }

@@ -2,10 +2,10 @@
   "as_of": "2026-09-30T18:00:00+08:00",
   "timezone": "Asia/Shanghai",
   "source": "Aquant-Public data/history",
-  "status": "stale",
+  "status": "ready",
   "strategy_source": "Aquant-Private/main",
   "strategy_version": "2.5.0",
-  "strategy_commit": "41118d2ea019df87f67b240f418beafb31d4897a",
+  "strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
   "market_scope": "沪深主板：000001-004999.SZ（排除001001-001199 CDR）+ 600/601/603/605.SH",
   "universe": "沪深主板；排除 ST/退市相关标的、停牌、价格≤2元、最近交易日成交额<3000万元",
   "lookback_trading_days": 20,
@@ -15,8 +15,8 @@
     5
   ],
   "risk_controls": {
-    "net_win_threshold_pct": 1,
-    "stop_loss_pct": 3,
+    "net_win_threshold_pct": 1.0,
+    "stop_loss_pct": 3.0,
     "max_positions": 2,
     "sell_start_session": 2
   },
@@ -51,12 +51,12 @@
       "turnover_pct": 11.032,
       "amount": 2040286101.52,
       "volatility_10d_pct": 6.678,
-      "close_strength": 0,
-      "overnight_1d_pct": 0,
+      "close_strength": 0.0,
+      "overnight_1d_pct": 0.0,
       "overnight_3d_pct": 5.319,
       "overnight_5d_pct": 8.936,
       "intraday_return_pct": -0.956,
-      "limit_up_5d_count": 1,
+      "limit_up_5d_count": 1.0,
       "score": 88.601,
       "precision_probability": 0.886014,
       "admission_tier": "coverage_fallback_088",
@@ -173,6 +173,5 @@
   },
   "history_files_used": 21,
   "history_window_start": "2026-09-01",
-  "history_window_end": "2026-09-30",
-  "stale_reason": "策略源已回退/更新且研究退出规则已修复；旧研究结果尚未按当前策略重新验证，禁止作为当前信号或生产依据。"
+  "history_window_end": "2026-09-30"
 }
