@@ -142,7 +142,7 @@ def build_candidates(history,strategy_model,strategy_version,strategy_commit):
         "lookback_trading_days":20,"signal_horizon":"T收盘信号 → T+1开盘买入 → T+2起最早卖出 → 最长5个交易日",
         "holding_window_sessions":[2,5],"risk_controls":{"net_win_threshold_pct":1.0,"stop_loss_pct":3.0,"max_positions":2,"sell_start_session":2},
         "market":{"breadth_pct":round(breadth,3),"median_return_pct":round(median,3),"regime":regime},
-        "diagnostics":{"history_rows":int(len(history)),**diag,"candidate_count":len(rows),"primary_candidate_count":sum(1 for row in rows if row["admission_tier"] == "primary_089"),"coverage_fallback_used":any(row["admission_tier"] == "coverage_fallback_088" for row in rows),"risk_off_no_trade":regime=="risk_off"},
+        "diagnostics":{"history_rows":int(len(history)),**diag,"candidate_count":len(rows),"primary_candidate_count":sum(1 for row in rows if row["admission_tier"] == "primary_089"),"coverage_fallback_used":any(row["admission_tier"] == "coverage_fallback_088" for row in rows),"daily_top1_rescue_used":any(row["admission_tier"] == "daily_top1_rescue" for row in rows),"risk_off_no_trade":regime=="risk_off"},
         "candidates":rows,"research_observation_candidates":observation_rows,"factor_weights":getattr(strategy_model,"WEIGHTS",None),"future_function":False,
         "candidate_admission_policy":str(getattr(strategy_model, "ADMISSION_POLICY", "legacy_dynamic_top_score")),
         "audit":{"hard_eligibility_applied_before_scoring":True,"strategy_source_locked_to_private":True,"short_term_features_only":True,"market_gate_applied":True}
