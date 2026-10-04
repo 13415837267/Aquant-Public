@@ -15,7 +15,7 @@ def _payload():
             {"rank":1,"symbol":"600000","name":"浦发银行","price":10.0,"change_pct":1.0,"return_3d_pct":2.0,"return_5d_pct":4.0,"return_10d_pct":6.0,"volume_ratio_5d":1.5,"turnover_pct":2.0,"amount":1e8,"volatility_10d_pct":3.0,"close_strength":0.9,"score":92.0,"precision_probability":0.92,"admission_tier":"primary_089"},
             {"rank":2,"symbol":"600001","name":"示例银行","price":9.0,"change_pct":0.5,"return_3d_pct":1.5,"return_5d_pct":3.0,"return_10d_pct":4.0,"volume_ratio_5d":1.2,"turnover_pct":1.5,"amount":9e7,"volatility_10d_pct":4.0,"close_strength":0.8,"score":90.0,"precision_probability":0.90,"admission_tier":"primary_089"},
         ],
-        "candidate_admission_policy":"precision_top_2_with_089_primary_088_fallback_daily_top1_rescue","diagnostics":{"candidate_count":2,"primary_candidate_count":2,"coverage_fallback_used":False,"daily_top1_rescue_used":False,"risk_off_no_trade":False},
+        "candidate_admission_policy":"precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor","diagnostics":{"candidate_count":2,"primary_candidate_count":2,"coverage_fallback_used":False,"daily_top1_rescue_used":False,"risk_off_no_trade":False},
         "future_function":False,
         "audit":{"hard_eligibility_applied_before_scoring":True,"strategy_source_locked_to_private":True,"short_term_features_only":True,"market_gate_applied":True},
     }
