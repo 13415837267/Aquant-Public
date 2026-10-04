@@ -59,7 +59,7 @@ def validate_candidates(payload, private_version=None, private_commit=None):
     if not isinstance(payload.get("history_files_used"), int) or payload["history_files_used"] < 20:
         raise RuntimeError("history_files_used must be >= 20")
     if payload.get("lookback_trading_days") != 20: raise RuntimeError("short-term lookback must be 20")
-    if payload.get("signal_horizon") != "T收盘信号 → T+1开盘进入 → 最长5个交易日":
+    if payload.get("signal_horizon") != "T收盘信号 → T+1开盘买入 → T+2起最早卖出 → 最长5个交易日":
         raise RuntimeError("short-term signal horizon mismatch")
     if payload.get("strategy_source") != "Aquant-Private/main": raise RuntimeError("strategy source mismatch")
     version = str(payload.get("strategy_version") or "")
