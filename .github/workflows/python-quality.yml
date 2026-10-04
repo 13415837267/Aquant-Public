@@ -1,6 +1,14 @@
 name: Python质量检查
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - "requirements.txt"
+      - "config/**"
+      - ".github/workflows/**"
   workflow_dispatch:
   pull_request:
     paths:
