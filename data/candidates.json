@@ -4,8 +4,8 @@
   "source": "Aquant-Public data/history",
   "status": "ready",
   "strategy_source": "Aquant-Private/main",
-  "strategy_version": "2.2.0",
-  "strategy_commit": "0982ef379e1625d4a37ee0137562335c496b8c96",
+  "strategy_version": "2.3.0",
+  "strategy_commit": "40b7d9f32e3acb396ec7083e632b9a4b72dc592e",
   "market_scope": "沪深主板：000001-004999.SZ（排除001001-001199 CDR）+ 600/601/603/605.SH",
   "universe": "沪深主板；排除 ST/退市相关标的、停牌、价格≤2元、最近交易日成交额<3000万元",
   "lookback_trading_days": 20,
@@ -31,10 +31,37 @@
     "latest_basic_eligible_rows": 2644,
     "latest_basic_filter_exclusions": 408,
     "scorable_rows": 2641,
-    "candidate_count": 0,
+    "candidate_count": 1,
+    "primary_candidate_count": 0,
+    "coverage_fallback_used": true,
     "risk_off_no_trade": false
   },
-  "candidates": [],
+  "candidates": [
+    {
+      "rank": 1,
+      "symbol": "601579",
+      "name": "会稽山",
+      "price": 37.3,
+      "change_pct": -0.956,
+      "return_3d_pct": -1.945,
+      "return_5d_pct": -0.427,
+      "return_10d_pct": 44.854,
+      "volume_ratio_5d": 1.129,
+      "turnover_pct": 11.032,
+      "amount": 2040286101.52,
+      "volatility_10d_pct": 6.678,
+      "close_strength": 0.0,
+      "overnight_1d_pct": 0.0,
+      "overnight_3d_pct": 5.319,
+      "overnight_5d_pct": 8.936,
+      "intraday_return_pct": -0.956,
+      "limit_up_5d_count": 1.0,
+      "score": 88.601,
+      "precision_probability": 0.886014,
+      "admission_tier": "coverage_fallback_088",
+      "flags": []
+    }
+  ],
   "research_observation_candidates": [
     {
       "rank": 1,
@@ -136,7 +163,7 @@
     "safety": 0.15
   },
   "future_function": false,
-  "candidate_admission_policy": "dynamic_top_score_2_with_market_gate",
+  "candidate_admission_policy": "precision_top_2_with_089_gate_and_088_daily_fallback",
   "audit": {
     "hard_eligibility_applied_before_scoring": true,
     "strategy_source_locked_to_private": true,
