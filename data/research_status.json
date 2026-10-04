@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "status": "research_only",
+  "status": "stale",
   "as_of": "2026-10-04T08:29:18Z",
   "timezone": "Asia/Shanghai",
   "strategy_source": "Aquant-Private/main",
@@ -65,5 +65,6 @@
   },
   "current_candidate_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
   "production_release": false,
-  "production_version": null
+  "production_version": null,
+  "stale_reason": "策略源已回退/更新且研究退出规则已修复；旧研究结果尚未按当前策略重新验证，禁止作为当前信号或生产依据。"
 }
