@@ -431,7 +431,14 @@ def main():
     selected = eligible_validation[:TOP_OUTPUT_RULES]
 
     selected_specs = [(row["rule_type"], tuple(row["rule_indices"])) for row in selected]
-    final_atomic = [indices[0] for typ, indices in selected_specs if typ == "atomic"]
+    # Pair rules depend on both underlying atomic rules. Keep their components
+    # available during final evaluation even when the atomic rules themselves
+    # were not selected as standalone outputs.
+    final_atomic = sorted({
+        idx
+        for typ, indices in selected_specs
+        for idx in indices
+    })
     final_pairs = [indices for typ, indices in selected_specs if typ == "pair"]
 
     final_specs, final_acc, final_days, final_samples = scan_selected(
