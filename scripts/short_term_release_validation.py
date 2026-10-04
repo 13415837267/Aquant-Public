@@ -20,7 +20,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, history_files, managed_trade, read_daily
+from scripts.short_term_research import FeatureState, history_files, managed_trade, read_daily, _state_to_jsonable, _state_from_jsonable
 
 GATE = {
     "forward_3d_mean_return_pct": 0.10,
@@ -154,6 +154,44 @@ def summarize(data, cost_bps, slippage_bps):
     return result
 
 
+
+def save_checkpoint(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    tmp.replace(path)
+
+def load_checkpoint(path: Path):
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+def log_progress(path: Path, event: str, **fields) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    record = {"timestamp_utc": pd.Timestamp.utcnow().isoformat(), "event": event, **fields}
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    print(f"[研究进度] {event} {json.dumps(fields, ensure_ascii=False)}", flush=True)
+
+def checkpoint_payload(next_i, state, buckets, args, version, commit, status="running"):
+    return {
+        "schema_version": 1,
+        "status": status,
+        "windows": {
+            "development": [args.development_start, args.development_end],
+            "validation": [args.validation_start, args.validation_end],
+            "final_holdout": [args.final_start, args.final_end],
+        },
+        "cost_bps": args.cost_bps,
+        "slippage_bps": args.slippage_bps,
+        "strategy_version": version,
+        "strategy_commit": commit,
+        "next_active_index": next_i,
+        "state": _state_to_jsonable(state),
+        "buckets": buckets,
+    }
+
+
 def run(args):
     model, version, commit = load_strategy()
     files = history_files()
@@ -184,8 +222,30 @@ def run(args):
 
     state = FeatureState()
     buckets = {name: {"signal_days": 0, "candidate_days": 0, "forward_3d": [], "forward_5d": [], "trades": []} for name in windows}
+    checkpoint_path = Path(args.checkpoint)
+    progress_path = Path(args.progress_log)
+    checkpoint = load_checkpoint(checkpoint_path)
+    resume_i = 0
+    if checkpoint:
+        expected = {
+            "windows": {"development": [args.development_start, args.development_end], "validation": [args.validation_start, args.validation_end], "final_holdout": [args.final_start, args.final_end]},
+            "cost_bps": args.cost_bps,
+            "slippage_bps": args.slippage_bps,
+            "strategy_version": version,
+            "strategy_commit": commit,
+        }
+        for key, value in expected.items():
+            if checkpoint.get(key) != value:
+                raise RuntimeError(f"研究断点参数不一致: {key}")
+        _state_from_jsonable(state, checkpoint["state"])
+        buckets = checkpoint["buckets"]
+        resume_i = int(checkpoint["next_active_index"])
+        log_progress(progress_path, "断点续传", resume_index=resume_i, total_active_days=len(active), status=checkpoint.get("status"))
+    else:
+        log_progress(progress_path, "研究开始", total_active_days=len(active), strategy_version=version, strategy_commit=commit)
 
-    for i in range(len(active) - 5):
+    started = time.time()
+    for i in range(resume_i, len(active) - 5):
         signal_date = active[i].name[:10]
         frame = state.build(get(i))
         period = None
@@ -197,6 +257,8 @@ def run(args):
                     period = name
                 break
         if period is None or frame.empty:
+            save_checkpoint(checkpoint_path, checkpoint_payload(i + 1, state, buckets, args, version, commit))
+            log_progress(progress_path, "日期完成", signal_date=signal_date, active_index=i, progress_pct=round((i + 1) / max(1, len(active)) * 100.0, 2), candidate_count=0)
             continue
 
         scored = model.score_universe(frame)
@@ -218,6 +280,8 @@ def run(args):
             trade = managed_trade(symbol, future, round_trip_cost_bps=2*(args.cost_bps+args.slippage_bps))
             if trade:
                 bucket["trades"].append(trade)
+        save_checkpoint(checkpoint_path, checkpoint_payload(i + 1, state, buckets, args, version, commit))
+        log_progress(progress_path, "日期完成", signal_date=signal_date, active_index=i, progress_pct=round((i + 1) / max(1, len(active)) * 100.0, 2), candidate_days={k: v["candidate_days"] for k, v in buckets.items()}, elapsed_seconds=round(time.time() - started, 2))
 
     output = {
         "schema_version": 1,
@@ -243,6 +307,8 @@ def run(args):
     path = Path(args.output)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    save_checkpoint(checkpoint_path, checkpoint_payload(len(active), state, buckets, args, version, commit, status="completed"))
+    log_progress(progress_path, "研究完成", elapsed_seconds=round(time.time() - started, 2), release_gate=output["release_gate"])
     print(json.dumps({
         "status": "ready",
         "strategy_version": version,
