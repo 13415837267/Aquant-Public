@@ -34,7 +34,7 @@ const provenanceMatches=audit.strategy_version===snapshot.strategy_version && au
 const productionStatus=productionStatusData as {status:string;production_version:string|null;release_gate:boolean;system_audit:boolean};
 const researchStatus=researchStatusData as ResearchStatus;
 const productionReady=productionStatus.status==="released" && productionStatus.release_gate===true && productionStatus.system_audit===true;
-const candidateCurrent=snapshot.strategy_version===researchStatus.strategy_version && snapshot.strategy_commit===researchStatus.strategy_commit;
+const candidateCurrent=candidatesAreCurrent;
 const fmt=(n:number,d=2)=>n.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct=(n:number)=>(n>=0?"+":"")+fmt(n)+"%";
 const dirClass=(n:number)=>n>0?"rise":n<0?"fall":"flat";
@@ -43,7 +43,8 @@ const weight=(n:number)=>fmt(n*100,0)+"%";
 const maxCandidates=Number((snapshot.candidate_admission_policy.match(/dynamic_top_score_(\\d+)_with_market_gate/)||[])[1]||0);
 
 export default function Home(){
-  const rows=snapshot.candidates??[];
+  const candidatesAreCurrent=snapshot.strategy_version===researchStatus.strategy_version && snapshot.strategy_commit===researchStatus.strategy_commit;
+  const rows=candidatesAreCurrent?(snapshot.candidates??[]):[];
   const w=snapshot.factor_weights??{};
   const m=snapshot.market;
   const preferred=researchStatus.preferred_operating_point?.final;
@@ -57,7 +58,7 @@ export default function Home(){
     </header>
 
     <section className="grid">
-      <div className="card"><div className="metric-label">候选数量</div><div className="metric-value">{rows.length}</div><div className="metric-note">当前快照上限 {maxCandidates}</div></div>
+      <div className="card"><div className="metric-label">当前候选数量</div><div className="metric-value">{candidatesAreCurrent?rows.length:"—"}</div><div className="metric-note">{candidatesAreCurrent?("当前快照上限 "+maxCandidates):"等待最新策略候选快照"}</div></div>
       <div className="card"><div className="metric-label">可评分股票</div><div className="metric-value">{snapshot.diagnostics?.scorable_rows??"—"}</div><div className="metric-note">20日短线特征</div></div>
       <div className="card"><div className="metric-label">市场状态</div><div className="metric-value">{m?.regime==="neutral"?"中性":m?.regime==="risk_on"?"风险偏好":m?.regime==="risk_off"?"风险规避":m?.regime??"—"}</div><div className="metric-note">广度 {m?fmt(m.breadth_pct,1)+"%":"—"}</div></div>
       <div className="card"><div className="metric-label">交易窗口</div><div className="metric-value">1–5日</div><div className="metric-note">T+1 开盘执行</div></div>
@@ -84,7 +85,7 @@ export default function Home(){
     <div className="main">
       <section className="card table-card">
         <div className="table-head"><div><div className="table-title">{productionReady?"生产候选":"研究候选快照"}</div><div className="table-subtitle">{productionReady?"短线综合分 + 市场门控":"候选快照；生产门控未通过，不作为实盘信号"}</div></div><div className="badge">数据时点 {snapshot.as_of.replace("T"," ")}</div></div>
-        {rows.length===0?<div className="empty">当前市场门控未产生候选。系统允许空仓，而不是为了凑够候选数量强行入选。</div>:
+        {!candidatesAreCurrent?<div className="empty">当前网页不展示旧策略候选。最新研究策略 v{researchStatus.strategy_version} 尚未生成与当前版本完全一致的候选快照；系统宁可暂不展示，也不混用旧信号。</div>:rows.length===0?<div className="empty">当前市场门控未产生候选。系统允许空仓，而不是为了凑够候选数量强行入选。</div>:
         <div className="table-wrap"><table><thead><tr><th>#</th><th>股票</th><th>价格</th><th>隔夜</th><th>今日</th><th>3日</th><th>5日</th><th>10日</th><th>量比</th><th>成交额</th><th>10日波动</th><th>收盘强度</th><th>综合分</th></tr></thead>
         <tbody>{rows.map(r=><tr key={r.symbol}><td className="rank">{r.rank}</td><td><span className="symbol">{r.symbol}</span><span className="name">{r.name}</span></td><td>{fmt(r.price)}</td><td className={r.overnight_1d_pct==null?"":dirClass(r.overnight_1d_pct)}>{r.overnight_1d_pct==null?"—":pct(r.overnight_1d_pct)}</td><td className={dirClass(r.change_pct)}>{pct(r.change_pct)}</td><td className={dirClass(r.return_3d_pct)}>{pct(r.return_3d_pct)}</td><td className={dirClass(r.return_5d_pct)}>{pct(r.return_5d_pct)}</td><td className={dirClass(r.return_10d_pct)}>{pct(r.return_10d_pct)}</td><td>{fmt(r.volume_ratio_5d,2)}x</td><td>{amount(r.amount)}</td><td>{fmt(r.volatility_10d_pct,2)}%</td><td>{fmt(r.close_strength*100,1)}%</td><td className="score">{fmt(r.score)}</td></tr>)}</tbody></table></div>}
       </section>
