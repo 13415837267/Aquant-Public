@@ -50,3 +50,19 @@ def test_validate_rejects_non_production_timestamp():
 def test_validate_rejects_non_production_factor_weights():
     payload=_payload(); payload["factor_weights"]["momentum_short"]=0.34
     with pytest.raises(RuntimeError,match="factor weights"): validate_candidates(payload)
+
+
+def test_validate_rejects_daily_rescue_below_085():
+    payload = _payload()
+    payload["candidates"] = [copy.deepcopy(payload["candidates"][0])]
+    row = payload["candidates"][0]
+    row["rank"] = 1
+    row["score"] = 84.9
+    row["precision_probability"] = 0.849
+    row["admission_tier"] = "daily_top1_rescue"
+    payload["diagnostics"]["candidate_count"] = 1
+    payload["diagnostics"]["primary_candidate_count"] = 0
+    payload["diagnostics"]["coverage_fallback_used"] = False
+    payload["diagnostics"]["daily_top1_rescue_used"] = True
+    with pytest.raises(RuntimeError, match="daily rescue probability floor"):
+        validate_candidates(payload)
