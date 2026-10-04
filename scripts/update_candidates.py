@@ -116,7 +116,7 @@ def build_candidates(history,strategy_model,strategy_version,strategy_commit):
         observation_rows.append({
             "rank":rank,"symbol":str(row.symbol).zfill(6),"name":row.name,"price":round(float(row.close),3),
             "change_pct":round(float(row.change_pct),3),"score":round(float(row.score),3),
-            "precision_probability":round(float(row.precision_probability),6),
+            "precision_probability":round(float(getattr(row, "precision_probability", float(row.score) / 100.0)),6),
         })
     rows=[]
     for rank,row in enumerate(selected.itertuples(index=False),1):
