@@ -1,3 +1,9 @@
+## 2026-10-04 — Candidate coverage optimization 2.5.0
+
+- Synced the public validator with the 2.5.0 researched 0.85 rescue floor.
+- Candidate snapshots now record and validate the daily Top-1 rescue tier under the 0.85 floor.
+- No change to A-share T+1 execution or production-release gating.
+
 ## 2026-10-04 — Candidate coverage optimization 2.4.0
 
 - Added a researched daily Top-1 rescue tier after the 0.89 primary and 0.88 fallback tiers fail.
