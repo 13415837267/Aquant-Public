@@ -1,4 +1,4 @@
-name: 系统层审计
+name: 系统审计
 
 on:
   push:
@@ -27,17 +27,19 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - name: 检出公开仓库
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
-      - uses: actions/setup-python@v6
+      - name: 设置Python环境
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Install dependencies
+      - name: 安装依赖
         run: pip install -r requirements.txt
-      - name: Run cross-layer audit
+      - name: 运行跨层审计
         run: python scripts/system_audit.py
-      - name: Commit audit result
+      - name: 提交审计结果
         if: github.event_name != 'pull_request'
         shell: bash
         run: |
