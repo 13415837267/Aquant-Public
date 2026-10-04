@@ -8,7 +8,7 @@ on:
       - "scripts/update_candidates.py"
       - "scripts/validate_candidates.py"
       - "tests/**"
-      - ".github/workflows/latest-candidate-scan.yml"
+      - "scripts/next_trading_day_plan.py"
 
 permissions:
   contents: write
@@ -54,12 +54,18 @@ jobs:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ github.sha }}
         run: python scripts/validate_candidates.py
+      - name: 生成下一交易日计划
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/next_trading_day_plan.py
+      - name: 验证下一交易日计划
+        run: python scripts/next_trading_day_plan.py --validate
       - name: 固化候选
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json
+          git add data/candidates.json data/next_trading_day_plan.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "signal: record latest candidates"
           git fetch origin main
