@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "status": "research_only",
+  "objective": "net_profit_at_least_1pct_within_5_sessions",
+  "source": "data/backtest/high_precision_profit_mining_latest.json",
+  "source_sha": "70f349e8990b2f0f0f7afeb36e8bf15b17a9ac02",
+  "operating_points": [
+    {
+      "name": "precision_090",
+      "selection": "model_probability>=0.90",
+      "validation": {
+        "samples": 371,
+        "win_rate_pct": 93.53099730458221,
+        "wilson_lower_pct": 90.55504961187033
+      },
+      "final": {
+        "samples": 253,
+        "win_rate_pct": 97.23320158102767,
+        "wilson_lower_pct": 94.40001416001346
+      },
+      "final_years": {
+        "2025": {
+          "samples": 189,
+          "win_rate_pct": 98.4126984126984
+        },
+        "2026": {
+          "samples": 64,
+          "win_rate_pct": 93.75
+        }
+      },
+      "decision": "research_candidate"
+    },
+    {
+      "name": "daily_top1",
+      "selection": "each trading day choose highest model probability stock",
+      "validation": {
+        "days": 484,
+        "samples": 484,
+        "win_rate_pct": 90.9090909090909,
+        "wilson_lower_pct": 88.01560562898891
+      },
+      "final": {
+        "days": 419,
+        "samples": 419,
+        "win_rate_pct": 93.7947494033413,
+        "wilson_lower_pct": 91.0631819563586
+      },
+      "decision": "research_candidate"
+    },
+    {
+      "name": "precision_089",
+      "selection": "model_probability>=0.89",
+      "validation": {
+        "samples": 4196,
+        "win_rate_pct": 93.30314585319351,
+        "wilson_lower_pct": 92.50649708322295
+      },
+      "final": {
+        "samples": 4322,
+        "win_rate_pct": 92.9662193428968,
+        "wilson_lower_pct": 92.16506816491035
+      },
+      "decision": "robust_research_candidate"
+    }
+  ],
+  "hard_gate": {
+    "required_final_win_rate_pct": 80,
+    "required_profit_definition": "net_profit_at_least_1pct",
+    "rule": "final_holdout_win_rate_must_exceed_80pct_with_sufficient_sample_and_stability",
+    "production_release": false
+  },
+  "interpretation": {
+    "highest_observed_final_win_rate": "precision_090",
+    "highest_observed_final_win_rate_pct": 97.23320158102767,
+    "preferred_robust_operating_point": "precision_089",
+    "reason": "materially larger sample while retaining >92% final holdout win rate",
+    "daily_top1_is_alternative": "high-frequency daily selector, validated independently"
+  },
+  "audit": {
+    "final_holdout_not_used_for_rule_selection": true,
+    "formal_production_changed": false,
+    "research_only": true
+  }
+}
