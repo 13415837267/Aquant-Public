@@ -130,7 +130,7 @@ def build_candidates(history,strategy_model,strategy_version,strategy_commit):
             "return_5d_pct":round(float(row.return_5d_pct),3),"return_10d_pct":round(float(row.return_10d_pct),3),
             "volume_ratio_5d":round(float(row.volume_ratio_5d),3),"turnover_pct":round(float(row.turnover_pct),3),
             "amount":round(float(row.amount),2),"volatility_10d_pct":round(float(row.volatility_10d_pct),3),
-            "close_strength":round(float(row.close_strength),3),"overnight_1d_pct":round(float(row.overnight_1d_pct),3),"overnight_3d_pct":round(float(row.overnight_3d_pct),3),"overnight_5d_pct":round(float(row.overnight_5d_pct),3),"intraday_return_pct":round(float(row.intraday_return_pct),3),"limit_up_5d_count":round(float(row.limit_up_5d_count),3),"score":round(float(row.score),3),"flags":flags
+            "close_strength":round(float(row.close_strength),3),"overnight_1d_pct":round(float(row.overnight_1d_pct),3),"overnight_3d_pct":round(float(row.overnight_3d_pct),3),"overnight_5d_pct":round(float(row.overnight_5d_pct),3),"intraday_return_pct":round(float(row.intraday_return_pct),3),"limit_up_5d_count":round(float(row.limit_up_5d_count),3),"score":round(float(row.score),3),"precision_probability":round(float(getattr(row, "precision_probability", float(row.score) / 100.0)),6),"admission_tier":str(getattr(row, "admission_tier", "unspecified")),"flags":flags
         })
     breadth=float(frame["market_breadth_pct"].iloc[0]); median=float(frame["market_median_return_pct"].iloc[0])
     regime="risk_on" if breadth>=55 and median>0.3 else ("neutral" if breadth>=35 and median>=-0.3 else "risk_off")
@@ -142,9 +142,9 @@ def build_candidates(history,strategy_model,strategy_version,strategy_commit):
         "lookback_trading_days":20,"signal_horizon":"T收盘信号 → T+1开盘买入 → T+2起最早卖出 → 最长5个交易日",
         "holding_window_sessions":[2,5],"risk_controls":{"net_win_threshold_pct":1.0,"stop_loss_pct":3.0,"max_positions":2,"sell_start_session":2},
         "market":{"breadth_pct":round(breadth,3),"median_return_pct":round(median,3),"regime":regime},
-        "diagnostics":{"history_rows":int(len(history)),**diag,"candidate_count":len(rows),"risk_off_no_trade":regime=="risk_off"},
+        "diagnostics":{"history_rows":int(len(history)),**diag,"candidate_count":len(rows),"primary_candidate_count":sum(1 for row in rows if row["admission_tier"] == "primary_089"),"coverage_fallback_used":any(row["admission_tier"] == "coverage_fallback_088" for row in rows),"risk_off_no_trade":regime=="risk_off"},
         "candidates":rows,"research_observation_candidates":observation_rows,"factor_weights":getattr(strategy_model,"WEIGHTS",None),"future_function":False,
-        "candidate_admission_policy":f"dynamic_top_score_{int(getattr(strategy_model, 'MAX_CANDIDATES', len(rows)))}_with_market_gate",
+        "candidate_admission_policy":str(getattr(strategy_model, "ADMISSION_POLICY", "legacy_dynamic_top_score")),
         "audit":{"hard_eligibility_applied_before_scoring":True,"strategy_source_locked_to_private":True,"short_term_features_only":True,"market_gate_applied":True}
     }
 
