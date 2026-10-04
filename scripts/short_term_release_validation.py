@@ -297,8 +297,15 @@ def run(args):
         }
         save_research_state(state_file, payload)
         if force_git:
+            day_files = list(research_root.rglob(f"{signal_date}.json"))
+            if not day_files:
+                raise RuntimeError(f"研究日期文件不存在: {signal_date}")
             checkpoint_git(
-                [str(state_file.relative_to(_repo_root_from_env())), str(progress_file.relative_to(_repo_root_from_env())), str(research_root / signal_date[:4] / f"{signal_date}.json").replace(str(_repo_root_from_env()) + "/", "")],
+                [
+                    str(state_file.relative_to(_repo_root_from_env())),
+                    str(progress_file.relative_to(_repo_root_from_env())),
+                    str(day_files[-1].relative_to(_repo_root_from_env())),
+                ],
                 f"研究：历史验证检查点至 {signal_date}",
             )
 
