@@ -1,4 +1,4 @@
-name: 程序质量检查
+name: Python质量检查
 
 on:
   push:
