@@ -70,15 +70,15 @@ export default function Home(){
       </div>
       <div className="research-grid">
         <div><div className="metric-label">稳健研究点 ≥0.89</div><div className="metric-value">{preferred?fmt(preferred.win_rate_pct,2)+"%":"—"}</div><div className="metric-note">{preferred?preferred.samples.toLocaleString("zh-CN")+" 个样本 · 威尔逊下界 "+fmt(preferred.wilson_lower_pct,2)+"%":"—"}</div></div>
-        <div><div className="metric-label">最高观察点 ≥0.90</div><div className="metric-value">{highest?fmt(highest.win_rate_pct,2)+"%":"—"}</div><div className="metric-note">{highest?highest.samples.toLocaleString("zh-CN")+" 个样本 · Wilson 下界 "+fmt(highest.wilson_lower_pct,2)+"%":"—"}</div></div>
-        <div><div className="metric-label">每日首选</div><div className="metric-value">{dailyTop1?fmt(dailyTop1.win_rate_pct,2)+"%":"—"}</div><div className="metric-note">{dailyTop1?dailyTop1.samples+" 个交易日 · Wilson 下界 "+fmt(dailyTop1.wilson_lower_pct,2)+"%":"—"}</div></div>
+        <div><div className="metric-label">最高观察点 ≥0.90</div><div className="metric-value">{highest?fmt(highest.win_rate_pct,2)+"%":"—"}</div><div className="metric-note">{highest?highest.samples.toLocaleString("zh-CN")+" 个样本 · 威尔逊下界 "+fmt(highest.wilson_lower_pct,2)+"%":"—"}</div></div>
+        <div><div className="metric-label">每日首选</div><div className="metric-value">{dailyTop1?fmt(dailyTop1.win_rate_pct,2)+"%":"—"}</div><div className="metric-note">{dailyTop1?dailyTop1.samples+" 个交易日 · 威尔逊下界 "+fmt(dailyTop1.wilson_lower_pct,2)+"%":"—"}</div></div>
       </div>
       <div className="research-warning">路径感知模型目前约 {researchStatus.path_aware_caveat?.final_win_rate_pct??"—"}%：该定义要求 +1% 目标先于 -3% 止损触发，因此 <strong>当前高精度结果仍属于研究候选，不得视为已通过正式生产门槛。</strong></div>
     </section>
 
     <section className="card snapshot-warning">
-      <strong>{candidateCurrent?"候选快照已与当前研究策略一致":"候选快照尚未同步到当前研究策略"}</strong>
-      <span>当前研究策略 {researchStatus.strategy_version} · {researchStatus.strategy_commit.slice(0,10)}；网页候选快照 版本 {snapshot.strategy_version} · {snapshot.strategy_commit.slice(0,10)}。{candidateCurrent?"":"待研究流水线完成后自动替换。"}</span>
+      <strong>{candidatesAreCurrent?"候选快照已与当前研究策略一致":"候选快照尚未同步到当前研究策略"}</strong>
+      <span>当前研究策略 {researchStatus.strategy_version} · {researchStatus.strategy_commit.slice(0,10)}；网页候选快照 版本 {snapshot.strategy_version} · {snapshot.strategy_commit.slice(0,10)}。{candidatesAreCurrent?"":"待研究流水线完成后自动替换。"}</span>
     </section>
 
     <div className="main">
@@ -92,7 +92,7 @@ export default function Home(){
       <aside className="side">
         <div className="card"><h2>短线因子</h2><p>核心驱动为短周期价格行为、量能、价格强度、流动性和安全，不以 PB/PE 作为生产信号核心。</p>
         {[["短线动量","momentum_short"],["隔夜结构","overnight_structure"],["量能活跃","volume_activity"],["价格强度","price_strength"],["流动性","liquidity"],["安全","safety"]].map(([label,key])=><div className="factor" key={key}><div className="factor-row"><span className="factor-name">{label}</span><span className="factor-weight">{w[key]==null?"—":weight(w[key])}</span></div></div>)}</div>
-        <div className="card source-box"><h2>运行信息</h2><dl className="kv"><dt>信号</dt><dd>{snapshot.signal_horizon.replace("T收盘信号","T日收盘信号").replace("T+1开盘进入","T+1开盘执行")}</dd><dt>研究策略</dt><dd>版本 {researchStatus.strategy_version}</dd><dt>候选快照</dt><dd>v{snapshot.strategy_version}</dd><dt>生产状态</dt><dd>{productionReady?"正式生产":"尚未发布"}</dd><dt>研究状态</dt><dd>仅研究</dd></dl></div>
+        <div className="card source-box"><h2>运行信息</h2><dl className="kv"><dt>信号</dt><dd>{snapshot.signal_horizon.replace("T收盘信号","T日收盘信号").replace("T+1开盘进入","T+1开盘执行")}</dd><dt>研究策略</dt><dd>版本 {researchStatus.strategy_version}</dd><dt>候选快照</dt><dd>版本 {snapshot.strategy_version}</dd><dt>生产状态</dt><dd>{productionReady?"正式生产":"尚未发布"}</dd><dt>研究状态</dt><dd>仅研究</dd></dl></div>
       </aside>
     </div>
 
