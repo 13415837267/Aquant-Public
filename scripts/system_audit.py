@@ -46,6 +46,12 @@ def main():
     release=load("data/backtest/short_term_release_validation.json")
     research_strategy_version=release.get("strategy_version")
     research_strategy_commit=release.get("strategy_commit")
+    if release.get("status") != "ready" or release.get("future_function") is not False:
+        raise RuntimeError("release validation is not ready/PIT-safe")
+    if release.get("entry") != "T+1_open" or int(release.get("max_holding_sessions",0)) != 5:
+        raise RuntimeError("release validation violates T+1 entry or 5-session maximum holding rule")
+    if release.get("win_definition") != "net_profit_at_least_1pct_before_3pct_stop_within_5_sessions":
+        raise RuntimeError("release validation win definition does not match production objective")
     validation = release.get("validation", {})
     final_holdout = release.get("final_holdout", {})
     for label, window in (("validation", validation), ("final_holdout", final_holdout)):
@@ -53,54 +59,37 @@ def main():
             raise RuntimeError(f"{label} coverage too small")
         if int(window.get("candidate_days",0)) < 50:
             raise RuntimeError(f"{label} candidate sample too small")
+        trade = window.get("managed_trade", {})
+        if int(trade.get("samples",0)) < 100:
+            raise RuntimeError(f"{label} managed trade sample too small")
 
     round_trip_cost_bps = float(release.get("cost_bps", 3.0) + release.get("slippage_bps", 2.0)) * 2.0
     production_gate = {
         "validation_scope": "2025_validation_and_2026_final_holdout",
-        "min_forward_3d_mean_return_pct": 0.10,
-        "min_forward_5d_mean_return_pct": 0.10,
-        "min_forward_5d_positive_rate_pct": 50.0,
-        "min_managed_trade_mean_return_pct": 0.10,
-        "min_managed_trade_win_rate_pct": 45.0,
-        "max_managed_trade_drawdown_pct": -40.0,
+        "min_final_holdout_threshold_win_rate_pct": 80.0,
+        "min_validation_threshold_win_rate_pct": 80.0,
+        "min_managed_trade_samples": 100,
         "round_trip_cost_bps": round_trip_cost_bps,
     }
 
-    def window_checks(window):
+    def window_checks(window, minimum_win_rate):
+        trade = window.get("managed_trade", {})
         return {
-            "forward_3d_mean": bool(
-                window.get("forward_3d",{}).get("mean_return_pct") is not None
-                and float(window["forward_3d"]["mean_return_pct"]) >= production_gate["min_forward_3d_mean_return_pct"]
-            ),
-            "forward_5d_mean": bool(
-                window.get("forward_5d",{}).get("mean_return_pct") is not None
-                and float(window["forward_5d"]["mean_return_pct"]) >= production_gate["min_forward_5d_mean_return_pct"]
-            ),
-            "forward_5d_positive_rate": bool(
-                window.get("forward_5d",{}).get("positive_rate_pct") is not None
-                and float(window["forward_5d"]["positive_rate_pct"]) >= production_gate["min_forward_5d_positive_rate_pct"]
-            ),
-            "managed_trade_mean": bool(
-                window.get("managed_trade",{}).get("mean_return_pct") is not None
-                and float(window["managed_trade"]["mean_return_pct"]) >= production_gate["min_managed_trade_mean_return_pct"]
-            ),
-            "managed_trade_win_rate": bool(
-                window.get("managed_trade",{}).get("win_rate_pct") is not None
-                and float(window["managed_trade"]["win_rate_pct"]) >= production_gate["min_managed_trade_win_rate_pct"]
-            ),
-            "managed_trade_drawdown": bool(
-                window.get("managed_trade",{}).get("max_drawdown_pct") is not None
-                and float(window["managed_trade"]["max_drawdown_pct"]) >= production_gate["max_managed_trade_drawdown_pct"]
+            "managed_trade_sample_size": int(trade.get("samples",0)) >= production_gate["min_managed_trade_samples"],
+            "threshold_win_rate": bool(
+                trade.get("threshold_win_rate_pct") is not None
+                and float(trade["threshold_win_rate_pct"]) >= minimum_win_rate
             ),
         }
 
     production_gate["checks"] = {
-        "validation": window_checks(validation),
-        "final_holdout": window_checks(final_holdout),
+        "validation": window_checks(validation, production_gate["min_validation_threshold_win_rate_pct"]),
+        "final_holdout": window_checks(final_holdout, production_gate["min_final_holdout_threshold_win_rate_pct"]),
     }
     production_gate["passed"] = bool(
         all(production_gate["checks"]["validation"].values())
         and all(production_gate["checks"]["final_holdout"].values())
+        and release.get("release_gate") is True
         and release.get("release_gate_scope") == "final_holdout_only"
     )
     for path in REQUIRED_READY:
