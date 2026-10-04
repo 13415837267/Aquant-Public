@@ -1,4 +1,4 @@
-name: Web Quality Gate
+name: 网页质量检查
 
 on:
   pull_request:
