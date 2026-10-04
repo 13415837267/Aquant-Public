@@ -1,4 +1,4 @@
-name: 严格胜率策略优化
+name: 严格路径策略优化
 
 on:
   push:
@@ -24,7 +24,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v6
+      - name: 检出公开仓库
+        uses: actions/checkout@v6
       - name: 安装Python
         uses: actions/setup-python@v6
         with:
