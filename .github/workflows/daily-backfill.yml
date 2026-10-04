@@ -16,19 +16,22 @@ concurrency:
 
 jobs:
   update:
+    name: 更新每日行情数据
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - name: 检出公开仓库
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v6
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
-      - name: Install dependencies
+      - name: 安装依赖
         run: pip install -r requirements.txt
-      - name: Check China A-share trading day
+      - name: 检查中国 A 股交易日
         id: market
         env:
           ZZSHARE_TOKEN: '${{ secrets.ZZSHARE_TOKEN }}'
@@ -43,19 +46,19 @@ jobs:
           fi
           echo "is_trading_day=$is_trading_day" >> "$GITHUB_OUTPUT"
 
-      - name: Update current year
+      - name: 更新当前年份行情
         if: steps.market.outputs.is_trading_day == 'true'
         env:
           ZZSHARE_TOKEN: '${{ secrets.ZZSHARE_TOKEN }}'
         run: python scripts/backfill_year.py --year $(date +%Y)
 
-      - name: Refresh main-board universe
+      - name: 刷新主板股票池
         if: steps.market.outputs.is_trading_day == 'true'
         env:
           ZZSHARE_TOKEN: '${{ secrets.ZZSHARE_TOKEN }}'
         run: python scripts/refresh_universe.py
 
-      - name: Checkout private strategy
+      - name: 检出私有策略
         if: steps.market.outputs.is_trading_day == 'true'
         uses: actions/checkout@v5
         with:
@@ -64,23 +67,23 @@ jobs:
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: .private-strategy
 
-      - name: Generate candidates
+      - name: 生成候选池
         if: steps.market.outputs.is_trading_day == 'true'
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/update_candidates.py
 
-      - name: Validate candidate pool
+      - name: 验证候选池
         if: steps.market.outputs.is_trading_day == 'true'
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/validate_candidates.py
 
-      - name: Archive candidate pool
+      - name: 归档候选池
         if: steps.market.outputs.is_trading_day == 'true'
         run: python scripts/archive_candidates.py
 
-      - name: Publish candidate snapshot
+      - name: 发布候选快照
         if: steps.market.outputs.is_trading_day == 'true'
         shell: bash
         run: |
@@ -104,6 +107,6 @@ jobs:
           done
           exit 1
 
-      - name: Non-trading day
+      - name: 非交易日
         if: steps.market.outputs.is_trading_day == 'false'
         run: echo "China A-share market is closed today; data update skipped."
