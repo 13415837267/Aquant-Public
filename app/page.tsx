@@ -18,7 +18,10 @@ type Snapshot = {
   diagnostics?:{scorable_rows?:number;candidate_count?:number;risk_off_no_trade?:boolean};
 };
 type NextTradingPlan = {
-  next_trading_day:string; status:string; title:string; summary:string;
+  next_trading_day:string; signal_date:string; data_cutoff:string; status:string; title:string; summary:string;
+  strategy_version:string; strategy_commit:string; candidate_policy:string; candidate_count:number;
+  market:{breadth_pct:number;median_return_pct:number;regime:string};
+  candidates:Array<{rank:number;symbol:string;name:string;price:number;score:number;precision_probability:number;admission_tier:string;signal_date:string;execution_date:string;earliest_exit_date:string;net_win_threshold_pct:number;stop_loss_pct:number;flags:string[]}>;
   steps:Array<{time:string;action:string}>; hard_rules:string[]; production_release:boolean;
 };
 
@@ -77,9 +80,13 @@ export default function Home(){
       </div>
       <div className="next-plan-summary">{nextTradingPlan.summary}</div>
       <div className="plan-grid">
+        {nextTradingPlan.candidates.map((candidate)=><div className="plan-item" key={candidate.symbol}><div className="plan-time">计划候选 #{candidate.rank}</div><div className="plan-action"><strong>{candidate.symbol} {candidate.name}</strong> · 收盘价 {fmt(candidate.price)} · 综合分 {fmt(candidate.score)} · 精度概率 {fmt(candidate.precision_probability*100,2)}%。准入层级：{candidate.admission_tier}。信号日 {candidate.signal_date} → 执行日 {candidate.execution_date} → 最早退出 {candidate.earliest_exit_date}。单笔净利润目标 +{fmt(candidate.net_win_threshold_pct,1)}%，止损 {fmt(candidate.stop_loss_pct,1)}%。</div></div>)}
+      </div>
+      <div className="next-plan-summary">数据截止 {nextTradingPlan.data_cutoff} · 策略 {nextTradingPlan.strategy_version} · 市场 {nextTradingPlan.market.regime==="neutral"?"中性":nextTradingPlan.market.regime==="risk_on"?"风险偏好":"风险规避"} · 候选数 {nextTradingPlan.candidate_count}</div>
+      <div className="plan-grid">
         {nextTradingPlan.steps.map((step)=><div className="plan-item" key={step.time}><div className="plan-time">{step.time}</div><div className="plan-action">{step.action}</div></div>)}
       </div>
-      <div className="next-plan-warning">当前生产门禁：<strong>{nextTradingPlan.production_release?"允许生产":"禁止实盘"}</strong>。节后首日不沿用 2026-09-30 旧候选；10 月 8 日收盘重新生成信号，按 T 日收盘 → T+1 开盘规则形成下一执行日候选。</div>
+      <div className="next-plan-warning">当前生产门禁：<strong>{nextTradingPlan.production_release?"允许生产":"禁止实盘"}</strong>。本计划严格使用 {nextTradingPlan.signal_date} 收盘及此前已知数据形成；由于 10 月 1 日至 10 月 7 日休市，{nextTradingPlan.signal_date} → {nextTradingPlan.next_trading_day} 是有效的 T → T+1 跨休市计划。10 月 8 日收盘产生新数据后，旧计划自动结束并生成 10 月 9 日计划。</div>
     </section>
 
     <section className="card research-card">
