@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 HISTORY_DIR = ROOT / "data" / "history"
 OUT_DIR = ROOT / "data" / "backtest"
 MAX_HOLD = 6
-MIN_EXIT_DAY = 2
+MIN_EXIT_DAY = 1
 MAX_HOLDING_SESSIONS = 5
 ENTRY_LIMIT_UP_BLOCK = True
 STOP_PCT = 3.0
@@ -160,11 +160,10 @@ def managed_trade(symbol: str, future_days: list[pd.DataFrame], round_trip_cost_
         high_limit = float(high_limit)
         if np.isfinite(high_limit) and entry >= high_limit * (1.0 - 1e-6):
             return None
-    stop = entry*(1-STOP_PCT/100.0); target = entry*(1+TARGET_PCT/100.0)
+    target_gross_pct = WIN_THRESHOLD_PCT + round_trip_cost_bps / 100.0
+    stop = entry*(1-STOP_PCT/100.0); target = entry*(1+target_gross_pct/100.0)
 
     for day_no, day in enumerate(future_days[:MAX_HOLD], 1):
-        if day_no < MIN_EXIT_DAY:
-            continue;
         rr = day.loc[day["symbol"].eq(symbol)]
         if rr.empty: continue
         r = rr.iloc[0]
