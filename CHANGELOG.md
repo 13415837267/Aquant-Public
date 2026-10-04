@@ -1,3 +1,10 @@
+## 2026-10-04 — Candidate coverage optimization 2.3.0
+
+- Retained the primary 0.89 precision gate and added a 0.88 research-backed daily Top-1 fallback when no primary candidate is available in a non-risk-off regime.
+- Added explicit admission-tier fields and validation for fallback provenance.
+- Kept hard short-term risk controls and A-share T_close -> T+1_open -> T+2 earliest-exit semantics unchanged.
+- Candidate coverage is improved without lowering the primary quality gate; research metrics still do not equal an execution-constrained 80%+ production guarantee.
+
 # Changelog
 
 ## 2026-10-03 — Runtime cleanup and A-share UI normalization
