@@ -6,7 +6,7 @@ class FakeStrategy:
     WEIGHTS={"momentum_short":0.35,"volume_activity":0.25,"price_strength":0.15,"liquidity":0.15,"safety":0.10}
     @staticmethod
     def score_universe(frame):
-        out=frame.copy(); out["score"]=out["return_5d_pct"]; return out.sort_values("score",ascending=False)
+        out=frame.copy(); out["score"]=out["return_5d_pct"]; out["precision_probability"]=out["score"]/100.0; out["admission_tier"]="primary_089"; return out.sort_values("score",ascending=False)
     @staticmethod
     def admit_candidates(frame): return frame.head(2).copy()
 
@@ -32,4 +32,4 @@ def test_build_candidates_uses_short_term_contract():
     assert snapshot["strategy_source"]=="Aquant-Private/main"
     assert snapshot["diagnostics"]["candidate_count"]==2
     assert snapshot["audit"]["short_term_features_only"] is True
-    assert set(["overnight_1d_pct","overnight_3d_pct","overnight_5d_pct","intraday_return_pct","limit_up_5d_count"]).issubset(snapshot["candidates"][0])
+    assert set(["precision_probability","admission_tier","overnight_1d_pct","overnight_3d_pct","overnight_5d_pct","intraday_return_pct","limit_up_5d_count"]).issubset(snapshot["candidates"][0])
