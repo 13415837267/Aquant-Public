@@ -27,6 +27,7 @@ def ready(path,p):
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--output",default="data/system_audit.json")
+    ap.add_argument("--allow-release", action="store_true", help="仅正式发布门禁显式允许时才可发布")
     args=ap.parse_args()
     hc=load("data/history/_BACKFILL_COMPLETE"); hs=load("data/history/_BACKFILL_STATE.json")
     if hc.get("status")!="complete" or hs.get("status")!="complete": raise RuntimeError("historical database incomplete")
@@ -133,7 +134,7 @@ def main():
             "production_gate_passed":production_gate["passed"]
         }
     }
-    production_released = bool(production_gate["passed"])
+    production_released = bool(production_gate["passed"] and args.allow_release)
     production_payload = {
         "schema_version": 1,
         "status": "released" if production_released else "not_released",
@@ -142,7 +143,7 @@ def main():
         "as_of": candidates.get("as_of") if production_released else None,
         "release_gate": production_released,
         "system_audit": True,
-        "note": "正式生产版本已通过发布门槛与系统审计。" if production_released else "当前没有正式生产策略；研究候选未达到正式发布条件。"
+        "note": "正式发布门禁已明确允许，且系统审计与发布条件均通过。" if production_released else ("研究与系统审计条件已满足，但尚未获得正式发布门禁授权。" if production_gate["passed"] else "当前没有正式生产策略；研究候选未达到正式发布条件。")
     }
     (ROOT/"data/production_status.json").write_text(
         json.dumps(production_payload,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8"
