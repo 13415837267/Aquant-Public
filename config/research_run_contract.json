@@ -42,10 +42,12 @@
     "future_function": false
   },
   "rules": [
-    "运行开始后必须验证Public当前提交等于public_commit。",
+    "本契约提交后的代码基线必须等于public_code_commit；正式研究不得在该基线之外漂移。",
     "策略源必须验证Private当前提交等于private_commit。",
     "任何源码版本漂移都必须使本次研究失败，不得固化结果。",
     "最终留出不得参与参数、阈值或策略选择。",
     "研究失败不得写入正式生产状态。"
-  ]
+  ],
+  "public_code_commit": "9e0419753d4f203d8ee2d13a45202329eca9ff96",
+  "contract_commit": "e912fb727bc7a9647e4f96d20f7fbe2449577b53"
 }
