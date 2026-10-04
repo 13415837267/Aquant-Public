@@ -27,8 +27,9 @@ GATE = {
     "forward_5d_mean_return_pct": 0.10,
     "forward_5d_positive_rate_pct": 50.0,
     "managed_trade_mean_return_pct": 0.10,
-    "managed_trade_win_rate_pct": 45.0,
+    "managed_trade_threshold_win_rate_pct": 80.0,
     "max_managed_trade_drawdown_pct": -40.0,
+    "minimum_managed_trade_samples": 100,
 }
 
 
@@ -76,7 +77,10 @@ def summarize(data, cost_bps, slippage_bps):
         dd = eq / eq.cummax() - 1.0
         trade_stats = {
             "samples": int(len(net)),
-            "win_rate_pct": float((net > 0).mean() * 100.0),
+            "win_rate_pct": float((net >= 1.0).mean() * 100.0),
+            "positive_rate_pct": float((net > 0).mean() * 100.0),
+            "threshold_win_rate_pct": float((net >= 1.0).mean() * 100.0),
+            "win_threshold_pct": 1.0,
             "mean_return_pct": float(net.mean()),
             "median_return_pct": float(net.median()),
             "max_drawdown_pct": float(dd.min() * 100.0),
@@ -84,7 +88,8 @@ def summarize(data, cost_bps, slippage_bps):
         }
     else:
         trade_stats = {
-            "samples": 0, "win_rate_pct": None, "mean_return_pct": None,
+            "samples": 0, "win_rate_pct": None, "positive_rate_pct": None,
+            "threshold_win_rate_pct": None, "win_threshold_pct": 1.0, "mean_return_pct": None,
             "median_return_pct": None, "max_drawdown_pct": None, "mean_holding_days": None,
         }
     result = {
@@ -107,13 +112,14 @@ def summarize(data, cost_bps, slippage_bps):
         result["forward_3d"]["mean_return_pct"] is not None
         and result["forward_5d"]["mean_return_pct"] is not None
         and trade_stats["mean_return_pct"] is not None
-        and trade_stats["win_rate_pct"] is not None
+        and trade_stats["threshold_win_rate_pct"] is not None
         and trade_stats["max_drawdown_pct"] is not None
+        and trade_stats["samples"] >= GATE["minimum_managed_trade_samples"]
         and result["forward_3d"]["mean_return_pct"] >= GATE["forward_3d_mean_return_pct"]
         and result["forward_5d"]["mean_return_pct"] >= GATE["forward_5d_mean_return_pct"]
         and result["forward_5d"]["positive_rate_pct"] >= GATE["forward_5d_positive_rate_pct"]
         and trade_stats["mean_return_pct"] >= GATE["managed_trade_mean_return_pct"]
-        and trade_stats["win_rate_pct"] >= GATE["managed_trade_win_rate_pct"]
+        and trade_stats["threshold_win_rate_pct"] >= GATE["managed_trade_threshold_win_rate_pct"]
         and trade_stats["max_drawdown_pct"] >= GATE["max_managed_trade_drawdown_pct"]
     )
     return result
@@ -197,6 +203,8 @@ def run(args):
         "slippage_bps": args.slippage_bps,
         "production_gate": GATE,
         "selection_rule": "strategy version and admission parameters are fixed before final_holdout evaluation",
+        "win_definition": "net_profit_at_least_1pct_before_3pct_stop_within_5_sessions",
+        "fallback_policy": "below_80_pct_use_highest_stable_research_operating_point; do_not_force_production_gate",
     }
     for name in windows:
         output[name] = summarize(buckets[name], args.cost_bps, args.slippage_bps)
