@@ -52,7 +52,8 @@ const weight=(n:number)=>fmt(n*100,0)+"%";
 const maxCandidates=Number((snapshot.candidate_admission_policy.match(/(?:top_2|dynamic_top_score_(\\d+)_with_market_gate)/)||[])[1]||((snapshot.candidate_admission_policy.match(/top_(\\d+)/)||[])[1])||0);
 
 export default function Home(){
-  const candidatesAreCurrent=snapshot.status==="ready" && !!snapshot.strategy_version && !!snapshot.strategy_commit;
+  const strategyMetadataReady=!!snapshot.strategy_version && !!snapshot.strategy_commit && !!researchStatus.strategy_version && !!researchStatus.strategy_commit;
+  const candidatesAreCurrent=snapshot.status==="ready" && strategyMetadataReady && snapshot.strategy_version===researchStatus.strategy_version && snapshot.strategy_commit===researchStatus.strategy_commit && provenanceMatches;
   const rows=candidatesAreCurrent?(snapshot.candidates??[]):[];
   const w=snapshot.factor_weights??{};
   const m=snapshot.market;
@@ -103,8 +104,8 @@ export default function Home(){
     </section>
 
     <section className="card snapshot-warning">
-      <strong>{candidatesAreCurrent?"候选快照已与当前研究策略一致":"候选快照尚未同步到当前研究策略"}</strong>
-      <span>当前研究策略 {researchStatus.strategy_version} · {researchStatus.strategy_commit.slice(0,10)}；网页候选快照 版本 {snapshot.strategy_version} · {snapshot.strategy_commit.slice(0,10)}。{candidatesAreCurrent?"":"待研究流水线完成后自动替换。"}</span>
+      <strong>{candidatesAreCurrent?"候选快照已通过策略与审计一致性检查":"候选快照尚未通过策略与审计一致性检查"}</strong>
+      <span>当前研究策略 {researchStatus.strategy_version} · {researchStatus.strategy_commit.slice(0,10)}；网页候选快照版本 {snapshot.strategy_version} · {snapshot.strategy_commit.slice(0,10)}；审计版本 {audit.strategy_version??"—"} · {(audit.strategy_commit??"").slice(0,10)||"—"}。{candidatesAreCurrent?"":"待研究/审计流水线完成后自动替换。"}</span>
     </section>
 
     <div className="main">
