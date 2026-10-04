@@ -33,7 +33,7 @@ jobs:
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: .private-strategy
           fetch-depth: 1
-      - name: 设置Python
+      - name: 设置Python环境
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -49,7 +49,7 @@ jobs:
           set -Eeuo pipefail
           export AQUANT_PRIVATE_STRATEGY_COMMIT="$(git -C .private-strategy rev-parse HEAD)"
           python scripts/update_candidates.py
-      - name: 验证候选
+      - name: 验证候选池
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ github.sha }}
