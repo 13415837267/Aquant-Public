@@ -9,6 +9,7 @@ on:
       - "data/system_audit.json"
       - "data/production_status.json"
       - "data/research_status.json"
+      - "data/next_trading_day_plan.json"
       - "data/backtest/high_precision_operating_decision.json"
       - "next.config.ts"
       - "tsconfig.json"
