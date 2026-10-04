@@ -1,0 +1,199 @@
+name: "04 历史研究流水线"
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["03 候选池生产"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "历史研究-main"
+  cancel-in-progress: false
+
+jobs:
+  research:
+    name: "固定研究基线并完成三段式验证"
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: "检出公开仓库"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "读取研究契约"
+        id: contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("config/research_run_contract.json")
+          c = json.loads(p.read_text(encoding="utf-8"))
+          assert c["status"] == "locked_for_research"
+          assert c["public_code_commit"] == "9e0419753d4f203d8ee2d13a45202329eca9ff96"
+          assert c["private_commit"] == "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+          assert c["data_cutoff"] == "2026-09-30"
+          assert c["execution"]["signal"] == "T_close"
+          assert c["execution"]["entry"] == "T+1_open"
+          assert c["execution"]["earliest_exit"] == "T+2"
+          assert c["execution"]["max_holding_sessions"] == 5
+          assert c["execution"]["target_net_profit_pct"] == 1
+          assert c["execution"]["stop_loss_pct"] == 3
+          assert c["execution"]["entry_limit_up_block"] is True
+          assert c["gates"]["validation_threshold_win_rate_pct"] >= 80
+          assert c["gates"]["final_holdout_threshold_win_rate_pct"] >= 80
+          assert c["gates"]["minimum_managed_trade_samples"] >= 100
+          assert c["gates"]["future_function"] is False
+          print("研究契约校验通过。")
+          PY
+
+      - name: "检出固定Private策略"
+        uses: actions/checkout@v7
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          path: private-strategy
+          token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
+          fetch-depth: 1
+
+      - name: "验证Private策略提交"
+        env:
+          EXPECTED_PRIVATE_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+        run: |
+          ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
+          echo "Private策略提交: $ACTUAL_PRIVATE_COMMIT"
+          test "$ACTUAL_PRIVATE_COMMIT" = "$EXPECTED_PRIVATE_COMMIT"
+
+      - name: "设置Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: "安装Python依赖"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: "建立固定公开代码研究基线"
+        env:
+          PUBLIC_CODE_COMMIT: "9e0419753d4f203d8ee2d13a45202329eca9ff96"
+        run: |
+          git fetch --no-tags origin "$PUBLIC_CODE_COMMIT" --depth=1
+          git worktree add --detach research-baseline "$PUBLIC_CODE_COMMIT"
+          test "$(git -C research-baseline rev-parse HEAD)" = "$PUBLIC_CODE_COMMIT"
+
+      - name: "执行开发验证最终留出研究"
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+        working-directory: research-baseline
+        run: |
+          python scripts/short_term_release_validation.py             --development-start 2018-01-05             --development-end 2024-12-20             --validation-start 2025-01-02             --validation-end 2025-12-31             --final-start 2026-01-05             --final-end 2026-09-30             --cost-bps 3             --slippage-bps 2             --output data/backtest/short_term_release_validation.json
+
+      - name: "执行研究契约最终门禁"
+        run: |
+          python - <<'PY'
+          import json, math
+          from pathlib import Path
+
+          contract = json.loads(Path("config/research_run_contract.json").read_text(encoding="utf-8"))
+          result = json.loads(Path("research-baseline/data/backtest/short_term_release_validation.json").read_text(encoding="utf-8"))
+
+          assert result["strategy_source"] == "Aquant-Private/main"
+          assert result["strategy_version"] == "2.5.0"
+          assert result["strategy_commit"] == contract["private_commit"]
+          assert result["future_function"] is False
+          assert result["entry"] == "T+1_open"
+          assert result["max_holding_sessions"] == 5
+          assert result["win_definition"] == "net_profit_at_least_1pct_before_3pct_stop_within_5_sessions"
+
+          validation = result["validation"]
+          final = result["final_holdout"]
+          min_samples = contract["gates"]["minimum_managed_trade_samples"]
+          threshold = contract["gates"]["validation_threshold_win_rate_pct"]
+
+          checks = {
+            "validation_win_rate": validation["managed_trade"]["threshold_win_rate_pct"] is not None and validation["managed_trade"]["threshold_win_rate_pct"] >= threshold,
+            "validation_samples": validation["managed_trade"]["samples"] >= min_samples,
+            "final_win_rate": final["managed_trade"]["threshold_win_rate_pct"] is not None and final["managed_trade"]["threshold_win_rate_pct"] >= contract["gates"]["final_holdout_threshold_win_rate_pct"],
+            "final_samples": final["managed_trade"]["samples"] >= min_samples,
+            "future_function": result["future_function"] is False,
+          }
+          print(json.dumps({"门禁检查": checks, "验证集": validation["managed_trade"], "最终留出": final["managed_trade"]}, ensure_ascii=False, indent=2))
+          if not all(checks.values()):
+              raise SystemExit("研究未通过正式发布门禁；禁止写入ready生产状态。")
+          PY
+
+      - name: "生成当前研究状态"
+        run: |
+          python - <<'PY'
+          import json, math
+          from pathlib import Path
+          from datetime import datetime, timezone
+
+          result = json.loads(Path("research-baseline/data/backtest/short_term_release_validation.json").read_text(encoding="utf-8"))
+          contract = json.loads(Path("config/research_run_contract.json").read_text(encoding="utf-8"))
+
+          def wilson_lower(samples, wins, z=1.959963984540054):
+              if samples <= 0:
+                  return None
+              p = wins / samples
+              den = 1 + z*z/samples
+              center = p + z*z/(2*samples)
+              margin = z * math.sqrt((p*(1-p) + z*z/(4*samples))/samples)
+              return (center - margin) / den * 100
+
+          payload = {
+            "schema_version": 3,
+            "status": "validated_for_audit",
+            "as_of": datetime.now(timezone.utc).isoformat(),
+            "timezone": "Asia/Shanghai",
+            "strategy_source": "Aquant-Private/main",
+            "strategy_version": result["strategy_version"],
+            "strategy_commit": result["strategy_commit"],
+            "research_code_commit": contract["public_code_commit"],
+            "data_cutoff": contract["data_cutoff"],
+            "objective": "net_profit_at_least_1pct_before_3pct_stop_within_5_sessions",
+            "future_function": False,
+            "execution": contract["execution"],
+            "costs": contract["costs"],
+            "development": result["development"],
+            "validation": result["validation"],
+            "final_holdout": result["final_holdout"],
+            "release_gate": True,
+            "release_gate_scope": "final_holdout_only",
+            "production_release": False,
+            "production_version": None,
+            "note": "研究已通过验证集与最终留出门禁，等待系统审计；正式生产发布仍未开启。",
+          }
+          payload["validation"]["managed_trade"]["wilson_lower_pct"] = wilson_lower(
+              payload["validation"]["managed_trade"]["samples"],
+              round(payload["validation"]["managed_trade"]["samples"] * payload["validation"]["managed_trade"]["threshold_win_rate_pct"] / 100)
+          )
+          payload["final_holdout"]["managed_trade"]["wilson_lower_pct"] = wilson_lower(
+              payload["final_holdout"]["managed_trade"]["samples"],
+              round(payload["final_holdout"]["managed_trade"]["samples"] * payload["final_holdout"]["managed_trade"]["threshold_win_rate_pct"] / 100)
+          )
+          Path("data/research_status.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          Path("data/backtest/short_term_release_validation.json").write_text(
+              json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+          cp research-baseline/data/backtest/short_term_release_validation.json data/backtest/short_term_release_validation.json
+
+      - name: "提交研究结果"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/research_status.json data/backtest/short_term_release_validation.json
+          if git diff --cached --quiet; then
+            echo "研究结果无变化，无需提交。"
+          else
+            git commit -m "完成三段式历史研究验证"
+            git push
+          fi
