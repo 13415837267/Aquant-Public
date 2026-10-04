@@ -9,12 +9,12 @@ from scripts.path_regime_rule_mining import (
 )
 
 
-def test_integer_matrix_products_do_not_wrap_uint8():
-    left = np.ones((1000, 1), dtype=np.uint8)
+def test_integer_matrix_products_use_transposed_left_operand_without_wrap():
+    left = np.ones((1000, 2), dtype=np.uint8)
     right = np.ones((1000, 1), dtype=np.uint8)
     result = int_dot(left, right)
-    assert result.shape == (1, 1)
-    assert int(result[0, 0]) == 1000
+    assert result.shape == (2, 1)
+    assert result[:, 0].tolist() == [1000, 1000]
 
 
 def test_integer_vector_products_do_not_wrap_uint8():
