@@ -36,9 +36,9 @@ def test_entry_at_upper_limit_is_not_executable():
 
 def test_same_day_stop_takes_priority_over_target():
     future = [
+        _day("600000", 10.0, 10.1, 9.9, 10.0),
         _day("600000", 10.0, 10.2, 9.6, 10.1),
-        _day("600000", 10.1, 10.3, 10.0, 10.2),
-        _day("600000", 10.2, 10.3, 10.1, 10.25),
+        _day("600000", 10.1, 10.2, 10.0, 10.1),
     ]
     result = managed_trade("600000", future)
     assert result is not None
