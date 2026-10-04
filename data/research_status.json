@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "status": "research_only",
+  "as_of": "2026-10-04T08:42:21Z",
+  "timezone": "Asia/Shanghai",
+  "strategy_source": "Aquant-Private/main",
+  "strategy_version": "2.2.0",
+  "strategy_commit": "0982ef379e1625d4a37ee0137562335c496b8c96",
+  "objective": "net_profit_at_least_1pct_within_5_sessions",
+  "preferred_operating_point": {
+    "name": "precision_089",
+    "selection": "model_probability>=0.89",
+    "validation": {
+      "samples": 4196,
+      "win_rate_pct": 93.30314585319351,
+      "wilson_lower_pct": 92.50649708322295
+    },
+    "final": {
+      "samples": 4322,
+      "win_rate_pct": 92.9662193428968,
+      "wilson_lower_pct": 92.16506816491035
+    }
+  },
+  "highest_observed_operating_point": {
+    "name": "precision_090",
+    "selection": "model_probability>=0.90",
+    "validation": {
+      "samples": 371,
+      "win_rate_pct": 93.53099730458221,
+      "wilson_lower_pct": 90.55504961187033
+    },
+    "final": {
+      "samples": 253,
+      "win_rate_pct": 97.23320158102767,
+      "wilson_lower_pct": 94.40001416001346
+    }
+  },
+  "daily_top1": {
+    "selection": "each trading day choose highest model probability stock",
+    "validation": {
+      "samples": 484,
+      "win_rate_pct": 90.9090909090909,
+      "wilson_lower_pct": 88.01560562898891
+    },
+    "final": {
+      "samples": 419,
+      "win_rate_pct": 93.7947494033413,
+      "wilson_lower_pct": 91.0631819563586
+    }
+  },
+  "path_aware_caveat": {
+    "status": "not_ready",
+    "validation_win_rate_pct": 65.42,
+    "final_win_rate_pct": 66.85,
+    "note": "路径感知定义为净利润>=1%先于-3%止损；该模型尚未达到80%正式生产标准。"
+  },
+  "production_release": false,
+  "production_version": null
+}
