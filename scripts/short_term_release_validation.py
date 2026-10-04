@@ -156,41 +156,64 @@ def summarize(data, cost_bps, slippage_bps):
 
 
 
-def save_checkpoint(path: Path, payload: dict) -> None:
+
+RESEARCH_CHECKPOINT_DAYS = 5
+
+
+def _repo_root_from_env() -> Path:
+    value = os.environ.get("AQUANT_CHECKPOINT_REPO_ROOT", "").strip()
+    return Path(value).resolve() if value else ROOT
+
+
+def research_root_from_args(args) -> Path:
+    value = args.research_root or str(ROOT / "data" / "research" / "short_term_release_validation")
+    return Path(value).resolve()
+
+
+def write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     tmp.replace(path)
 
-def load_checkpoint(path: Path):
-    if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
 
-def log_progress(path: Path, event: str, **fields) -> None:
+def append_progress(path: Path, event: str, **fields) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     record = {"timestamp_utc": pd.Timestamp.utcnow().isoformat(), "event": event, **fields}
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record, ensure_ascii=False) + "\n")
     print(f"[研究进度] {event} {json.dumps(fields, ensure_ascii=False)}", flush=True)
 
-def checkpoint_payload(next_i, state, buckets, args, version, commit, status="running"):
-    return {
-        "schema_version": 1,
-        "status": status,
-        "windows": {
-            "development": [args.development_start, args.development_end],
-            "validation": [args.validation_start, args.validation_end],
-            "final_holdout": [args.final_start, args.final_end],
-        },
-        "cost_bps": args.cost_bps,
-        "slippage_bps": args.slippage_bps,
-        "strategy_version": version,
-        "strategy_commit": commit,
-        "next_active_index": next_i,
-        "state": _state_to_jsonable(state),
-        "buckets": buckets,
-    }
+
+def load_research_state(path: Path):
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def save_research_state(path: Path, state_payload: dict) -> None:
+    write_json(path, state_payload)
+
+
+def checkpoint_git(paths: list[str], message: str) -> None:
+    repo = _repo_root_from_env()
+    subprocess.run(["git", "-C", str(repo), "add", "--", *paths], check=True)
+    if subprocess.run(["git", "-C", str(repo), "diff", "--cached", "--quiet"]).returncode == 0:
+        return
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "aquant-bot"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"],
+        check=True,
+    )
+    subprocess.run(["git", "-C", str(repo), "commit", "-m", message], check=True)
+    for attempt in range(1, 4):
+        subprocess.run(["git", "-C", str(repo), "fetch", "origin", "main"], check=True)
+        subprocess.run(["git", "-C", str(repo), "rebase", "origin/main"], check=True)
+        try:
+            subprocess.run(["git", "-C", str(repo), "push", "origin", "HEAD:main"], check=True)
+            return
+        except subprocess.CalledProcessError:
+            if attempt == 3:
+                raise
+            time.sleep(min(10, attempt * 2))
 
 
 def run(args):
@@ -203,13 +226,10 @@ def run(args):
         "final_holdout": (args.final_start, args.final_end),
     }
     indices = {}
-    for name, (start, end) in windows.items():
-        if start not in dates or end not in dates:
+    for name, (start_date, end_date) in windows.items():
+        if start_date not in dates or end_date not in dates:
             raise ValueError(f"{name} dates must be trading dates")
-        indices[name] = (dates.index(start), dates.index(end))
-        # 窗口末端不要求数据集存在窗口外的未来交易日。
-        # 统计时只纳入能够完整观察 T+1 至 T+5 的信号日，
-        # 因此最终留出截止日附近最后五个信号日会自然被剔除。
+        indices[name] = (dates.index(start_date), dates.index(end_date))
 
     begin = max(0, indices["development"][0] - 20)
     end_i = indices["final_holdout"][1]
@@ -223,66 +243,136 @@ def run(args):
 
     state = FeatureState()
     buckets = {name: {"signal_days": 0, "candidate_days": 0, "forward_3d": [], "forward_5d": [], "trades": []} for name in windows}
-    checkpoint_path = Path(args.checkpoint)
-    progress_path = Path(args.progress_log)
-    checkpoint = load_checkpoint(checkpoint_path)
+    research_root = research_root_from_args(args)
+    state_file = research_root / "_RESEARCH_STATE.json"
+    progress_file = research_root / "_PROGRESS.jsonl"
+    completed_dates = set()
     resume_i = 0
+
+    checkpoint = load_research_state(state_file)
+    expected = {
+        "schema_version": 2,
+        "windows": {k: list(v) for k, v in windows.items()},
+        "cost_bps": args.cost_bps,
+        "slippage_bps": args.slippage_bps,
+        "strategy_version": version,
+        "strategy_commit": commit,
+        "checkpoint_days": RESEARCH_CHECKPOINT_DAYS,
+    }
     if checkpoint:
-        expected = {
-            "windows": {"development": [args.development_start, args.development_end], "validation": [args.validation_start, args.validation_end], "final_holdout": [args.final_start, args.final_end]},
-            "cost_bps": args.cost_bps,
-            "slippage_bps": args.slippage_bps,
-            "strategy_version": version,
-            "strategy_commit": commit,
-        }
         for key, value in expected.items():
             if checkpoint.get(key) != value:
                 raise RuntimeError(f"研究断点参数不一致: {key}")
         _state_from_jsonable(state, checkpoint["state"])
         buckets = checkpoint["buckets"]
-        resume_i = int(checkpoint["next_active_index"])
-        log_progress(progress_path, "断点续传", resume_index=resume_i, total_active_days=len(active), status=checkpoint.get("status"))
+        completed_dates = set(checkpoint.get("completed_dates", []))
+        resume_i = int(checkpoint.get("next_active_index", 0))
+        append_progress(
+            progress_file,
+            "断点续传",
+            completed_days=len(completed_dates),
+            resume_index=resume_i,
+            total_active_days=len(active),
+        )
     else:
-        log_progress(progress_path, "研究开始", total_active_days=len(active), strategy_version=version, strategy_commit=commit)
+        research_root.mkdir(parents=True, exist_ok=True)
+        append_progress(
+            progress_file,
+            "研究开始",
+            total_active_days=len(active),
+            strategy_version=version,
+            strategy_commit=commit,
+            checkpoint_days=RESEARCH_CHECKPOINT_DAYS,
+        )
+
+    def persist_checkpoint(next_i: int, signal_date: str | None = None, force_git: bool = False):
+        payload = {
+            **expected,
+            "status": "running",
+            "next_active_index": next_i,
+            "completed_dates": sorted(completed_dates),
+            "state": _state_to_jsonable(state),
+            "buckets": buckets,
+            "last_signal_date": signal_date,
+        }
+        save_research_state(state_file, payload)
+        if force_git:
+            checkpoint_git(
+                [str(state_file.relative_to(_repo_root_from_env())), str(progress_file.relative_to(_repo_root_from_env())), str(research_root / signal_date[:4] / f"{signal_date}.json").replace(str(_repo_root_from_env()) + "/", "")],
+                f"研究：历史验证检查点至 {signal_date}",
+            )
 
     started = time.time()
+    pending_checkpoint_days = 0
     for i in range(resume_i, len(active) - 5):
         signal_date = active[i].name[:10]
+        if signal_date in completed_dates:
+            continue
+
         frame = state.build(get(i))
         period = None
-        for name, (start, end) in windows.items():
-            if start <= signal_date <= end:
-                # Require all five future sessions to remain inside the same window.
+        for name, (start_date, end_date) in windows.items():
+            if start_date <= signal_date <= end_date:
                 end_rel = indices[name][1] - begin
                 if i + 5 <= end_rel:
                     period = name
                 break
-        if period is None or frame.empty:
-            save_checkpoint(checkpoint_path, checkpoint_payload(i + 1, state, buckets, args, version, commit))
-            log_progress(progress_path, "日期完成", signal_date=signal_date, active_index=i, progress_pct=round((i + 1) / max(1, len(active)) * 100.0, 2), candidate_count=0)
-            continue
 
-        scored = model.score_universe(frame)
-        selected = model.admit_candidates(scored)
-        bucket = buckets[period]
-        bucket["signal_days"] += 1
-        if selected.empty:
-            continue
+        day_payload = {
+            "schema_version": 1,
+            "signal_date": signal_date,
+            "period": period,
+            "strategy_version": version,
+            "strategy_commit": commit,
+            "candidate_count": 0,
+            "candidates": [],
+        }
 
-        bucket["candidate_days"] += 1
-        future = [get(i + j) for j in range(1, 6)]
-        for symbol in selected["symbol"].astype(str).str.zfill(6):
-            r3 = forward_return(future, symbol, 3)
-            r5 = forward_return(future, symbol, 5)
-            if r3 is not None:
-                bucket["forward_3d"].append(r3)
-            if r5 is not None:
-                bucket["forward_5d"].append(r5)
-            trade = managed_trade(symbol, future, round_trip_cost_bps=2*(args.cost_bps+args.slippage_bps))
-            if trade:
-                bucket["trades"].append(trade)
-        save_checkpoint(checkpoint_path, checkpoint_payload(i + 1, state, buckets, args, version, commit))
-        log_progress(progress_path, "日期完成", signal_date=signal_date, active_index=i, progress_pct=round((i + 1) / max(1, len(active)) * 100.0, 2), candidate_days={k: v["candidate_days"] for k, v in buckets.items()}, elapsed_seconds=round(time.time() - started, 2))
+        if period is not None and not frame.empty:
+            scored = model.score_universe(frame)
+            selected = model.admit_candidates(scored)
+            bucket = buckets[period]
+            bucket["signal_days"] += 1
+            if not selected.empty:
+                bucket["candidate_days"] += 1
+                future = [get(i + j) for j in range(1, 6)]
+                day_payload["candidate_count"] = int(len(selected))
+                day_payload["candidates"] = selected.to_dict(orient="records")
+                for symbol in selected["symbol"].astype(str).str.zfill(6):
+                    r3 = forward_return(future, symbol, 3)
+                    r5 = forward_return(future, symbol, 5)
+                    if r3 is not None:
+                        bucket["forward_3d"].append(r3)
+                    if r5 is not None:
+                        bucket["forward_5d"].append(r5)
+                    trade = managed_trade(
+                        symbol,
+                        future,
+                        round_trip_cost_bps=2 * (args.cost_bps + args.slippage_bps),
+                    )
+                    if trade:
+                        bucket["trades"].append(trade)
+
+        day_file = research_root / (period or "out_of_window") / signal_date[:4] / f"{signal_date}.json"
+        write_json(day_file, day_payload)
+        completed_dates.add(signal_date)
+        pending_checkpoint_days += 1
+
+        append_progress(
+            progress_file,
+            "日期完成",
+            signal_date=signal_date,
+            active_index=i,
+            completed_days=len(completed_dates),
+            progress_pct=round((i + 1) / max(1, len(active)) * 100.0, 2),
+            candidate_days={k: v["candidate_days"] for k, v in buckets.items()},
+            elapsed_seconds=round(time.time() - started, 2),
+        )
+
+        force_git = pending_checkpoint_days >= RESEARCH_CHECKPOINT_DAYS
+        persist_checkpoint(i + 1, signal_date, force_git=force_git)
+        if force_git:
+            pending_checkpoint_days = 0
 
     output = {
         "schema_version": 1,
@@ -305,17 +395,38 @@ def run(args):
         output[name] = summarize(buckets[name], args.cost_bps, args.slippage_bps)
     output["release_gate"] = output["final_holdout"]["production_gate_passed"]
     output["release_gate_scope"] = "final_holdout_only"
-    path = Path(args.output)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    save_checkpoint(checkpoint_path, checkpoint_payload(len(active), state, buckets, args, version, commit, status="completed"))
-    log_progress(progress_path, "研究完成", elapsed_seconds=round(time.time() - started, 2), release_gate=output["release_gate"])
+
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    completed_payload = {
+        **expected,
+        "status": "completed",
+        "next_active_index": len(active),
+        "completed_dates": sorted(completed_dates),
+        "state": _state_to_jsonable(state),
+        "buckets": buckets,
+        "last_signal_date": sorted(completed_dates)[-1] if completed_dates else None,
+    }
+    save_research_state(state_file, completed_payload)
+    if pending_checkpoint_days:
+        checkpoint_git(
+            [
+                str(state_file.relative_to(_repo_root_from_env())),
+                str(progress_file.relative_to(_repo_root_from_env())),
+                str(output_path.relative_to(_repo_root_from_env())),
+                str(research_root.relative_to(_repo_root_from_env())),
+            ],
+            f"研究：完成历史验证至 {completed_payload['last_signal_date']}",
+        )
+    append_progress(progress_file, "研究完成", elapsed_seconds=round(time.time() - started, 2), release_gate=output["release_gate"])
     print(json.dumps({
         "status": "ready",
         "strategy_version": version,
         "strategy_commit": commit,
         "release_gate": output["release_gate"],
-        "output": str(path),
+        "output": str(output_path),
     }, ensure_ascii=False))
 
 
@@ -330,6 +441,5 @@ if __name__ == "__main__":
     ap.add_argument("--cost-bps", type=float, default=3.0)
     ap.add_argument("--slippage-bps", type=float, default=2.0)
     ap.add_argument("--output", default=str(ROOT / "data/backtest/short_term_release_validation.json"))
-    ap.add_argument("--checkpoint", default=str(ROOT / "data/research_runtime/short_term_release_validation.checkpoint.json"))
-    ap.add_argument("--progress-log", default=str(ROOT / "data/research_runtime/short_term_release_validation.progress.jsonl"))
+    ap.add_argument("--research-root", default=str(ROOT / "data/research" / "short_term_release_validation"))
     run(ap.parse_args())
