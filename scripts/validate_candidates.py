@@ -74,7 +74,7 @@ def validate_candidates(payload, private_version=None, private_commit=None):
         raise RuntimeError("factor weights must sum to 1")
     candidates = payload.get("candidates")
     policy = str(payload.get("candidate_admission_policy") or "")
-    if policy != "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue":
+    if policy != "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor":
         raise RuntimeError("candidate admission policy is invalid")
     max_candidates = 2
     if not isinstance(candidates, list) or len(candidates) > max_candidates: raise RuntimeError("invalid candidate count")
