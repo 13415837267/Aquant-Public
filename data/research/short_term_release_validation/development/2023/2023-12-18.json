@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "signal_date": "2023-12-18",
+  "period": "development",
+  "strategy_version": "2.5.0",
+  "strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
+  "candidate_count": 0,
+  "candidates": []
+}
