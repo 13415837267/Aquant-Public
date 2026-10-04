@@ -1,4 +1,4 @@
-name: 基本面数据库回填
+name: 基本面数据回填
 
 on:
   schedule:
