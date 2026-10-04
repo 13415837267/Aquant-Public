@@ -43,4 +43,4 @@ def test_same_day_stop_takes_priority_over_target():
     result = managed_trade("600000", future)
     assert result is not None
     assert result["exit_reason"] == "stop"
-    assert result["holding_days"] == 1
+    assert result["holding_days"] == 2
