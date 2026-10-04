@@ -1,14 +1,12 @@
 """Path-aware conditional rule mining for the 1% short-term objective.
 
-Research only. Rules use information available at signal close T and are
-selected on train, ranked on validation, then evaluated once on final holdout.
-A win requires net +1% before a gross -3% stop within five sessions.
+Research only. Rules use information available at signal close T. Rule families
+are discovered on 2015-2022, ranked on 2023-2024, and tested on 2025-2026-09-30.
+The trade label requires net +1% before a gross -3% stop within five sessions.
 """
 from __future__ import annotations
 
 import argparse
-import gzip
-import json
 import math
 import time
 from pathlib import Path
@@ -32,6 +30,7 @@ STOCK_FEATURES = [
     "intraday_return_pct", "limit_up_5d_count", "turnover_pct", "change_pct",
 ]
 MARKET_FEATURES = ["market_breadth_pct", "market_median_return_pct"]
+ALL_FEATURES = STOCK_FEATURES + MARKET_FEATURES
 
 TRAIN_END = "2022-12-30"
 VALIDATION_START = "2023-01-03"
@@ -54,6 +53,7 @@ MIN_VALIDATION_RULE_SAMPLES = 5_000
 MAX_ATOMIC_CANDIDATES = 16
 MAX_PAIR_CANDIDATES = 24
 TOP_OUTPUT_RULES = 20
+TARGET_WIN_RATE_PCT = 80.0
 
 
 def percentile_rank(series):
@@ -62,16 +62,15 @@ def percentile_rank(series):
 
 
 def make_features(frame):
-    cols = [percentile_rank(frame[name]) for name in STOCK_FEATURES]
+    stock = [percentile_rank(frame[name]) for name in STOCK_FEATURES]
     breadth = np.clip(
         pd.to_numeric(frame["market_breadth_pct"], errors="coerce")
-        .fillna(50.0).to_numpy(dtype=float),
-        0.0, 100.0,
+        .fillna(50.0).to_numpy(dtype=float), 0.0, 100.0
     )
     median_ret = pd.to_numeric(
         frame["market_median_return_pct"], errors="coerce"
     ).fillna(0.0).to_numpy(dtype=float)
-    return np.column_stack(cols + [breadth, median_ret])
+    return np.column_stack(stock + [breadth, median_ret])
 
 
 def feature_defs():
@@ -90,6 +89,7 @@ def feature_defs():
 
 
 RULE_DEFS = feature_defs()
+FEATURE_INDEX = {name: idx for idx, name in enumerate(ALL_FEATURES)}
 
 
 def rule_label(rule):
@@ -106,20 +106,20 @@ def wilson_lower_bound(wins, samples, z=1.96):
     return (center - spread) / denom
 
 
+def empty_targets(n):
+    return (
+        np.zeros(n, dtype=bool),
+        np.full(n, np.nan), np.full(n, np.nan),
+        np.zeros(n, dtype=bool),
+        np.full(n, np.nan), np.full(n, np.nan),
+        np.full(n, np.nan), np.full(n, np.nan),
+    )
+
+
 def path_targets(symbols, future_days):
     n = len(symbols)
-    empty = (
-        np.zeros(n, dtype=bool),
-        np.full(n, np.nan),
-        np.full(n, np.nan),
-        np.zeros(n, dtype=bool),
-        np.full(n, np.nan),
-        np.full(n, np.nan),
-        np.full(n, np.nan),
-        np.full(n, np.nan),
-    )
     if len(future_days) < MAX_FORWARD_SESSIONS:
-        return empty
+        return empty_targets(n)
 
     keys = pd.Index(pd.Series(symbols, dtype="string").astype(str).str.zfill(6))
     first = future_days[0].set_index("symbol")
@@ -146,7 +146,6 @@ def path_targets(symbols, future_days):
     highs = np.column_stack(highs)
     lows = np.column_stack(lows)
     closes = np.column_stack(closes)
-
     complete = (
         np.isfinite(entry) & (entry > 0) & executable
         & np.isfinite(opens).all(axis=1)
@@ -179,79 +178,102 @@ def path_targets(symbols, future_days):
             if day_high >= target[row]:
                 target_day[row] = d + 1
                 break
-        path_win[row] = (target_day[row] > 0) and not stopped
+        path_win[row] = target_day[row] > 0 and not stopped
 
     return path_win, best_net, close_net, complete, mae, mfe, target_day, stop_day
 
 
-def atomic_masks(x):
-    masks = np.empty((len(x), len(RULE_DEFS)), dtype=np.uint8)
-    for idx, rule in enumerate(RULE_DEFS):
-        col = STOCK_FEATURES.index(rule["feature"]) if rule["feature"] in STOCK_FEATURES else len(STOCK_FEATURES) + (0 if rule["feature"] == "market_breadth_pct" else 1)
-        values = x[:, col]
+def atomic_masks(x, rule_indices=None):
+    indices = list(range(len(RULE_DEFS))) if rule_indices is None else list(rule_indices)
+    masks = np.empty((len(x), len(indices)), dtype=np.uint8)
+    for pos, rule_idx in enumerate(indices):
+        rule = RULE_DEFS[rule_idx]
+        values = x[:, FEATURE_INDEX[rule["feature"]]]
         threshold = rule["threshold"]
-        masks[:, idx] = (values >= threshold if rule["op"] == ">=" else values <= threshold).astype(np.uint8)
+        masks[:, pos] = (
+            values >= threshold if rule["op"] == ">=" else values <= threshold
+        ).astype(np.uint8)
     return masks
 
 
-def accumulate_atomic(stats, masks, y):
-    stats["samples"] += masks.sum(axis=0, dtype=np.int64)
-    stats["wins"] += (masks * y[:, None]).sum(axis=0, dtype=np.int64)
+def new_accumulator(count):
+    return {
+        "samples": np.zeros(count, dtype=np.int64),
+        "wins": np.zeros(count, dtype=np.int64),
+        "best_sum": np.zeros(count, dtype=np.float64),
+        "close_sum": np.zeros(count, dtype=np.float64),
+        "mae_sum": np.zeros(count, dtype=np.float64),
+        "mfe_sum": np.zeros(count, dtype=np.float64),
+        "target_day_sum": np.zeros(count, dtype=np.float64),
+        "target_day_count": np.zeros(count, dtype=np.int64),
+        "stop_day_sum": np.zeros(count, dtype=np.float64),
+        "stop_day_count": np.zeros(count, dtype=np.int64),
+    }
 
 
-def evaluate_selected(masks, y, best, close, mae, mfe, target_day, stop_day, selected_indices):
+def accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day):
+    acc["samples"] += masks.sum(axis=0, dtype=np.int64)
+    acc["wins"] += (masks * y[:, None]).sum(axis=0, dtype=np.int64)
+    acc["best_sum"] += (masks * best[:, None]).sum(axis=0)
+    acc["close_sum"] += (masks * close[:, None]).sum(axis=0)
+    acc["mae_sum"] += (masks * mae[:, None]).sum(axis=0)
+    acc["mfe_sum"] += (masks * mfe[:, None]).sum(axis=0)
+    target_valid = (target_day > 0).astype(np.float64)
+    stop_valid = (stop_day > 0).astype(np.float64)
+    acc["target_day_sum"] += (masks * (target_day * target_valid)[:, None]).sum(axis=0)
+    acc["target_day_count"] += (masks * target_valid[:, None]).sum(axis=0, dtype=np.int64)
+    acc["stop_day_sum"] += (masks * (stop_day * stop_valid)[:, None]).sum(axis=0)
+    acc["stop_day_count"] += (masks * stop_valid[:, None]).sum(axis=0, dtype=np.int64)
+
+
+def rule_row(rule_type, rule_indices, acc, pos):
+    n = int(acc["samples"][pos])
+    w = int(acc["wins"][pos])
+    item = {
+        "rule_type": rule_type,
+        "rule_indices": [int(x) for x in rule_indices],
+        "rules": [RULE_DEFS[int(x)] for x in rule_indices],
+        "rule_label": " AND ".join(rule_label(RULE_DEFS[int(x)]) for x in rule_indices),
+        "samples": n,
+        "wins": w,
+        "path_win_1pct_rate_pct": (w / n * 100.0) if n else None,
+        "wilson_lower_pct": (wilson_lower_bound(w, n) * 100.0) if n else None,
+        "mean_best_return_pct": (acc["best_sum"][pos] / n) if n else None,
+        "mean_5d_close_return_pct": (acc["close_sum"][pos] / n) if n else None,
+        "mean_mae_pct": (acc["mae_sum"][pos] / n) if n else None,
+        "mean_mfe_pct": (acc["mfe_sum"][pos] / n) if n else None,
+        "target_day_mean": (
+            acc["target_day_sum"][pos] / acc["target_day_count"][pos]
+            if acc["target_day_count"][pos] else None
+        ),
+        "stop_day_mean": (
+            acc["stop_day_sum"][pos] / acc["stop_day_count"][pos]
+            if acc["stop_day_count"][pos] else None
+        ),
+    }
+    return item
+
+
+def summarize_atomic(acc):
     rows = []
-    for idx in selected_indices:
-        mask = masks[:, idx].astype(bool)
-        n = int(mask.sum())
-        w = int(y[mask].sum())
-        rows.append({
-            "rule_type": "atomic",
-            "rule_indices": [int(idx)],
-            "rules": [RULE_DEFS[idx]],
-            "rule_label": rule_label(RULE_DEFS[idx]),
-            "samples": n,
-            "wins": w,
-            "path_win_1pct_rate_pct": float(w / n * 100.0) if n else None,
-            "wilson_lower_pct": float(wilson_lower_bound(w, n) * 100.0) if n else None,
-            "mean_best_return_pct": float(best[mask].mean()) if n else None,
-            "mean_5d_close_return_pct": float(close[mask].mean()) if n else None,
-            "mean_mae_pct": float(mae[mask].mean()) if n else None,
-            "mean_mfe_pct": float(mfe[mask].mean()) if n else None,
-            "target_day_mean": float(target_day[mask][target_day[mask] > 0].mean()) if np.any(mask & (target_day > 0)) else None,
-            "stop_day_mean": float(stop_day[mask][stop_day[mask] > 0].mean()) if np.any(mask & (stop_day > 0)) else None,
-        })
-    return rows
-
-
-def evaluate_pairs(masks, y, best, close, mae, mfe, target_day, stop_day, pair_indices):
-    rows = []
-    for left, right in pair_indices:
-        mask = (masks[:, left] & masks[:, right]).astype(bool)
-        n = int(mask.sum())
-        if n == 0:
+    for idx, rule in enumerate(RULE_DEFS):
+        n = int(acc["samples"][idx])
+        if n < MIN_TRAIN_RULE_SAMPLES:
             continue
-        w = int(y[mask].sum())
-        rows.append({
-            "rule_type": "pair",
-            "rule_indices": [int(left), int(right)],
-            "rules": [RULE_DEFS[left], RULE_DEFS[right]],
-            "rule_label": f'{rule_label(RULE_DEFS[left])} AND {rule_label(RULE_DEFS[right])}',
-            "samples": n,
-            "wins": w,
-            "path_win_1pct_rate_pct": float(w / n * 100.0),
-            "wilson_lower_pct": float(wilson_lower_bound(w, n) * 100.0),
-            "mean_best_return_pct": float(best[mask].mean()),
-            "mean_5d_close_return_pct": float(close[mask].mean()),
-            "mean_mae_pct": float(mae[mask].mean()),
-            "mean_mfe_pct": float(mfe[mask].mean()),
-            "target_day_mean": float(target_day[mask][target_day[mask] > 0].mean()) if np.any(mask & (target_day > 0)) else None,
-            "stop_day_mean": float(stop_day[mask][stop_day[mask] > 0].mean()) if np.any(mask & (stop_day > 0)) else None,
-        })
+        rows.append(rule_row("atomic", [idx], acc, idx))
+    rows.sort(key=lambda r: (r["wilson_lower_pct"], r["path_win_1pct_rate_pct"], r["samples"]), reverse=True)
     return rows
 
 
-def collect_split(files, start, end, state, collect_masks=None):
+def summarize_selected(acc, rule_specs):
+    rows = []
+    for pos, (rule_type, indices) in enumerate(rule_specs):
+        rows.append(rule_row(rule_type, indices, acc, pos))
+    rows.sort(key=lambda r: (r["path_win_1pct_rate_pct"] or -1, r["wilson_lower_pct"] or -1, r["samples"]), reverse=True)
+    return rows
+
+
+def iter_split(files, start, end, state):
     dates = [p.name[:10] for p in files]
     start_i, end_i = dates.index(start), dates.index(end)
     cache = {}
@@ -263,10 +285,6 @@ def collect_split(files, start, end, state, collect_masks=None):
             del cache[next(iter(cache))]
         return cache[i]
 
-    atomic_stats = None
-    stored = []
-    processed = 0
-    samples = 0
     for i in range(max(0, start_i - 20), end_i + 1):
         date = dates[i]
         frame = state.build(get(i))
@@ -281,220 +299,182 @@ def collect_split(files, start, end, state, collect_masks=None):
         keep = np.flatnonzero(complete)
         if len(keep) == 0:
             continue
-        x = x_full[keep]
-        yy, bb, cc = y[keep], best[keep], close[keep]
-        mm, ff, td, sd = mae[keep], mfe[keep], target_day[keep], stop_day[keep]
+        yield (
+            date,
+            x_full[keep],
+            y[keep],
+            best[keep],
+            close[keep],
+            mae[keep],
+            mfe[keep],
+            target_day[keep],
+            stop_day[keep],
+        )
+
+
+def scan_atomic(files, start, end):
+    state = FeatureState()
+    acc = new_accumulator(len(RULE_DEFS))
+    processed = samples = 0
+    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state):
         masks = atomic_masks(x)
-        if collect_masks is not None:
-            collect_masks.append((date, masks, yy, bb, cc, mm, ff, td, sd))
-        if atomic_stats is None:
-            atomic_stats = {"samples": np.zeros(len(RULE_DEFS), dtype=np.int64), "wins": np.zeros(len(RULE_DEFS), dtype=np.int64)}
-        accumulate_atomic(atomic_stats, masks, yy)
-        stored.append((date, masks, yy, bb, cc, mm, ff, td, sd))
-        samples += len(yy)
+        accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day)
         processed += 1
+        samples += len(y)
         if processed % 50 == 0:
-            print(f"[条件挖掘] {start}-{end} 已处理{processed}日，样本{samples}", flush=True)
-    return stored, processed, samples, atomic_stats
+            print(f"[条件挖掘] 原子规则 {start}-{end} 已处理{processed}日，样本{samples}", flush=True)
+    return acc, processed, samples
 
 
-def summarize_atomic(stats):
-    rows = []
-    if stats is None:
-        return rows
-    for idx, rule in enumerate(RULE_DEFS):
-        n, w = int(stats["samples"][idx]), int(stats["wins"][idx])
-        if n < MIN_TRAIN_RULE_SAMPLES:
-            continue
-        rows.append({
-            "rule_type": "atomic",
-            "rule_index": idx,
-            "rule": rule,
-            "rule_label": rule_label(rule),
-            "samples": n,
-            "wins": w,
-            "path_win_1pct_rate_pct": w / n * 100.0,
-            "wilson_lower_pct": wilson_lower_bound(w, n) * 100.0,
-        })
-    rows.sort(key=lambda r: (r["wilson_lower_pct"], r["path_win_1pct_rate_pct"], r["samples"]), reverse=True)
-    return rows
+def scan_pairs(files, start, end, atomic_indices, pair_indices):
+    state = FeatureState()
+    rule_specs = [("pair", pair) for pair in pair_indices]
+    acc = new_accumulator(len(rule_specs))
+    processed = samples = 0
+    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state):
+        base_masks = atomic_masks(x, atomic_indices)
+        local_index = {rule_idx: pos for pos, rule_idx in enumerate(atomic_indices)}
+        masks = np.empty((len(x), len(pair_indices)), dtype=np.uint8)
+        for pos, (left, right) in enumerate(pair_indices):
+            masks[:, pos] = base_masks[:, local_index[left]] & base_masks[:, local_index[right]]
+        accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day)
+        processed += 1
+        samples += len(y)
+        if processed % 50 == 0:
+            print(f"[条件挖掘] 配对规则 {start}-{end} 已处理{processed}日，样本{samples}", flush=True)
+    return rule_specs, acc, processed, samples
 
 
-def pair_stats_from_masks(stored, selected):
-    stats = {(a, b): [0, 0] for a, b in selected}
-    for _, masks, y, *_ in stored:
-        if not selected:
-            continue
-        a = masks[:, [p[0] for p in selected]]
-        b = masks[:, [p[1] for p in selected]]
-        hits = a & b
-        counts = hits.sum(axis=0, dtype=np.int64)
-        wins = (hits * y[:, None]).sum(axis=0, dtype=np.int64)
-        for pos, pair in enumerate(selected):
-            stats[pair][0] += int(counts[pos])
-            stats[pair][1] += int(wins[pos])
-    return stats
+def scan_selected(files, start, end, atomic_indices, pair_indices):
+    rule_specs = [("atomic", (idx,)) for idx in atomic_indices] + [("pair", pair) for pair in pair_indices]
+    state = FeatureState()
+    acc = new_accumulator(len(rule_specs))
+    processed = samples = 0
+    atomic_pos = {idx: pos for pos, idx in enumerate(atomic_indices)}
+    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state):
+        base_masks = atomic_masks(x, atomic_indices)
+        masks = np.empty((len(x), len(rule_specs)), dtype=np.uint8)
+        for pos, idx in enumerate(atomic_indices):
+            masks[:, pos] = base_masks[:, atomic_pos[idx]]
+        for offset, (left, right) in enumerate(pair_indices, len(atomic_indices)):
+            masks[:, offset] = base_masks[:, atomic_pos[left]] & base_masks[:, atomic_pos[right]]
+        accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day)
+        processed += 1
+        samples += len(y)
+        if processed % 50 == 0:
+            print(f"[条件挖掘] 选择规则 {start}-{end} 已处理{processed}日，样本{samples}", flush=True)
+    return rule_specs, acc, processed, samples
 
 
-def rank_pair_candidates(stored, atomic_indices):
-    pairs = [(left, right) for pos, left in enumerate(atomic_indices) for right in atomic_indices[pos + 1:]]
-    raw = pair_stats_from_masks(stored, pairs)
-    rows = []
-    for pair, (n, w) in raw.items():
-        if n < MIN_TRAIN_RULE_SAMPLES:
-            continue
-        rows.append({
-            "left": pair[0], "right": pair[1], "samples": n, "wins": w,
-            "path_win_1pct_rate_pct": w / n * 100.0,
-            "wilson_lower_pct": wilson_lower_bound(w, n) * 100.0,
-            "rule_label": f'{rule_label(RULE_DEFS[pair[0]])} AND {rule_label(RULE_DEFS[pair[1]])}',
-        })
-    rows.sort(key=lambda r: (r["wilson_lower_pct"], r["path_win_1pct_rate_pct"], r["samples"]), reverse=True)
-    return rows
-
-
-def subset_rows(stored, y, selected_atomic, selected_pairs):
-    return evaluate_selected(stored[0][1], y, stored[0][3], stored[0][4], stored[0][5], stored[0][6], stored[0][7], stored[0][8], selected_atomic)  # pragma: no cover
-
-
-def flatten_eval(stored, selected_atomic, selected_pairs):
-    rows = []
-    for item in stored:
-        date, masks, y, best, close, mae, mfe, target_day, stop_day = item
-        rows.extend(evaluate_selected(masks, y, best, close, mae, mfe, target_day, stop_day, selected_atomic))
-        rows.extend(evaluate_pairs(masks, y, best, close, mae, mfe, target_day, stop_day, selected_pairs))
-    by_key = {}
-    for row in rows:
-        key = tuple(row["rule_indices"])
-        if key not in by_key:
-            by_key[key] = row.copy()
-            by_key[key]["samples"] = 0
-            by_key[key]["wins"] = 0
-            for field in ("mean_best_return_pct", "mean_5d_close_return_pct", "mean_mae_pct", "mean_mfe_pct"):
-                by_key[key][field] = 0.0
-            by_key[key]["target_day_sum"] = 0.0
-            by_key[key]["target_day_count"] = 0
-            by_key[key]["stop_day_sum"] = 0.0
-            by_key[key]["stop_day_count"] = 0
-        dst = by_key[key]
-        n = row["samples"]
-        dst["samples"] += n
-        dst["wins"] += row["wins"]
-        for field in ("mean_best_return_pct", "mean_5d_close_return_pct", "mean_mae_pct", "mean_mfe_pct"):
-            dst[field] += (row[field] or 0.0) * n
-        if row["target_day_mean"] is not None:
-            dst["target_day_sum"] += row["target_day_mean"] * n
-            dst["target_day_count"] += n
-        if row["stop_day_mean"] is not None:
-            dst["stop_day_sum"] += row["stop_day_mean"] * n
-            dst["stop_day_count"] += n
-    out = []
-    for row in by_key.values():
-        n = row["samples"]
-        row["path_win_1pct_rate_pct"] = row["wins"] / n * 100.0 if n else None
-        row["wilson_lower_pct"] = wilson_lower_bound(row["wins"], n) * 100.0 if n else None
-        for field in ("mean_best_return_pct", "mean_5d_close_return_pct", "mean_mae_pct", "mean_mfe_pct"):
-            row[field] = row[field] / n if n else None
-        row["target_day_mean"] = row["target_day_sum"] / row["target_day_count"] if row["target_day_count"] else None
-        row["stop_day_mean"] = row["stop_day_sum"] / row["stop_day_count"] if row["stop_day_count"] else None
-        for field in ("target_day_sum", "target_day_count", "stop_day_sum", "stop_day_count"):
-            row.pop(field, None)
-        out.append(row)
-    out.sort(key=lambda r: (r["path_win_1pct_rate_pct"] or -1, r["wilson_lower_pct"] or -1, r["samples"]), reverse=True)
-    return out
-
-
-def split_summary(stored):
-    if not stored:
-        return {"samples": 0, "path_win_1pct_rate_pct": None, "mean_best_return_pct": None, "mean_5d_close_return_pct": None}
-    y = np.concatenate([x[2] for x in stored])
-    best = np.concatenate([x[3] for x in stored])
-    close = np.concatenate([x[4] for x in stored])
+def split_summary(acc):
+    total = int(acc["samples"].sum())
+    wins = int(acc["wins"].sum())
+    if total == 0:
+        return {"samples": 0, "path_win_1pct_rate_pct": None}
     return {
-        "samples": int(len(y)),
-        "path_win_1pct_rate_pct": float(y.mean() * 100.0),
-        "mean_best_return_pct": float(best.mean()),
-        "mean_5d_close_return_pct": float(close.mean()),
+        "samples": total,
+        "path_win_1pct_rate_pct": wins / total * 100.0,
     }
 
 
-def choose_validation_rules(train_atomic, train_pairs, validation_rows):
-    candidates = {}
-    for row in train_atomic[:MAX_ATOMIC_CANDIDATES]:
-        candidates[("atomic", tuple(row["rule_indices"]) if "rule_indices" in row else (row["rule_index"],))] = row
-    for row in train_pairs[:MAX_PAIR_CANDIDATES]:
-        candidates[("pair", tuple(row["rule_indices"]) if "rule_indices" in row else (row["left"], row["right"]))] = row
-
-    ranked = [r for r in validation_rows if r["samples"] >= MIN_VALIDATION_RULE_SAMPLES]
-    ranked.sort(key=lambda r: (r["path_win_1pct_rate_pct"] or -1, r["wilson_lower_pct"] or -1, r["samples"]), reverse=True)
-    return ranked[:TOP_OUTPUT_RULES]
-
-
-def parse_args():
+def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default="2015-01-05")
     ap.add_argument("--final-end", default=FINAL_END)
     ap.add_argument("--output", default=str(OUT_DIR / "path_rule_mining_latest.json"))
-    return ap.parse_args()
+    args = ap.parse_args()
 
-
-def main():
-    args = parse_args()
     started = time.time()
     files = history_files()
     dates = [p.name[:10] for p in files]
     if args.start not in dates or args.final_end not in dates:
         raise ValueError("训练区间必须落在历史数据范围内")
 
-    train_state = FeatureState()
-    train_stored, train_days, train_samples, train_atomic_stats = collect_split(
-        files, args.start, TRAIN_END, train_state
-    )
-    train_atomic = summarize_atomic(train_atomic_stats)
+    train_atomic_acc, train_days, train_samples = scan_atomic(files, args.start, TRAIN_END)
+    train_atomic = summarize_atomic(train_atomic_acc)
     top_atomic = train_atomic[:MAX_ATOMIC_CANDIDATES]
-    atomic_indices = [row["rule_index"] for row in top_atomic]
+    atomic_indices = [row["rule_indices"][0] for row in top_atomic]
+    if not atomic_indices:
+        raise RuntimeError("没有满足训练样本门槛的原子条件")
 
-    train_pairs = rank_pair_candidates(train_stored, atomic_indices)
-    top_pairs = train_pairs[:MAX_PAIR_CANDIDATES]
-    pair_indices = [(row["left"], row["right"]) for row in top_pairs]
-
-    validation_state = FeatureState()
-    validation_stored, validation_days, validation_samples, _ = collect_split(
-        files, VALIDATION_START, VALIDATION_END, validation_state
+    candidate_pairs = [
+        (left, right)
+        for pos, left in enumerate(atomic_indices)
+        for right in atomic_indices[pos + 1:]
+    ]
+    _, train_pair_acc, train_pair_days, _ = scan_pairs(
+        files, args.start, TRAIN_END, atomic_indices, candidate_pairs
     )
-    validation_rows = flatten_eval(validation_stored, atomic_indices, pair_indices)
-    selected = choose_validation_rules(top_atomic, top_pairs, validation_rows)
-    selected_indices = [(r["rule_type"], tuple(r["rule_indices"])) for r in selected]
-
-    final_state = FeatureState()
-    final_stored, final_days, final_samples, _ = collect_split(
-        files, FINAL_START, args.final_end, final_state
+    train_pairs_all = [
+        rule_row("pair", pair, train_pair_acc, pos)
+        for pos, pair in enumerate(candidate_pairs)
+        if int(train_pair_acc["samples"][pos]) >= MIN_TRAIN_RULE_SAMPLES
+    ]
+    train_pairs_all.sort(
+        key=lambda r: (r["wilson_lower_pct"], r["path_win_1pct_rate_pct"], r["samples"]),
+        reverse=True,
     )
-    final_atomic = [idx for typ, idxs in selected_indices if typ == "atomic" for idx in idxs]
-    final_pairs = [idxs for typ, idxs in selected_indices if typ == "pair"]
-    final_rows = flatten_eval(final_stored, final_atomic, final_pairs)
+    top_pairs = train_pairs_all[:MAX_PAIR_CANDIDATES]
+    pair_indices = [tuple(r["rule_indices"]) for r in top_pairs]
 
-    train_selected_rows = []
-    if selected_indices:
-        train_atomic_sel = [idxs[0] for typ, idxs in selected_indices if typ == "atomic"]
-        train_pairs_sel = [idxs for typ, idxs in selected_indices if typ == "pair"]
-        train_selected_rows = flatten_eval(train_stored, train_atomic_sel, train_pairs_sel)
+    validation_specs, validation_acc, validation_days, validation_samples = scan_selected(
+        files, VALIDATION_START, VALIDATION_END, atomic_indices, pair_indices
+    )
+    validation_rows_all = summarize_selected(validation_acc, validation_specs)
+    eligible_validation = [
+        row for row in validation_rows_all if row["samples"] >= MIN_VALIDATION_RULE_SAMPLES
+    ]
+    eligible_validation.sort(
+        key=lambda r: (r["path_win_1pct_rate_pct"] or -1, r["wilson_lower_pct"] or -1, r["samples"]),
+        reverse=True,
+    )
+    selected = eligible_validation[:TOP_OUTPUT_RULES]
 
-    validation_selected = selected
-    final_map = {tuple(r["rule_indices"]): r for r in final_rows}
-    train_map = {tuple(r["rule_indices"]): r for r in train_selected_rows}
+    selected_specs = [(row["rule_type"], tuple(row["rule_indices"])) for row in selected]
+    final_atomic = [indices[0] for typ, indices in selected_specs if typ == "atomic"]
+    final_pairs = [indices for typ, indices in selected_specs if typ == "pair"]
+
+    final_specs, final_acc, final_days, final_samples = scan_selected(
+        files, FINAL_START, args.final_end, final_atomic, final_pairs
+    )
+    final_rows = summarize_selected(final_acc, final_specs)
+    final_map = {tuple(row["rule_indices"]): row for row in final_rows}
+    validation_map = {tuple(row["rule_indices"]): row for row in selected}
+    train_map = {}
+
     selected_output = []
-    for row in validation_selected:
+    for row in selected:
         key = tuple(row["rule_indices"])
+        train_source = top_atomic if row["rule_type"] == "atomic" else top_pairs
+        for candidate in train_source:
+            if tuple(candidate["rule_indices"]) == key:
+                train_map[key] = candidate
+                break
         selected_output.append({
             "rule_type": row["rule_type"],
             "rule_indices": list(key),
             "rules": row["rules"],
             "rule_label": row["rule_label"],
             "train": train_map.get(key),
-            "validation": row,
+            "validation": validation_map.get(key),
             "final": final_map.get(key),
+            "validation_target_80pct": (
+                row["path_win_1pct_rate_pct"] is not None
+                and row["path_win_1pct_rate_pct"] >= TARGET_WIN_RATE_PCT
+            ),
         })
+
+    validation_qualified = [
+        row for row in selected
+        if row["path_win_1pct_rate_pct"] is not None
+        and row["path_win_1pct_rate_pct"] >= TARGET_WIN_RATE_PCT
+    ]
+    final_qualified = [
+        row for row in final_rows
+        if row["path_win_1pct_rate_pct"] is not None
+        and row["path_win_1pct_rate_pct"] >= TARGET_WIN_RATE_PCT
+        and row["samples"] >= MIN_VALIDATION_RULE_SAMPLES
+    ]
 
     result = {
         "schema_version": 1,
@@ -518,18 +498,35 @@ def main():
             "min_validation_rule_samples": MIN_VALIDATION_RULE_SAMPLES,
             "max_atomic_candidates": MAX_ATOMIC_CANDIDATES,
             "max_pair_candidates": MAX_PAIR_CANDIDATES,
+            "top_output_rules": TOP_OUTPUT_RULES,
+            "target_win_rate_pct": TARGET_WIN_RATE_PCT,
             "rank_thresholds": list(RANK_THRESHOLDS),
             "breadth_thresholds": list(BREADTH_THRESHOLDS),
             "median_thresholds": list(MEDIAN_THRESHOLDS),
         },
         "base": {
-            "train": split_summary(train_stored),
-            "validation": split_summary(validation_stored),
-            "final": split_summary(final_stored),
+            "train": {
+                "samples": train_samples,
+                "path_win_1pct_rate_pct": float(train_atomic_acc["wins"].sum() / train_atomic_acc["samples"].sum() * 100.0)
+                if train_samples else None,
+            },
+            "validation": {
+                "samples": validation_samples,
+                "path_win_1pct_rate_pct": float(sum(validation_map[key]["wins"] for key in validation_map) / max(1, sum(validation_map[key]["samples"] for key in validation_map)) * 100.0)
+                if validation_map else None,
+            },
+            "final": {
+                "samples": final_samples,
+                "path_win_1pct_rate_pct": float(sum(final_map[key]["wins"] for key in final_map) / max(1, sum(final_map[key]["samples"] for key in final_map)) * 100.0)
+                if final_map else None,
+            },
         },
         "train_top_atomic": train_atomic[:TOP_OUTPUT_RULES],
         "train_top_pairs": top_pairs[:TOP_OUTPUT_RULES],
+        "validation_top_rules": selected,
+        "validation_qualified_rules_ge_80pct": validation_qualified,
         "selected_rules": selected_output,
+        "final_qualified_rules_ge_80pct": final_qualified,
         "audit": {
             "no_future_features": True,
             "path_label_target_first": True,
@@ -537,22 +534,29 @@ def main():
             "entry_is_T_plus_1_open": True,
             "limit_up_entry_blocked": ENTRY_LIMIT_UP_BLOCK,
             "final_holdout_used_only_after_validation_selection": True,
+            "rule_discovery_split": "train",
+            "rule_selection_split": "validation",
+            "final_holdout_split": "final",
             "formal_production_changed": False,
         },
         "elapsed_seconds": round(time.time() - started, 2),
     }
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    Path(args.output).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({
+    Path(args.output).write_text(
+        __import__("json").dumps(result, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(__import__("json").dumps({
         "status": result["status"],
         "train_samples": train_samples,
         "validation_samples": validation_samples,
         "final_samples": final_samples,
-        "selected_rules": len(selected_output),
-        "top_validation_rule": selected_output[0]["validation"]["rule_label"] if selected_output else None,
-        "top_validation_rate": selected_output[0]["validation"]["path_win_1pct_rate_pct"] if selected_output else None,
-        "top_final_rate": selected_output[0]["final"]["path_win_1pct_rate_pct"] if selected_output and selected_output[0]["final"] else None,
+        "validation_rules_ge_80pct": len(validation_qualified),
+        "final_rules_ge_80pct": len(final_qualified),
+        "top_validation_rule": selected[0]["rule_label"] if selected else None,
+        "top_validation_rate": selected[0]["path_win_1pct_rate_pct"] if selected else None,
+        "top_final_rate": final_map.get(tuple(selected[0]["rule_indices"]), {}).get("path_win_1pct_rate_pct") if selected else None,
         "elapsed_seconds": result["elapsed_seconds"],
     }, ensure_ascii=False))
 
