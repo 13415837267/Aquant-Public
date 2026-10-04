@@ -522,7 +522,8 @@ def evaluate_specs(files, start, end, specs):
 
     groups = {}
     for pos, spec in enumerate(specs):
-        groups.setdefault(spec[0], []).append((pos, spec))
+        # specs are (rule_type, regime_index, left_rule, right_rule_or_none).
+        groups.setdefault(spec[1], []).append((pos, spec))
 
     accumulators = {}
     for ridx, group in groups.items():
