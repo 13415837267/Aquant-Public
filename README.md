@@ -10,7 +10,7 @@
 
 ## 数据与策略
 
-`Aquant-Private/main` 是唯一策略源，当前策略版本为 **2.1.1**。
+`Aquant-Private/main` 是唯一策略源，当前研究策略版本为 **2.2.0**；正式生产策略目前仍未发布。
 
 `Aquant-Public` 负责历史数据、候选生产、短线研究、质量门、GitHub Actions 和 GitHub Pages。
 
