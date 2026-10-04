@@ -111,6 +111,13 @@ def build_candidates(history,strategy_model,strategy_version,strategy_commit):
     admission=getattr(strategy_model,"admit_candidates",None)
     if not callable(admission): raise RuntimeError("Private strategy must expose admit_candidates")
     selected=admission(scored)
+    observation_rows=[]
+    for rank,row in enumerate(scored.head(10).itertuples(index=False),1):
+        observation_rows.append({
+            "rank":rank,"symbol":str(row.symbol).zfill(6),"name":row.name,"price":round(float(row.close),3),
+            "change_pct":round(float(row.change_pct),3),"score":round(float(row.score),3),
+            "precision_probability":round(float(row.precision_probability),6),
+        })
     rows=[]
     for rank,row in enumerate(selected.itertuples(index=False),1):
         flags=[]
@@ -136,7 +143,7 @@ def build_candidates(history,strategy_model,strategy_version,strategy_commit):
         "holding_window_sessions":[2,5],"risk_controls":{"net_win_threshold_pct":1.0,"stop_loss_pct":3.0,"max_positions":2,"sell_start_session":2},
         "market":{"breadth_pct":round(breadth,3),"median_return_pct":round(median,3),"regime":regime},
         "diagnostics":{"history_rows":int(len(history)),**diag,"candidate_count":len(rows),"risk_off_no_trade":regime=="risk_off"},
-        "candidates":rows,"factor_weights":getattr(strategy_model,"WEIGHTS",None),"future_function":False,
+        "candidates":rows,"research_observation_candidates":observation_rows,"factor_weights":getattr(strategy_model,"WEIGHTS",None),"future_function":False,
         "candidate_admission_policy":f"dynamic_top_score_{int(getattr(strategy_model, 'MAX_CANDIDATES', len(rows)))}_with_market_gate",
         "audit":{"hard_eligibility_applied_before_scoring":True,"strategy_source_locked_to_private":True,"short_term_features_only":True,"market_gate_applied":True}
     }
