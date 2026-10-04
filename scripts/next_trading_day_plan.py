@@ -3,13 +3,15 @@ from __future__ import annotations
 import argparse
 import json
 from datetime import date, timedelta
+import sys
 from pathlib import Path
 
 import pandas as pd
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 from scripts.backfill_history import api_client
 
-ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CANDIDATES = ROOT / "data" / "candidates.json"
 DEFAULT_OUTPUT = ROOT / "data" / "next_trading_day_plan.json"
 DEFAULT_PRODUCTION = ROOT / "data" / "production_status.json"
