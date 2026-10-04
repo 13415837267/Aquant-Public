@@ -20,31 +20,34 @@ concurrency:
 
 jobs:
   train:
+    name: 路径感知特征训练
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - name: 检出公开仓库
+        uses: actions/checkout@v6
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Install dependencies
+      - name: 安装依赖
         run: pip install -r requirements.txt
-      - name: Python quality
+      - name: Python 质量检查
         run: python -m pytest -q
-      - name: Run path-aware full-market training
+      - name: 运行路径感知全市场训练
         shell: bash
         run: |
           set -Eeuo pipefail
           mkdir -p runtime
           python scripts/train_path_aware_model.py --start 2015-01-05 --final-end 2026-09-30
-      - name: Upload research artifact
+      - name: 上传研究产物
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: path-aware-feature-training
           path: data/backtest/path_aware_feature_training_latest.json
           retention-days: 30
-      - name: Commit research result
+      - name: 提交研究结果
         shell: bash
         run: |
           set -euo pipefail
