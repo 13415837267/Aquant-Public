@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "record_type": "deployment_audit_reset",
+  "recorded_at": "2026-10-04T12:24:09Z",
+  "actions_history_reset": true,
+  "actions_scope": [
+    "13415837267/Aquant-Public",
+    "13415837267/Aquant-Private"
+  ],
+  "deployment_objects_found": 0,
+  "production_status": "not_released",
+  "production_release_gate": false,
+  "system_audit": false,
+  "research_strategy_version": "2.5.0",
+  "research_strategy_commit": "41118d2ea019df87f67b240f418beafb31d4897a",
+  "public_head_before_record": "846a3e75d7029e76d8c1ec62f1185d0592a0ac31",
+  "purpose": "清理历史 Actions 运行记录并重新建立可审计的部署状态基线；不虚构生产部署、不改变 T+1/T+2 执行约束。"
+}
