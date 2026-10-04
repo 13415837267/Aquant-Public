@@ -1,0 +1,44 @@
+name: 系统审计
+
+on:
+  schedule:
+    - cron: "30 12 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: system-audit-main
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: 跨层一致性与发布条件审计
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: 检出公开仓库
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: 设置Python环境
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+      - name: 执行系统审计
+        run: python scripts/system_audit.py
+      - name: 固化审计状态
+        run: |
+          set -euo pipefail
+          git config user.name "aquant-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/system_audit.json data/production_status.json data/next_trading_day_plan.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "audit: 更新系统审计状态"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
