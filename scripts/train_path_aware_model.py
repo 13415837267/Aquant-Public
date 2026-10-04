@@ -88,24 +88,26 @@ def path_targets(symbols, future_days):
     best_net = np.full(n, np.nan)
     close_net = np.full(n, np.nan)
 
-    highs, lows, closes = [], [], []
+    opens, highs, lows, closes = [], [], [], []
     for day in future_days[:MAX_FORWARD_SESSIONS]:
         idx = day.set_index("symbol")
+        opens.append(pd.to_numeric(idx["open"], errors="coerce").reindex(keys).to_numpy(dtype=float))
         highs.append(pd.to_numeric(idx["high"], errors="coerce").reindex(keys).to_numpy(dtype=float))
         lows.append(pd.to_numeric(idx["low"], errors="coerce").reindex(keys).to_numpy(dtype=float))
         closes.append(pd.to_numeric(idx["close"], errors="coerce").reindex(keys).to_numpy(dtype=float))
 
+    opens = np.column_stack(opens)
     highs = np.column_stack(highs)
     lows = np.column_stack(lows)
     closes = np.column_stack(closes)
-    complete &= np.isfinite(highs).all(axis=1) & np.isfinite(lows).all(axis=1) & np.isfinite(closes).all(axis=1)
+    complete &= np.isfinite(opens).all(axis=1) & np.isfinite(highs).all(axis=1) & np.isfinite(lows).all(axis=1) & np.isfinite(closes).all(axis=1)
 
     for row in np.flatnonzero(complete):
         best_net[row] = np.max(highs[row]) / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         close_net[row] = closes[row, -1] / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         stopped = False
         for d in range(MAX_FORWARD_SESSIONS):
-            day_open = pd.to_numeric(future_days[d].set_index("symbol")["open"], errors="coerce").get(keys[row], np.nan)
+            day_open = opens[row, d]
             day_high = highs[row, d]
             day_low = lows[row, d]
 
