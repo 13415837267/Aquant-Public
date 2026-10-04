@@ -8,7 +8,7 @@ type Candidate = {
   rank:number; symbol:string; name:string; price:number; change_pct:number; overnight_1d_pct?:number; intraday_return_pct?:number;
   return_3d_pct:number; return_5d_pct:number; return_10d_pct:number;
   volume_ratio_5d:number; turnover_pct:number; amount:number;
-  volatility_10d_pct:number; close_strength:number; score:number;
+  volatility_10d_pct:number; close_strength:number; score:number; precision_probability:number; admission_tier:string; flags?:string[];
 };
 type Snapshot = {
   as_of:string; status:string; strategy_version:string; strategy_commit:string; signal_horizon:string;
@@ -22,6 +22,7 @@ type NextTradingPlan = {
   strategy_version:string; strategy_commit:string; candidate_policy:string; candidate_count:number;
   market:{breadth_pct:number;median_return_pct:number;regime:string};
   candidates:Array<{rank:number;symbol:string;name:string;price:number;score:number;precision_probability:number;admission_tier:string;signal_date:string;execution_date:string;earliest_exit_date:string;net_win_threshold_pct:number;stop_loss_pct:number;flags:string[]}>;
+  source_snapshot?:{path:string;as_of:string;strategy_version:string;strategy_commit:string};
   steps:Array<{time:string;action:string}>; hard_rules:string[]; production_release:boolean;
 };
 
@@ -55,6 +56,7 @@ export default function Home(){
   const strategyMetadataReady=!!snapshot.strategy_version && !!snapshot.strategy_commit && !!researchStatus.strategy_version && !!researchStatus.strategy_commit;
   const candidatesAreCurrent=snapshot.status==="ready" && strategyMetadataReady && snapshot.strategy_version===researchStatus.strategy_version && snapshot.strategy_commit===researchStatus.strategy_commit && provenanceMatches;
   const rows=candidatesAreCurrent?(snapshot.candidates??[]):[];
+  const planMatchesSnapshot=candidatesAreCurrent && nextTradingPlan.strategy_version===snapshot.strategy_version && nextTradingPlan.strategy_commit===snapshot.strategy_commit && nextTradingPlan.data_cutoff===snapshot.as_of.slice(0,10) && nextTradingPlan.candidate_count===rows.length && nextTradingPlan.candidates.length===rows.length && nextTradingPlan.candidates.every((candidate,index)=>{const row=rows[index]; return candidate.rank===row.rank && candidate.symbol===row.symbol && candidate.name===row.name && candidate.price===row.price && candidate.score===row.score && candidate.precision_probability===row.precision_probability && candidate.admission_tier===row.admission_tier;});
   const w=snapshot.factor_weights??{};
   const m=snapshot.market;
   const preferred=researchStatus.preferred_operating_point?.final;
@@ -81,13 +83,13 @@ export default function Home(){
       </div>
       <div className="next-plan-summary">{nextTradingPlan.summary}</div>
       <div className="plan-grid">
-        {nextTradingPlan.candidates.map((candidate)=><div className="plan-item" key={candidate.symbol}><div className="plan-time">计划候选 #{candidate.rank}</div><div className="plan-action"><strong>{candidate.symbol} {candidate.name}</strong> · 收盘价 {fmt(candidate.price)} · 综合分 {fmt(candidate.score)} · 精度概率 {fmt(candidate.precision_probability*100,2)}%。准入层级：{candidate.admission_tier}。信号日 {candidate.signal_date} → 执行日 {candidate.execution_date} → 最早退出 {candidate.earliest_exit_date}。单笔净利润目标 +{fmt(candidate.net_win_threshold_pct,1)}%，止损 {fmt(candidate.stop_loss_pct,1)}%。</div></div>)}
+        {!candidatesAreCurrent?<div className="empty">候选快照尚未通过当前策略与系统审计一致性检查，计划中的候选暂不单独展示，避免出现两套信号。</div>:!planMatchesSnapshot?<div className="empty">下一交易日计划与候选快照未逐项一致，系统拒绝展示分叉信号。</div>:rows.map((candidate)=><div className="plan-item" key={candidate.symbol}><div className="plan-time">计划候选 #{candidate.rank}</div><div className="plan-action"><strong>{candidate.symbol} {candidate.name}</strong> · 收盘价 {fmt(candidate.price)} · 综合分 {fmt(candidate.score)} · 精度概率 {fmt(candidate.precision_probability*100,2)}%。准入层级：{candidate.admission_tier}。信号日 {nextTradingPlan.signal_date} → 执行日 {nextTradingPlan.next_trading_day} → 最早退出 {nextTradingPlan.candidates[candidate.rank-1].earliest_exit_date}。单笔净利润目标 +{fmt(nextTradingPlan.candidates[candidate.rank-1].net_win_threshold_pct,1)}%，止损 {fmt(nextTradingPlan.candidates[candidate.rank-1].stop_loss_pct,1)}%。</div></div>)}
       </div>
-      <div className="next-plan-summary">数据截止 {nextTradingPlan.data_cutoff} · 策略 {nextTradingPlan.strategy_version} · 市场 {nextTradingPlan.market.regime==="neutral"?"中性":nextTradingPlan.market.regime==="risk_on"?"风险偏好":"风险规避"} · 候选数 {nextTradingPlan.candidate_count}</div>
+      <div className="next-plan-summary">数据截止 {nextTradingPlan.data_cutoff} · 策略 {nextTradingPlan.strategy_version} · 市场 {nextTradingPlan.market.regime==="neutral"?"中性":nextTradingPlan.market.regime==="risk_on"?"风险偏好":"风险规避"} · 候选数 {nextTradingPlan.candidate_count} · 唯一候选来源 {nextTradingPlan.source_snapshot?.path??"data/candidates.json"}</div>
       <div className="plan-grid">
         {nextTradingPlan.steps.map((step)=><div className="plan-item" key={step.time}><div className="plan-time">{step.time}</div><div className="plan-action">{step.action}</div></div>)}
       </div>
-      <div className="next-plan-warning">当前生产门禁：<strong>{nextTradingPlan.production_release?"允许生产":"禁止实盘"}</strong>。本计划严格使用 {nextTradingPlan.signal_date} 收盘及此前已知数据形成；由于 10 月 1 日至 10 月 7 日休市，{nextTradingPlan.signal_date} → {nextTradingPlan.next_trading_day} 是有效的 T → T+1 跨休市计划。10 月 8 日收盘产生新数据后，旧计划自动结束并生成 10 月 9 日计划。</div>
+      <div className="next-plan-warning">当前生产门禁：<strong>{nextTradingPlan.production_release?"允许生产":"禁止实盘"}</strong>。本计划候选必须与 data/candidates.json 候选快照逐项一致；只使用 {nextTradingPlan.signal_date} 收盘及此前已知数据，不使用执行日或之后的行情结果参与选股。</div>
     </section>
 
     <section className="card research-card">
