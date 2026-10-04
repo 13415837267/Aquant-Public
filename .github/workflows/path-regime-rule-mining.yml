@@ -1,0 +1,55 @@
+name: Path Regime Rule Mining
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/path_regime_rule_mining.py"
+      - "scripts/short_term_research.py"
+      - "requirements.txt"
+      - ".github/workflows/path-regime-rule-mining.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: path-regime-rule-mining-main
+  cancel-in-progress: false
+
+jobs:
+  mine:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Python quality
+        run: python -m pytest -q
+      - name: Run regime conditioned rule mining
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python scripts/path_regime_rule_mining.py --start 2015-01-05 --final-end 2026-09-30
+      - name: Upload research artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: path-regime-rule-mining
+          path: data/backtest/path_regime_rule_mining_latest.json
+          retention-days: 30
+      - name: Commit research result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/backtest/path_regime_rule_mining_latest.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "research: record regime conditioned rule mining"
+          git push origin HEAD:main
