@@ -34,7 +34,6 @@ const provenanceMatches=audit.strategy_version===snapshot.strategy_version && au
 const productionStatus=productionStatusData as {status:string;production_version:string|null;release_gate:boolean;system_audit:boolean};
 const researchStatus=researchStatusData as ResearchStatus;
 const productionReady=productionStatus.status==="released" && productionStatus.release_gate===true && productionStatus.system_audit===true;
-const candidateCurrent=candidatesAreCurrent;
 const fmt=(n:number,d=2)=>n.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct=(n:number)=>(n>=0?"+":"")+fmt(n)+"%";
 const dirClass=(n:number)=>n>0?"rise":n<0?"fall":"flat";
@@ -54,7 +53,7 @@ export default function Home(){
     <header className="header">
       <div><div className="eyebrow">Aquant / 短线运行系统</div><h1>短线候选池</h1><div className="color-legend"><span className="legend-rise">红涨</span><span className="legend-fall">绿跌</span><span className="legend-flat">平盘中性</span></div>
       <p className="subtitle">T 日收盘生成信号，T+1 开盘执行，最长持有 5 个交易日；弱市场允许空仓。</p></div>
-      <div className="pill">研究策略 v{researchStatus.strategy_version} · {productionReady?"生产可用":"研究中 · 未发布"}</div>
+      <div className="pill">研究策略 {researchStatus.strategy_version} · {productionReady?"生产可用":"研究中 · 尚未发布"}</div>
     </header>
 
     <section className="grid">
@@ -70,30 +69,30 @@ export default function Home(){
         <div className="badge">研究时间 {researchStatus.as_of.replace("T"," ").replace("Z","")}</div>
       </div>
       <div className="research-grid">
-        <div><div className="metric-label">稳健研究点 ≥0.89</div><div className="metric-value">{preferred?fmt(preferred.win_rate_pct,2)+"%":"—"}</div><div className="metric-note">{preferred?preferred.samples.toLocaleString("zh-CN")+" 个样本 · Wilson 下界 "+fmt(preferred.wilson_lower_pct,2)+"%":"—"}</div></div>
+        <div><div className="metric-label">稳健研究点 ≥0.89</div><div className="metric-value">{preferred?fmt(preferred.win_rate_pct,2)+"%":"—"}</div><div className="metric-note">{preferred?preferred.samples.toLocaleString("zh-CN")+" 个样本 · 威尔逊下界 "+fmt(preferred.wilson_lower_pct,2)+"%":"—"}</div></div>
         <div><div className="metric-label">最高观察点 ≥0.90</div><div className="metric-value">{highest?fmt(highest.win_rate_pct,2)+"%":"—"}</div><div className="metric-note">{highest?highest.samples.toLocaleString("zh-CN")+" 个样本 · Wilson 下界 "+fmt(highest.wilson_lower_pct,2)+"%":"—"}</div></div>
-        <div><div className="metric-label">每日 Top1</div><div className="metric-value">{dailyTop1?fmt(dailyTop1.win_rate_pct,2)+"%":"—"}</div><div className="metric-note">{dailyTop1?dailyTop1.samples+" 个交易日 · Wilson 下界 "+fmt(dailyTop1.wilson_lower_pct,2)+"%":"—"}</div></div>
+        <div><div className="metric-label">每日首选</div><div className="metric-value">{dailyTop1?fmt(dailyTop1.win_rate_pct,2)+"%":"—"}</div><div className="metric-note">{dailyTop1?dailyTop1.samples+" 个交易日 · Wilson 下界 "+fmt(dailyTop1.wilson_lower_pct,2)+"%":"—"}</div></div>
       </div>
       <div className="research-warning">路径感知模型目前约 {researchStatus.path_aware_caveat?.final_win_rate_pct??"—"}%：该定义要求 +1% 目标先于 -3% 止损触发，因此 <strong>当前高精度结果仍属于研究候选，不得视为已通过正式生产门槛。</strong></div>
     </section>
 
     <section className="card snapshot-warning">
       <strong>{candidateCurrent?"候选快照已与当前研究策略一致":"候选快照尚未同步到当前研究策略"}</strong>
-      <span>当前研究策略 v{researchStatus.strategy_version} · {researchStatus.strategy_commit.slice(0,10)}；网页候选快照 v{snapshot.strategy_version} · {snapshot.strategy_commit.slice(0,10)}。{candidateCurrent?"":"待研究流水线完成后自动替换。"}</span>
+      <span>当前研究策略 {researchStatus.strategy_version} · {researchStatus.strategy_commit.slice(0,10)}；网页候选快照 版本 {snapshot.strategy_version} · {snapshot.strategy_commit.slice(0,10)}。{candidateCurrent?"":"待研究流水线完成后自动替换。"}</span>
     </section>
 
     <div className="main">
       <section className="card table-card">
         <div className="table-head"><div><div className="table-title">{productionReady?"生产候选":"研究候选快照"}</div><div className="table-subtitle">{productionReady?"短线综合分 + 市场门控":"候选快照；生产门控未通过，不作为实盘信号"}</div></div><div className="badge">数据时点 {snapshot.as_of.replace("T"," ")}</div></div>
-        {!candidatesAreCurrent?<div className="empty">当前网页不展示旧策略候选。最新研究策略 v{researchStatus.strategy_version} 尚未生成与当前版本完全一致的候选快照；系统宁可暂不展示，也不混用旧信号。</div>:rows.length===0?<div className="empty">当前市场门控未产生候选。系统允许空仓，而不是为了凑够候选数量强行入选。</div>:
+        {!candidatesAreCurrent?<div className="empty">当前网页不展示旧策略候选。最新研究策略 {researchStatus.strategy_version} 尚未生成与当前版本完全一致的候选快照；系统宁可暂不展示，也不混用旧信号。</div>:rows.length===0?<div className="empty">当前市场门控未产生候选。系统允许空仓，而不是为了凑够候选数量强行入选。</div>:
         <div className="table-wrap"><table><thead><tr><th>#</th><th>股票</th><th>价格</th><th>隔夜</th><th>今日</th><th>3日</th><th>5日</th><th>10日</th><th>量比</th><th>成交额</th><th>10日波动</th><th>收盘强度</th><th>综合分</th></tr></thead>
-        <tbody>{rows.map(r=><tr key={r.symbol}><td className="rank">{r.rank}</td><td><span className="symbol">{r.symbol}</span><span className="name">{r.name}</span></td><td>{fmt(r.price)}</td><td className={r.overnight_1d_pct==null?"":dirClass(r.overnight_1d_pct)}>{r.overnight_1d_pct==null?"—":pct(r.overnight_1d_pct)}</td><td className={dirClass(r.change_pct)}>{pct(r.change_pct)}</td><td className={dirClass(r.return_3d_pct)}>{pct(r.return_3d_pct)}</td><td className={dirClass(r.return_5d_pct)}>{pct(r.return_5d_pct)}</td><td className={dirClass(r.return_10d_pct)}>{pct(r.return_10d_pct)}</td><td>{fmt(r.volume_ratio_5d,2)}x</td><td>{amount(r.amount)}</td><td>{fmt(r.volatility_10d_pct,2)}%</td><td>{fmt(r.close_strength*100,1)}%</td><td className="score">{fmt(r.score)}</td></tr>)}</tbody></table></div>}
+        <tbody>{rows.map(r=><tr key={r.symbol}><td className="rank">{r.rank}</td><td><span className="symbol">{r.symbol}</span><span className="name">{r.name}</span></td><td>{fmt(r.price)}</td><td className={r.overnight_1d_pct==null?"":dirClass(r.overnight_1d_pct)}>{r.overnight_1d_pct==null?"—":pct(r.overnight_1d_pct)}</td><td className={dirClass(r.change_pct)}>{pct(r.change_pct)}</td><td className={dirClass(r.return_3d_pct)}>{pct(r.return_3d_pct)}</td><td className={dirClass(r.return_5d_pct)}>{pct(r.return_5d_pct)}</td><td className={dirClass(r.return_10d_pct)}>{pct(r.return_10d_pct)}</td><td>{fmt(r.volume_ratio_5d,2)}倍</td><td>{amount(r.amount)}</td><td>{fmt(r.volatility_10d_pct,2)}%</td><td>{fmt(r.close_strength*100,1)}%</td><td className="score">{fmt(r.score)}</td></tr>)}</tbody></table></div>}
       </section>
 
       <aside className="side">
         <div className="card"><h2>短线因子</h2><p>核心驱动为短周期价格行为、量能、价格强度、流动性和安全，不以 PB/PE 作为生产信号核心。</p>
         {[["短线动量","momentum_short"],["隔夜结构","overnight_structure"],["量能活跃","volume_activity"],["价格强度","price_strength"],["流动性","liquidity"],["安全","safety"]].map(([label,key])=><div className="factor" key={key}><div className="factor-row"><span className="factor-name">{label}</span><span className="factor-weight">{w[key]==null?"—":weight(w[key])}</span></div></div>)}</div>
-        <div className="card source-box"><h2>运行信息</h2><dl className="kv"><dt>信号</dt><dd>{snapshot.signal_horizon.replace("T收盘信号","T日收盘信号").replace("T+1开盘进入","T+1开盘执行")}</dd><dt>研究策略</dt><dd>v{researchStatus.strategy_version}</dd><dt>候选快照</dt><dd>v{snapshot.strategy_version}</dd><dt>生产状态</dt><dd>{productionReady?"正式生产":"尚未发布"}</dd><dt>研究状态</dt><dd>research_only</dd></dl></div>
+        <div className="card source-box"><h2>运行信息</h2><dl className="kv"><dt>信号</dt><dd>{snapshot.signal_horizon.replace("T收盘信号","T日收盘信号").replace("T+1开盘进入","T+1开盘执行")}</dd><dt>研究策略</dt><dd>版本 {researchStatus.strategy_version}</dd><dt>候选快照</dt><dd>v{snapshot.strategy_version}</dd><dt>生产状态</dt><dd>{productionReady?"正式生产":"尚未发布"}</dd><dt>研究状态</dt><dd>仅研究</dd></dl></div>
       </aside>
     </div>
 
