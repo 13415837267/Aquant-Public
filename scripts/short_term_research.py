@@ -1,4 +1,7 @@
-"""Short-term 1-5 session research for the production candidate strategy."""
+"""Short-term 1-5 session research for the production candidate strategy.
+
+Research trigger: precision strategy 2.2.0.
+"""
 from __future__ import annotations
 
 import argparse, gzip, importlib, json, os, subprocess, sys, time, traceback
