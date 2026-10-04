@@ -4,8 +4,8 @@
   "source": "Aquant-Public data/history",
   "status": "ready",
   "strategy_source": "Aquant-Private/main",
-  "strategy_version": "2.3.0",
-  "strategy_commit": "40b7d9f32e3acb396ec7083e632b9a4b72dc592e",
+  "strategy_version": "2.4.0",
+  "strategy_commit": "04b11708b5b3d96c3373ab86b9edd698b8a93b3d",
   "market_scope": "沪深主板：000001-004999.SZ（排除001001-001199 CDR）+ 600/601/603/605.SH",
   "universe": "沪深主板；排除 ST/退市相关标的、停牌、价格≤2元、最近交易日成交额<3000万元",
   "lookback_trading_days": 20,
@@ -34,6 +34,7 @@
     "candidate_count": 1,
     "primary_candidate_count": 0,
     "coverage_fallback_used": true,
+    "daily_top1_rescue_used": false,
     "risk_off_no_trade": false
   },
   "candidates": [
@@ -163,7 +164,7 @@
     "safety": 0.15
   },
   "future_function": false,
-  "candidate_admission_policy": "precision_top_2_with_089_gate_and_088_daily_fallback",
+  "candidate_admission_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue",
   "audit": {
     "hard_eligibility_applied_before_scoring": true,
     "strategy_source_locked_to_private": true,
