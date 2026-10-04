@@ -1,4 +1,4 @@
-name: Path Regime Rule Mining
+name: 路径状态规则挖掘
 
 on:
   push:
