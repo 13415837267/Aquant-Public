@@ -97,6 +97,8 @@ jobs:
         working-directory: research-baseline
         run: |
           set -o pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           mkdir -p ../data/research_runtime
           python scripts/short_term_release_validation.py \
             --development-start 2018-01-05 \
