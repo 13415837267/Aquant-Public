@@ -107,6 +107,9 @@ def path_targets(symbols, future_days):
         close_net[row] = closes[row, -1] / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         stopped = False
         for d in range(MAX_FORWARD_SESSIONS):
+            # T+1 is the buy session; A-share T+1 rule forbids selling on T+1.
+            if d == 0:
+                continue
             day_open = opens[row, d]
             day_high = highs[row, d]
             day_low = lows[row, d]
