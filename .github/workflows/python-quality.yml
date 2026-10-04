@@ -1,4 +1,4 @@
-name: Python Quality Gate
+name: 程序质量检查
 
 on:
   push:
