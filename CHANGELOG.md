@@ -1,3 +1,11 @@
+## 2026-10-04 — Candidate coverage optimization 2.4.0
+
+- Added a researched daily Top-1 rescue tier after the 0.89 primary and 0.88 fallback tiers fail.
+- The rescue selects one highest-ranked candidate in non-risk-off regimes and still applies hard short-term risk controls.
+- The objective is to avoid mechanical empty candidate days caused only by probability calibration; the primary 0.89 quality gate remains unchanged.
+- Kept A-share T_close -> T+1_open -> T+2 earliest-exit semantics unchanged.
+- Research remains separate from production release; no execution-constrained 80%+ production claim is made.
+
 ## 2026-10-04 — Candidate coverage optimization 2.3.0
 
 - Retained the primary 0.89 precision gate and added a 0.88 research-backed daily Top-1 fallback when no primary candidate is available in a non-risk-off regime.
