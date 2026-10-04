@@ -578,7 +578,7 @@ def evaluate_specs(files, start, end, specs):
     for ridx, group in groups.items():
         acc = accumulators[ridx]
         for local_pos, (global_pos, spec) in enumerate(group):
-            rule_type, left, right = spec
+            rule_type, _, left, right = spec
             if rule_type == "regime_stock_atomic":
                 rule = RULES[left]
                 payload = {
