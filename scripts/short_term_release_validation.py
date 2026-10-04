@@ -33,11 +33,40 @@ GATE = {
 }
 
 
+def _config_value(text: str, key: str) -> str:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(f"{key}:"):
+            return stripped.split(":", 1)[1].strip().strip('"')
+    raise RuntimeError(f"strategy config missing: {key}")
+
+
+def validate_private_hard_rules(root: Path) -> None:
+    config = root / "config" / "strategy.yaml"
+    if not config.exists():
+        raise RuntimeError("strategy config is missing")
+    text = config.read_text(encoding="utf-8")
+    expected = {
+        "signal_at": "T_close",
+        "entry": "T+1_open",
+        "earliest_exit": "T+2",
+        "maximum_exit_session_after_signal": "5",
+        "max_holding_sessions": "5",
+        "target_return_pct": "1.0",
+        "stop_loss_pct": "3.0",
+        "entry_limit_up_block": "true",
+    }
+    for key, value in expected.items():
+        if _config_value(text, key) != value:
+            raise RuntimeError(f"strategy hard rule mismatch: {key}")
+
+
 def load_strategy():
     root = os.environ.get("AQUANT_PRIVATE_STRATEGY_PATH", "").strip()
     if not root:
         raise RuntimeError("AQUANT_PRIVATE_STRATEGY_PATH is required")
     root = str(Path(root).resolve())
+    validate_private_hard_rules(Path(root))
     sys.path.insert(0, root)
     model = importlib.import_module("strategy.model")
     version = importlib.import_module("strategy.version")
