@@ -48,11 +48,11 @@
     "最终留出不得参与参数、阈值或策略选择。",
     "研究失败不得写入正式生产状态。"
   ],
-  "public_code_commit": "63d1184fb00bfbfee5ad11a1c88d728412cdbd66",
+  "public_code_commit": "682ed438aca8e5b8c5b1a9bd79e012aa0b8c56b0",
   "checkpoint_resume": true,
   "progress_logging": {
     "enabled": true,
-    "interval_seconds": 30,
-    "persist_to_repository": true
+    "checkpoint_days": 5,
+    "persist_by_research_day": true
   }
 }
