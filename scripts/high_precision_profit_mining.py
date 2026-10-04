@@ -266,7 +266,6 @@ def main():
         x = x_all[keep]
         y = labels[keep].astype(np.float64)
         model.update(x, y)
-        model.update(x, y)
         train_samples += len(y)
         train_days += 1
         if train_days % 50 == 0:
