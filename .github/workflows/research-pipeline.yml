@@ -1,0 +1,165 @@
+name: 研究流水线
+
+on:
+  schedule:
+    - cron: "0 13 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: research-pipeline-main
+  cancel-in-progress: true
+
+jobs:
+  research:
+    name: 完整研究与独立验证
+    runs-on: ubuntu-24.04
+    timeout-minutes: 720
+    steps:
+      - name: 检出公开仓库
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: 锁定公开仓库版本
+        run: echo "PUBLIC_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: 检出私有策略
+        uses: actions/checkout@v6
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: .private-strategy
+          fetch-depth: 1
+      - name: 锁定私有策略版本
+        run: |
+          set -euo pipefail
+          echo "PRIVATE_SOURCE_SHA=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: 设置Python环境
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+      - name: 运行Python质量检查
+        run: |
+          python -m compileall -q scripts tests
+          pytest -q
+      - name: 运行私有策略质量检查
+        working-directory: .private-strategy
+        run: pytest -q
+
+      - name: 第一层：全市场特征研究
+        run: python scripts/train_short_term_model.py --start 2015-01-05 --final-end 2026-09-30
+
+      - name: 第二层：路径感知特征研究
+        run: python scripts/train_path_aware_model.py --start 2015-01-05 --final-end 2026-09-30
+
+      - name: 第三层：路径条件规则挖掘
+        run: python scripts/path_rule_mining.py --start 2015-01-05 --final-end 2026-09-30
+
+      - name: 第四层：市场状态路径规则挖掘
+        run: python scripts/path_regime_rule_mining.py --start 2015-01-05 --final-end 2026-09-30
+
+      - name: 第五层：高精度收益研究
+        run: python scripts/high_precision_profit_mining.py --start 2015-01-05 --final-end 2026-09-30
+
+      - name: 第六层：严格路径策略评分研究
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ env.PRIVATE_SOURCE_SHA }}
+        run: python scripts/strict_path_strategy_score_mining.py --start 2015-01-05 --final-end 2026-09-30
+
+      - name: 第七层：综合短线历史研究
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ env.PRIVATE_SOURCE_SHA }}
+        run: |
+          set -euo pipefail
+          python scripts/short_term_research.py             --start 2018-01-05             --end 2026-09-30             --cost-bps 3             --slippage-bps 2             --progress-log runtime/short_term_progress.jsonl
+
+      - name: 第八层：最终留出集验证
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ env.PRIVATE_SOURCE_SHA }}
+        run: |
+          set -euo pipefail
+          python scripts/short_term_release_validation.py             --development-start 2018-01-05             --development-end 2024-12-31             --validation-start 2025-01-02             --validation-end 2025-12-31             --final-start 2026-01-05             --final-end 2026-09-30
+
+      - name: 研究产物一致性检查
+        run: |
+          set -euo pipefail
+          test -f data/backtest/feature_training_latest.json
+          test -f data/backtest/path_aware_feature_training_latest.json
+          test -f data/backtest/path_rule_mining_latest.json
+          test -f data/backtest/path_regime_rule_mining_latest.json
+          test -f data/backtest/high_precision_profit_mining_latest.json
+          test -f data/backtest/strict_path_strategy_score_mining_latest.json
+          test -f data/backtest/short_term_latest.json
+          test -f data/backtest/short_term_sensitivity.json
+          test -f data/backtest/short_term_exit_diagnostics.json
+          test -f data/backtest/short_term_release_validation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          paths = [
+              "data/backtest/feature_training_latest.json",
+              "data/backtest/path_aware_feature_training_latest.json",
+              "data/backtest/path_rule_mining_latest.json",
+              "data/backtest/path_regime_rule_mining_latest.json",
+              "data/backtest/high_precision_profit_mining_latest.json",
+              "data/backtest/strict_path_strategy_score_mining_latest.json",
+              "data/backtest/short_term_latest.json",
+              "data/backtest/short_term_release_validation.json",
+          ]
+          for raw in paths:
+              data = json.loads(Path(raw).read_text(encoding="utf-8"))
+              if data.get("status") not in {"research_only", "ready"}:
+                  raise SystemExit(f"研究产物状态异常: {raw}: {data.get('status')}")
+          release = json.loads(Path("data/backtest/short_term_release_validation.json").read_text(encoding="utf-8"))
+          if release.get("future_function") is not False:
+              raise SystemExit("最终留出集未来函数审计失败")
+          if release.get("release_gate") is True:
+              print("研究结果达到发布门槛候选，但尚未经过独立系统审计与人工发布门禁。")
+          else:
+              print("研究结果未通过正式发布门槛，保持研究状态。")
+          PY
+
+      - name: 上传完整研究产物
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aquant-research-pipeline-${{ github.run_id }}
+          path: |
+            data/backtest/feature_training_latest.json
+            data/backtest/path_aware_feature_training_latest.json
+            data/backtest/path_rule_mining_latest.json
+            data/backtest/path_regime_rule_mining_latest.json
+            data/backtest/high_precision_profit_mining_latest.json
+            data/backtest/strict_path_strategy_score_mining_latest.json
+            data/backtest/short_term_latest.json
+            data/backtest/short_term_sensitivity.json
+            data/backtest/short_term_exit_diagnostics.json
+            data/backtest/short_term_release_validation.json
+            runtime/short_term_progress.jsonl
+          retention-days: 30
+
+      - name: 锁定版本后再固化研究结果
+        if: success()
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git -C .private-strategy fetch origin main
+          [[ "$(git rev-parse origin/main)" == "$PUBLIC_SOURCE_SHA" ]]
+          [[ "$(git -C .private-strategy rev-parse origin/main)" == "$PRIVATE_SOURCE_SHA" ]]
+          git config user.name "aquant-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/backtest/*.json
+          if git diff --cached --quiet; then
+            echo "研究结果无变化"
+            exit 0
+          fi
+          git commit -m "research: 固化完整研究流水线结果"
+          git push origin HEAD:main
