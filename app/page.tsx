@@ -2,6 +2,7 @@ import candidatesData from "@/data/candidates.json";
 import auditData from "@/data/system_audit.json";
 import productionStatusData from "@/data/production_status.json";
 import researchStatusData from "@/data/research_status.json";
+import nextTradingPlanData from "@/data/next_trading_day_plan.json";
 
 type Candidate = {
   rank:number; symbol:string; name:string; price:number; change_pct:number; overnight_1d_pct?:number; intraday_return_pct?:number;
@@ -16,6 +17,11 @@ type Snapshot = {
   market?:{breadth_pct:number;median_return_pct:number;regime:string};
   diagnostics?:{scorable_rows?:number;candidate_count?:number;risk_off_no_trade?:boolean};
 };
+type NextTradingPlan = {
+  next_trading_day:string; status:string; title:string; summary:string;
+  steps:Array<{time:string;action:string}>; hard_rules:string[]; production_release:boolean;
+};
+
 type ResearchStatus = {
   status:string;
   as_of:string;
@@ -33,6 +39,7 @@ const audit=auditData as {production_gate?:string; strategy_version?:string; str
 const provenanceMatches=audit.strategy_version===snapshot.strategy_version && audit.strategy_commit===snapshot.strategy_commit;
 const productionStatus=productionStatusData as {status:string;production_version:string|null;release_gate:boolean;system_audit:boolean};
 const researchStatus=researchStatusData as ResearchStatus;
+const nextTradingPlan=nextTradingPlanData as NextTradingPlan;
 const productionReady=productionStatus.status==="released" && productionStatus.release_gate===true && productionStatus.system_audit===true;
 const fmt=(n:number,d=2)=>n.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct=(n:number)=>(n>=0?"+":"")+fmt(n)+"%";
@@ -61,6 +68,18 @@ export default function Home(){
       <div className="card"><div className="metric-label">可评分股票</div><div className="metric-value">{snapshot.diagnostics?.scorable_rows??"—"}</div><div className="metric-note">20日短线特征</div></div>
       <div className="card"><div className="metric-label">市场状态</div><div className="metric-value">{m?.regime==="neutral"?"中性":m?.regime==="risk_on"?"风险偏好":m?.regime==="risk_off"?"风险规避":m?.regime??"—"}</div><div className="metric-note">广度 {m?fmt(m.breadth_pct,1)+"%":"—"}</div></div>
       <div className="card"><div className="metric-label">交易窗口</div><div className="metric-value">1–5日</div><div className="metric-note">T+1 开盘执行</div></div>
+    </section>
+
+    <section className="card next-plan-card">
+      <div className="table-head">
+        <div><div className="table-title">下一交易日计划</div><div className="table-subtitle">{nextTradingPlan.title}</div></div>
+        <div className="badge">交易日 {nextTradingPlan.next_trading_day}</div>
+      </div>
+      <div className="next-plan-summary">{nextTradingPlan.summary}</div>
+      <div className="plan-grid">
+        {nextTradingPlan.steps.map((step)=><div className="plan-item" key={step.time}><div className="plan-time">{step.time}</div><div className="plan-action">{step.action}</div></div>)}
+      </div>
+      <div className="next-plan-warning">当前生产门禁：<strong>{nextTradingPlan.production_release?"允许生产":"禁止实盘"}</strong>。节后首日不沿用 2026-09-30 旧候选；10 月 8 日收盘重新生成信号，按 T 日收盘 → T+1 开盘规则形成下一执行日候选。</div>
     </section>
 
     <section className="card research-card">
