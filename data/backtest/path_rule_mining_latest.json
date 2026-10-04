@@ -1,0 +1,4221 @@
+{
+  "schema_version": 1,
+  "status": "research_only",
+  "method": "path_aware_conditional_rule_mining",
+  "objective": "net_profit_at_least_1pct_before_3pct_stop_within_5_sessions",
+  "entry_rule": "T_plus_1_open; limit_up_entry_blocked",
+  "data_start": "2015-01-05",
+  "data_end": "2026-09-30",
+  "splits": {
+    "train": [
+      "2015-01-05",
+      "2022-12-30"
+    ],
+    "validation": [
+      "2023-01-03",
+      "2024-12-31"
+    ],
+    "final": [
+      "2025-01-02",
+      "2026-09-30"
+    ]
+  },
+  "parameters": {
+    "net_win_threshold_pct": 1.0,
+    "stop_loss_pct": 3.0,
+    "round_trip_cost_bps": 10.0,
+    "max_forward_sessions": 5,
+    "min_train_rule_samples": 10000,
+    "min_validation_rule_samples": 5000,
+    "max_atomic_candidates": 16,
+    "max_pair_candidates": 24,
+    "top_output_rules": 20,
+    "target_win_rate_pct": 80.0,
+    "rank_thresholds": [
+      0.2,
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.7,
+      0.8
+    ],
+    "breadth_thresholds": [
+      40.0,
+      45.0,
+      50.0,
+      55.0,
+      60.0,
+      65.0
+    ],
+    "median_thresholds": [
+      -1.0,
+      -0.5,
+      0.0,
+      0.5,
+      1.0
+    ]
+  },
+  "base": {
+    "train": {
+      "samples": 3479438,
+      "path_win_1pct_rate_pct": 65.39590850294275
+    },
+    "validation": {
+      "samples": 1130298,
+      "path_win_1pct_rate_pct": 69.64246873626662
+    },
+    "final": {
+      "samples": 1166724,
+      "path_win_1pct_rate_pct": 68.79200653247709
+    }
+  },
+  "train_top_atomic": [
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        258
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1",
+      "samples": 591350,
+      "wins": 407224,
+      "path_win_1pct_rate_pct": 68.86344804261437,
+      "wilson_lower_pct": 68.74530370006865,
+      "mean_best_return_pct": 6.173650328337612,
+      "mean_5d_close_return_pct": 0.3643793262730845,
+      "mean_mae_pct": -5.021798522875881,
+      "mean_mfe_pct": 6.273650328337613,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        248
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65",
+      "samples": 930660,
+      "wins": 632924,
+      "path_win_1pct_rate_pct": 68.00808028710807,
+      "wilson_lower_pct": 67.9132382854138,
+      "mean_best_return_pct": 5.663104720209665,
+      "mean_5d_close_return_pct": 0.2577422226134882,
+      "mean_mae_pct": -4.688488008314894,
+      "mean_mfe_pct": 5.763104720209668,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        256
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 0.5,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=0.5",
+      "samples": 1023010,
+      "wins": 687755,
+      "path_win_1pct_rate_pct": 67.22857059070782,
+      "wilson_lower_pct": 67.13754807134347,
+      "mean_best_return_pct": 5.695176768501383,
+      "mean_5d_close_return_pct": 0.1909192118253137,
+      "mean_mae_pct": -4.853883895399582,
+      "mean_mfe_pct": 5.795176768501388,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        246
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 60.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=60",
+      "samples": 1128811,
+      "wins": 757065,
+      "path_win_1pct_rate_pct": 67.0674718797035,
+      "wilson_lower_pct": 66.9807149493991,
+      "mean_best_return_pct": 5.497080292896691,
+      "mean_5d_close_return_pct": 0.08266771286582972,
+      "mean_mae_pct": -4.750579270699606,
+      "mean_mfe_pct": 5.597080292896691,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        163
+      ],
+      "rules": [
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "volatility_10d_pct<=0.6",
+      "samples": 2090425,
+      "wins": 1395798,
+      "path_win_1pct_rate_pct": 66.77101546336272,
+      "wilson_lower_pct": 66.70713022481132,
+      "mean_best_return_pct": 4.584310492788702,
+      "mean_5d_close_return_pct": 0.1527077871463518,
+      "mean_mae_pct": -4.104235770545001,
+      "mean_mfe_pct": 4.684310492788703,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        161
+      ],
+      "rules": [
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "volatility_10d_pct<=0.5",
+      "samples": 1742372,
+      "wins": 1162922,
+      "path_win_1pct_rate_pct": 66.74361158237161,
+      "wilson_lower_pct": 66.67361824138231,
+      "mean_best_return_pct": 4.42277479018335,
+      "mean_5d_close_return_pct": 0.14616494921178494,
+      "mean_mae_pct": -3.9696116287862924,
+      "mean_mfe_pct": 4.522774790183347,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        165
+      ],
+      "rules": [
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "volatility_10d_pct<=0.7",
+      "samples": 2438438,
+      "wins": 1626436,
+      "path_win_1pct_rate_pct": 66.69991199284132,
+      "wilson_lower_pct": 66.6407315310527,
+      "mean_best_return_pct": 4.7395644636624255,
+      "mean_5d_close_return_pct": 0.15006856682755335,
+      "mean_mae_pct": -4.239338295985047,
+      "mean_mfe_pct": 4.839564463662428,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        242
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 50.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=50",
+      "samples": 1632942,
+      "wins": 1088736,
+      "path_win_1pct_rate_pct": 66.67328049618419,
+      "wilson_lower_pct": 66.60094058167972,
+      "mean_best_return_pct": 5.36536082686447,
+      "mean_5d_close_return_pct": 0.05207469887158144,
+      "mean_mae_pct": -4.686536051325594,
+      "mean_mfe_pct": 5.465360826864479,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        219
+      ],
+      "rules": [
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "turnover_pct<=0.6",
+      "samples": 2088652,
+      "wins": 1390696,
+      "path_win_1pct_rate_pct": 66.58342318394831,
+      "wilson_lower_pct": 66.51942115559105,
+      "mean_best_return_pct": 4.593519675328391,
+      "mean_5d_close_return_pct": 0.17586336334321306,
+      "mean_mae_pct": -4.12947403450917,
+      "mean_mfe_pct": 4.693519675328396,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        217
+      ],
+      "rules": [
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "turnover_pct<=0.5",
+      "samples": 1740960,
+      "wins": 1159253,
+      "path_win_1pct_rate_pct": 66.586997978127,
+      "wilson_lower_pct": 66.51689434539153,
+      "mean_best_return_pct": 4.447555153909778,
+      "mean_5d_close_return_pct": 0.17466740870162997,
+      "mean_mae_pct": -4.011535572288998,
+      "mean_mfe_pct": 4.547555153909778,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        159
+      ],
+      "rules": [
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "volatility_10d_pct<=0.4",
+      "samples": 1393565,
+      "wins": 927810,
+      "path_win_1pct_rate_pct": 66.57816463530585,
+      "wilson_lower_pct": 66.49979887900203,
+      "mean_best_return_pct": 4.2461963731264225,
+      "mean_5d_close_return_pct": 0.1315635461376029,
+      "mean_mae_pct": -3.8279414380606407,
+      "mean_mfe_pct": 4.346196373126416,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        221
+      ],
+      "rules": [
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "turnover_pct<=0.7",
+      "samples": 2436351,
+      "wins": 1620161,
+      "path_win_1pct_rate_pct": 66.49949042646153,
+      "wilson_lower_pct": 66.44019635091065,
+      "mean_best_return_pct": 4.739426965423591,
+      "mean_5d_close_return_pct": 0.17046412600973465,
+      "mean_mae_pct": -4.250974203935248,
+      "mean_mfe_pct": 4.839426965423591,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        167
+      ],
+      "rules": [
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.8,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "volatility_10d_pct<=0.8",
+      "samples": 2786119,
+      "wins": 1852547,
+      "path_win_1pct_rate_pct": 66.4920270813989,
+      "wilson_lower_pct": 66.43657817514973,
+      "mean_best_return_pct": 4.897664462084922,
+      "mean_5d_close_return_pct": 0.13543700710499365,
+      "mean_mae_pct": -4.383619598986409,
+      "mean_mfe_pct": 4.997664462084928,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        244
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 55.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=55",
+      "samples": 1379484,
+      "wins": 917350,
+      "path_win_1pct_rate_pct": 66.49950271260849,
+      "wilson_lower_pct": 66.42069199054535,
+      "mean_best_return_pct": 5.404005030899451,
+      "mean_5d_close_return_pct": 0.054487897743605664,
+      "mean_mae_pct": -4.721022711515358,
+      "mean_mfe_pct": 5.50400503089945,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        67
+      ],
+      "rules": [
+        {
+          "feature": "return_20d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "return_20d_pct<=0.7",
+      "samples": 2444648,
+      "wins": 1624991,
+      "path_win_1pct_rate_pct": 66.47136929324795,
+      "wilson_lower_pct": 66.41216370059904,
+      "mean_best_return_pct": 4.926204849705505,
+      "mean_5d_close_return_pct": 0.19136914395653248,
+      "mean_mae_pct": -4.3696563053927235,
+      "mean_mfe_pct": 5.026204849705511,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        215
+      ],
+      "rules": [
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "turnover_pct<=0.4",
+      "samples": 1392467,
+      "wins": 925430,
+      "path_win_1pct_rate_pct": 66.45974374976211,
+      "wilson_lower_pct": 66.38127856198875,
+      "mean_best_return_pct": 4.290187557071603,
+      "mean_5d_close_return_pct": 0.1615159211417289,
+      "mean_mae_pct": -3.891851571206617,
+      "mean_mfe_pct": 4.390187557071597,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        69
+      ],
+      "rules": [
+        {
+          "feature": "return_20d_pct",
+          "op": "<=",
+          "threshold": 0.8,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "return_20d_pct<=0.8",
+      "samples": 2790398,
+      "wins": 1853543,
+      "path_win_1pct_rate_pct": 66.42575718589248,
+      "wilson_lower_pct": 66.3703238127441,
+      "mean_best_return_pct": 4.997367035290083,
+      "mean_5d_close_return_pct": 0.17372739216330363,
+      "mean_mae_pct": -4.431853817216207,
+      "mean_mfe_pct": 5.097367035290097,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        65
+      ],
+      "rules": [
+        {
+          "feature": "return_20d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "return_20d_pct<=0.6",
+      "samples": 2098849,
+      "wins": 1394228,
+      "path_win_1pct_rate_pct": 66.42821851405223,
+      "wilson_lower_pct": 66.36429907264208,
+      "mean_best_return_pct": 4.88669046640808,
+      "mean_5d_close_return_pct": 0.19578299291970236,
+      "mean_mae_pct": -4.345766076916677,
+      "mean_mfe_pct": 4.986690466408092,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        223
+      ],
+      "rules": [
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.8,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "turnover_pct<=0.8",
+      "samples": 2784134,
+      "wins": 1847164,
+      "path_win_1pct_rate_pct": 66.34608822707527,
+      "wilson_lower_pct": 66.29056015223829,
+      "mean_best_return_pct": 4.892319239732207,
+      "mean_5d_close_return_pct": 0.1554217220964698,
+      "mean_mae_pct": -4.383099390424771,
+      "mean_mfe_pct": 4.992319239732208,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        63
+      ],
+      "rules": [
+        {
+          "feature": "return_20d_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "return_20d_pct<=0.5",
+      "samples": 1753193,
+      "wins": 1163387,
+      "path_win_1pct_rate_pct": 66.35818190011025,
+      "wilson_lower_pct": 66.28820571323855,
+      "mean_best_return_pct": 4.8849686481373364,
+      "mean_5d_close_return_pct": 0.1979800139954731,
+      "mean_mae_pct": -4.354574551850154,
+      "mean_mfe_pct": 4.984968648137337,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    }
+  ],
+  "train_top_pairs": [
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        161
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.5",
+      "samples": 296356,
+      "wins": 210025,
+      "path_win_1pct_rate_pct": 70.869157364791,
+      "wilson_lower_pct": 70.70529858086744,
+      "mean_best_return_pct": 5.269602669673769,
+      "mean_5d_close_return_pct": 0.41883566718700077,
+      "mean_mae_pct": -4.262334965499449,
+      "mean_mfe_pct": 5.3696026696737675,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        67
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "return_20d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND return_20d_pct<=0.7",
+      "samples": 416885,
+      "wins": 295178,
+      "path_win_1pct_rate_pct": 70.80561785624333,
+      "wilson_lower_pct": 70.66741000019277,
+      "mean_best_return_pct": 5.874647811413073,
+      "mean_5d_close_return_pct": 0.5911951301394166,
+      "mean_mae_pct": -4.597871878477699,
+      "mean_mfe_pct": 5.974647811413068,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        159
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.4",
+      "samples": 237013,
+      "wins": 167826,
+      "path_win_1pct_rate_pct": 70.80877420225895,
+      "wilson_lower_pct": 70.62540076516729,
+      "mean_best_return_pct": 5.084920170243304,
+      "mean_5d_close_return_pct": 0.3869417889617444,
+      "mean_mae_pct": -4.135398921776449,
+      "mean_mfe_pct": 5.184920170243309,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        163
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.6",
+      "samples": 355505,
+      "wins": 251545,
+      "path_win_1pct_rate_pct": 70.75709202402216,
+      "wilson_lower_pct": 70.60733831320535,
+      "mean_best_return_pct": 5.437931441839421,
+      "mean_5d_close_return_pct": 0.4380570167838072,
+      "mean_mae_pct": -4.388710177034026,
+      "mean_mfe_pct": 5.537931441839424,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        165
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.7",
+      "samples": 414684,
+      "wins": 292565,
+      "path_win_1pct_rate_pct": 70.55131135997532,
+      "wilson_lower_pct": 70.41238747228195,
+      "mean_best_return_pct": 5.592935899561823,
+      "mean_5d_close_return_pct": 0.4392828444370185,
+      "mean_mae_pct": -4.516993567264003,
+      "mean_mfe_pct": 5.6929358995618236,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        167
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.8,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.8",
+      "samples": 473747,
+      "wins": 332580,
+      "path_win_1pct_rate_pct": 70.20202766455513,
+      "wilson_lower_pct": 70.07162228448003,
+      "mean_best_return_pct": 5.750487209597281,
+      "mean_5d_close_return_pct": 0.43062249136590847,
+      "mean_mae_pct": -4.653346143887508,
+      "mean_mfe_pct": 5.850487209597281,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        219
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.6",
+      "samples": 354940,
+      "wins": 249093,
+      "path_win_1pct_rate_pct": 70.17890347664394,
+      "wilson_lower_pct": 70.0281832415064,
+      "mean_best_return_pct": 5.442536266431178,
+      "mean_5d_close_return_pct": 0.4371598927690165,
+      "mean_mae_pct": -4.444537358686416,
+      "mean_mfe_pct": 5.542536266431184,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        217
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.5",
+      "samples": 295805,
+      "wins": 207494,
+      "path_win_1pct_rate_pct": 70.1455350653302,
+      "wilson_lower_pct": 69.98036013147711,
+      "mean_best_return_pct": 5.279911150702759,
+      "mean_5d_close_return_pct": 0.4148218232886755,
+      "mean_mae_pct": -4.343957109495794,
+      "mean_mfe_pct": 5.379911150702762,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        221
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.7",
+      "samples": 414068,
+      "wins": 290183,
+      "path_win_1pct_rate_pct": 70.08100118821064,
+      "wilson_lower_pct": 69.94134119568567,
+      "mean_best_return_pct": 5.59785490922614,
+      "mean_5d_close_return_pct": 0.44999806127901304,
+      "mean_mae_pct": -4.550131871172133,
+      "mean_mfe_pct": 5.697854909226151,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        215
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.4",
+      "samples": 236569,
+      "wins": 165450,
+      "path_win_1pct_rate_pct": 69.93731215839776,
+      "wilson_lower_pct": 69.75221363670944,
+      "mean_best_return_pct": 5.09862036296839,
+      "mean_5d_close_return_pct": 0.3749801672356517,
+      "mean_mae_pct": -4.241023486358127,
+      "mean_mfe_pct": 5.19862036296839,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        161
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.5",
+      "samples": 466218,
+      "wins": 324451,
+      "path_win_1pct_rate_pct": 69.5921221402863,
+      "wilson_lower_pct": 69.4599122916118,
+      "mean_best_return_pct": 4.774587463194899,
+      "mean_5d_close_return_pct": 0.3293247252357184,
+      "mean_mae_pct": -3.9199193481866907,
+      "mean_mfe_pct": 4.874587463194898,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        163
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.6",
+      "samples": 559318,
+      "wins": 389076,
+      "path_win_1pct_rate_pct": 69.56257442099127,
+      "wilson_lower_pct": 69.4418484102652,
+      "mean_best_return_pct": 4.93183936188626,
+      "mean_5d_close_return_pct": 0.3381045069255238,
+      "mean_mae_pct": -4.046901631306874,
+      "mean_mfe_pct": 5.0318393618862585,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        67
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "return_20d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND return_20d_pct<=0.7",
+      "samples": 655395,
+      "wins": 455290,
+      "path_win_1pct_rate_pct": 69.46803072956004,
+      "wilson_lower_pct": 69.35641700370174,
+      "mean_best_return_pct": 5.318439965606271,
+      "mean_5d_close_return_pct": 0.43178153730966434,
+      "mean_mae_pct": -4.277952836188239,
+      "mean_mfe_pct": 5.418439965606262,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        165
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.7",
+      "samples": 652444,
+      "wins": 453031,
+      "path_win_1pct_rate_pct": 69.43599757220544,
+      "wilson_lower_pct": 69.3240988230407,
+      "mean_best_return_pct": 5.08335841620795,
+      "mean_5d_close_return_pct": 0.3358206918075912,
+      "mean_mae_pct": -4.17567189870757,
+      "mean_mfe_pct": 5.183358416207954,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        159
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.4",
+      "samples": 372871,
+      "wins": 258880,
+      "path_win_1pct_rate_pct": 69.42883731907281,
+      "wilson_lower_pct": 69.28076007519999,
+      "mean_best_return_pct": 4.598244460302094,
+      "mean_5d_close_return_pct": 0.30466492029304093,
+      "mean_mae_pct": -3.792462851863394,
+      "mean_mfe_pct": 4.698244460302089,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        167
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.8,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.8",
+      "samples": 745427,
+      "wins": 515713,
+      "path_win_1pct_rate_pct": 69.18356861235239,
+      "wilson_lower_pct": 69.07864948788402,
+      "mean_best_return_pct": 5.237498196704628,
+      "mean_5d_close_return_pct": 0.32254088736767883,
+      "mean_mae_pct": -4.313729622019658,
+      "mean_mfe_pct": 5.337498196704635,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        256,
+        161
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 0.5,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.5",
+      "samples": 512579,
+      "wins": 353922,
+      "path_win_1pct_rate_pct": 69.04730782962235,
+      "wilson_lower_pct": 68.92060494998042,
+      "mean_best_return_pct": 4.786737045378108,
+      "mean_5d_close_return_pct": 0.257637612026193,
+      "mean_mae_pct": -4.062328186026995,
+      "mean_mfe_pct": 4.886737045378111,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        256,
+        163
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 0.5,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.6",
+      "samples": 614915,
+      "wins": 424196,
+      "path_win_1pct_rate_pct": 68.98449379182489,
+      "wilson_lower_pct": 68.86876061701287,
+      "mean_best_return_pct": 4.9470145647001695,
+      "mean_5d_close_return_pct": 0.2658435509751637,
+      "mean_mae_pct": -4.194603605018661,
+      "mean_mfe_pct": 5.047014564700174,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        248
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=65",
+      "samples": 590216,
+      "wins": 407171,
+      "path_win_1pct_rate_pct": 68.9867777220543,
+      "wilson_lower_pct": 68.86864768153481,
+      "mean_best_return_pct": 6.16910119954399,
+      "mean_5d_close_return_pct": 0.35533168003730986,
+      "mean_mae_pct": -5.004734538822678,
+      "mean_mfe_pct": 6.26910119954399,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        246
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 60.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=60",
+      "samples": 590216,
+      "wins": 407171,
+      "path_win_1pct_rate_pct": 68.9867777220543,
+      "wilson_lower_pct": 68.86864768153481,
+      "mean_best_return_pct": 6.16910119954399,
+      "mean_5d_close_return_pct": 0.35533168003730986,
+      "mean_mae_pct": -5.004734538822678,
+      "mean_mfe_pct": 6.26910119954399,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    }
+  ],
+  "validation_top_rules": [
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        165
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.7",
+      "samples": 124479,
+      "wins": 88952,
+      "path_win_1pct_rate_pct": 71.45944295824998,
+      "wilson_lower_pct": 71.20790196165365,
+      "mean_best_return_pct": 5.37113066027679,
+      "mean_5d_close_return_pct": 0.7872857210298052,
+      "mean_mae_pct": -3.3639018075747082,
+      "mean_mfe_pct": 5.471130660276793,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        167
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.8,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.8",
+      "samples": 142158,
+      "wins": 101488,
+      "path_win_1pct_rate_pct": 71.39098749278972,
+      "wilson_lower_pct": 71.15547917132096,
+      "mean_best_return_pct": 5.565754504667181,
+      "mean_5d_close_return_pct": 0.8143148650200067,
+      "mean_mae_pct": -3.4772720899411937,
+      "mean_mfe_pct": 5.665754504667185,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        163
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.6",
+      "samples": 106786,
+      "wins": 76186,
+      "path_win_1pct_rate_pct": 71.34455827542936,
+      "wilson_lower_pct": 71.07259847064577,
+      "mean_best_return_pct": 5.169886869554895,
+      "mean_5d_close_return_pct": 0.7336378768188679,
+      "mean_mae_pct": -3.273644613509814,
+      "mean_mfe_pct": 5.269886869554893,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        221
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.7",
+      "samples": 124097,
+      "wins": 88387,
+      "path_win_1pct_rate_pct": 71.22412306502171,
+      "wilson_lower_pct": 70.97158354526138,
+      "mean_best_return_pct": 5.296311265875181,
+      "mean_5d_close_return_pct": 0.7093513741133546,
+      "mean_mae_pct": -3.381810159768758,
+      "mean_mfe_pct": 5.39631126587518,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        161
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.5",
+      "samples": 89057,
+      "wins": 63380,
+      "path_win_1pct_rate_pct": 71.16790370212335,
+      "wilson_lower_pct": 70.86948519076273,
+      "mean_best_return_pct": 4.963308933938933,
+      "mean_5d_close_return_pct": 0.6804392979205087,
+      "mean_mae_pct": -3.1753261492600284,
+      "mean_mfe_pct": 5.063308933938937,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        219
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.6",
+      "samples": 106411,
+      "wins": 75723,
+      "path_win_1pct_rate_pct": 71.16087622520229,
+      "wilson_lower_pct": 70.88792470140899,
+      "mean_best_return_pct": 5.074689531977835,
+      "mean_5d_close_return_pct": 0.6407404541787309,
+      "mean_mae_pct": -3.2847508682880964,
+      "mean_mfe_pct": 5.174689531977835,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        217
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.5",
+      "samples": 88708,
+      "wins": 62924,
+      "path_win_1pct_rate_pct": 70.93385038553456,
+      "wilson_lower_pct": 70.63413890773671,
+      "mean_best_return_pct": 4.856263347876968,
+      "mean_5d_close_return_pct": 0.5557684272864796,
+      "mean_mae_pct": -3.2076335596649677,
+      "mean_mfe_pct": 4.9562633478769715,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        159
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.4",
+      "samples": 71272,
+      "wins": 50498,
+      "path_win_1pct_rate_pct": 70.85250869906837,
+      "wilson_lower_pct": 70.51775443702995,
+      "mean_best_return_pct": 4.75457747741141,
+      "mean_5d_close_return_pct": 0.6294098967458936,
+      "mean_mae_pct": -3.0781974678332404,
+      "mean_mfe_pct": 4.854577477411412,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        67
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "return_20d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND return_20d_pct<=0.7",
+      "samples": 124439,
+      "wins": 87862,
+      "path_win_1pct_rate_pct": 70.60648189072558,
+      "wilson_lower_pct": 70.35272920348781,
+      "mean_best_return_pct": 5.837347241164731,
+      "mean_5d_close_return_pct": 0.912313441524854,
+      "mean_mae_pct": -3.6364589412519446,
+      "mean_mfe_pct": 5.937347241164729,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        215
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.4",
+      "samples": 70969,
+      "wins": 50060,
+      "path_win_1pct_rate_pct": 70.53784046555538,
+      "wilson_lower_pct": 70.20133445938784,
+      "mean_best_return_pct": 4.647894692428005,
+      "mean_5d_close_return_pct": 0.48391832833689297,
+      "mean_mae_pct": -3.1353515654613946,
+      "mean_mfe_pct": 4.747894692428005,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        258
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1",
+      "samples": 177083,
+      "wins": 124900,
+      "path_win_1pct_rate_pct": 70.531897471807,
+      "wilson_lower_pct": 70.31911160857375,
+      "mean_best_return_pct": 6.111670963555069,
+      "mean_5d_close_return_pct": 0.8065186102776704,
+      "mean_mae_pct": -3.8473784490392595,
+      "mean_mfe_pct": 6.211670963555071,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        248
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=65",
+      "samples": 177083,
+      "wins": 124900,
+      "path_win_1pct_rate_pct": 70.531897471807,
+      "wilson_lower_pct": 70.31911160857375,
+      "mean_best_return_pct": 6.111670963555069,
+      "mean_5d_close_return_pct": 0.8065186102776704,
+      "mean_mae_pct": -3.8473784490392595,
+      "mean_mfe_pct": 6.211670963555071,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        246
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 60.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=60",
+      "samples": 177083,
+      "wins": 124900,
+      "path_win_1pct_rate_pct": 70.531897471807,
+      "wilson_lower_pct": 70.31911160857375,
+      "mean_best_return_pct": 6.111670963555069,
+      "mean_5d_close_return_pct": 0.8065186102776704,
+      "mean_mae_pct": -3.8473784490392595,
+      "mean_mfe_pct": 6.211670963555071,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        256,
+        163
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 0.5,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.6",
+      "samples": 194569,
+      "wins": 132773,
+      "path_win_1pct_rate_pct": 68.23954484013383,
+      "wilson_lower_pct": 68.03232447620921,
+      "mean_best_return_pct": 4.573153966772426,
+      "mean_5d_close_return_pct": 0.29875288290172963,
+      "mean_mae_pct": -3.280913401987909,
+      "mean_mfe_pct": 4.673153966772429,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        167
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.8,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.8",
+      "samples": 243800,
+      "wins": 166350,
+      "path_win_1pct_rate_pct": 68.23215750615257,
+      "wilson_lower_pct": 68.047060534327,
+      "mean_best_return_pct": 4.867379068290363,
+      "mean_5d_close_return_pct": 0.28105856342040525,
+      "mean_mae_pct": -3.4769330382500683,
+      "mean_mfe_pct": 4.967379068290365,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        165
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.7",
+      "samples": 213430,
+      "wins": 145602,
+      "path_win_1pct_rate_pct": 68.22002530103546,
+      "wilson_lower_pct": 68.02215613426308,
+      "mean_best_return_pct": 4.691408464386056,
+      "mean_5d_close_return_pct": 0.2798426256351969,
+      "mean_mae_pct": -3.3517288655854953,
+      "mean_mfe_pct": 4.791408464386056,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        256,
+        161
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 0.5,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.5",
+      "samples": 162215,
+      "wins": 110540,
+      "path_win_1pct_rate_pct": 68.14412970440465,
+      "wilson_lower_pct": 67.91696679765862,
+      "mean_best_return_pct": 4.394199864732582,
+      "mean_5d_close_return_pct": 0.2759441674243267,
+      "mean_mae_pct": -3.1648680012626156,
+      "mean_mfe_pct": 4.494199864732583,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        163
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.6",
+      "samples": 183035,
+      "wins": 124676,
+      "path_win_1pct_rate_pct": 68.11593411096239,
+      "wilson_lower_pct": 67.90205465333855,
+      "mean_best_return_pct": 4.51555909660026,
+      "mean_5d_close_return_pct": 0.259556370105281,
+      "mean_mae_pct": -3.2446961567170036,
+      "mean_mfe_pct": 4.615559096600262,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        221
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND turnover_pct<=0.7",
+      "samples": 212971,
+      "wins": 144841,
+      "path_win_1pct_rate_pct": 68.00972902413943,
+      "wilson_lower_pct": 67.81130302338299,
+      "mean_best_return_pct": 4.635275919149448,
+      "mean_5d_close_return_pct": 0.2241740757826349,
+      "mean_mae_pct": -3.3717871038508243,
+      "mean_mfe_pct": 4.7352759191494505,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        256,
+        159
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 0.5,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.4",
+      "samples": 129792,
+      "wins": 88226,
+      "path_win_1pct_rate_pct": 67.97491370808679,
+      "wilson_lower_pct": 67.72054984562183,
+      "mean_best_return_pct": 4.220130342526372,
+      "mean_5d_close_return_pct": 0.26390508479914165,
+      "mean_mae_pct": -3.044017112616261,
+      "mean_mfe_pct": 4.320130342526371,
+      "target_day_mean": NaN,
+      "stop_day_mean": NaN
+    }
+  ],
+  "validation_qualified_rules_ge_80pct": [],
+  "selected_rules": [
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        165
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.7",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          165
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.7",
+        "samples": 414684,
+        "wins": 292565,
+        "path_win_1pct_rate_pct": 70.55131135997532,
+        "wilson_lower_pct": 70.41238747228195,
+        "mean_best_return_pct": 5.592935899561823,
+        "mean_5d_close_return_pct": 0.4392828444370185,
+        "mean_mae_pct": -4.516993567264003,
+        "mean_mfe_pct": 5.6929358995618236,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          165
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.7",
+        "samples": 124479,
+        "wins": 88952,
+        "path_win_1pct_rate_pct": 71.45944295824998,
+        "wilson_lower_pct": 71.20790196165365,
+        "mean_best_return_pct": 5.37113066027679,
+        "mean_5d_close_return_pct": 0.7872857210298052,
+        "mean_mae_pct": -3.3639018075747082,
+        "mean_mfe_pct": 5.471130660276793,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          165
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.7",
+        "samples": 99838,
+        "wins": 70821,
+        "path_win_1pct_rate_pct": 70.93591618421844,
+        "wilson_lower_pct": 70.65345855402961,
+        "mean_best_return_pct": 4.130413395581301,
+        "mean_5d_close_return_pct": 0.34741372644355295,
+        "mean_mae_pct": -3.2356951201206554,
+        "mean_mfe_pct": 4.230413395581304,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        167
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.8,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.8",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          167
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.8,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.8",
+        "samples": 473747,
+        "wins": 332580,
+        "path_win_1pct_rate_pct": 70.20202766455513,
+        "wilson_lower_pct": 70.07162228448003,
+        "mean_best_return_pct": 5.750487209597281,
+        "mean_5d_close_return_pct": 0.43062249136590847,
+        "mean_mae_pct": -4.653346143887508,
+        "mean_mfe_pct": 5.850487209597281,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          167
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.8,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.8",
+        "samples": 142158,
+        "wins": 101488,
+        "path_win_1pct_rate_pct": 71.39098749278972,
+        "wilson_lower_pct": 71.15547917132096,
+        "mean_best_return_pct": 5.565754504667181,
+        "mean_5d_close_return_pct": 0.8143148650200067,
+        "mean_mae_pct": -3.4772720899411937,
+        "mean_mfe_pct": 5.665754504667185,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          167
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.8,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.8",
+        "samples": 114076,
+        "wins": 80540,
+        "path_win_1pct_rate_pct": 70.60205477050387,
+        "wilson_lower_pct": 70.33698607278806,
+        "mean_best_return_pct": 4.355087509772419,
+        "mean_5d_close_return_pct": 0.3461445370065431,
+        "mean_mae_pct": -3.431257674186541,
+        "mean_mfe_pct": 4.455087509772425,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        163
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.6",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          163
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.6",
+        "samples": 355505,
+        "wins": 251545,
+        "path_win_1pct_rate_pct": 70.75709202402216,
+        "wilson_lower_pct": 70.60733831320535,
+        "mean_best_return_pct": 5.437931441839421,
+        "mean_5d_close_return_pct": 0.4380570167838072,
+        "mean_mae_pct": -4.388710177034026,
+        "mean_mfe_pct": 5.537931441839424,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          163
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.6",
+        "samples": 106786,
+        "wins": 76186,
+        "path_win_1pct_rate_pct": 71.34455827542936,
+        "wilson_lower_pct": 71.07259847064577,
+        "mean_best_return_pct": 5.169886869554895,
+        "mean_5d_close_return_pct": 0.7336378768188679,
+        "mean_mae_pct": -3.273644613509814,
+        "mean_mfe_pct": 5.269886869554893,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          163
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.6",
+        "samples": 85600,
+        "wins": 60797,
+        "path_win_1pct_rate_pct": 71.02453271028037,
+        "wilson_lower_pct": 70.71968902542362,
+        "mean_best_return_pct": 3.911441999824281,
+        "mean_5d_close_return_pct": 0.32996484998625586,
+        "mean_mae_pct": -3.0703770710334104,
+        "mean_mfe_pct": 4.011441999824283,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        221
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.7",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          221
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.7",
+        "samples": 414068,
+        "wins": 290183,
+        "path_win_1pct_rate_pct": 70.08100118821064,
+        "wilson_lower_pct": 69.94134119568567,
+        "mean_best_return_pct": 5.59785490922614,
+        "mean_5d_close_return_pct": 0.44999806127901304,
+        "mean_mae_pct": -4.550131871172133,
+        "mean_mfe_pct": 5.697854909226151,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          221
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.7",
+        "samples": 124097,
+        "wins": 88387,
+        "path_win_1pct_rate_pct": 71.22412306502171,
+        "wilson_lower_pct": 70.97158354526138,
+        "mean_best_return_pct": 5.296311265875181,
+        "mean_5d_close_return_pct": 0.7093513741133546,
+        "mean_mae_pct": -3.381810159768758,
+        "mean_mfe_pct": 5.39631126587518,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          221
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.7",
+        "samples": 99735,
+        "wins": 70310,
+        "path_win_1pct_rate_pct": 70.49681656389431,
+        "wilson_lower_pct": 70.21298906594193,
+        "mean_best_return_pct": 4.161785621646812,
+        "mean_5d_close_return_pct": 0.3514539785811415,
+        "mean_mae_pct": -3.287710908672701,
+        "mean_mfe_pct": 4.261785621646817,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        161
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.5",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          161
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.5,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.5",
+        "samples": 296356,
+        "wins": 210025,
+        "path_win_1pct_rate_pct": 70.869157364791,
+        "wilson_lower_pct": 70.70529858086744,
+        "mean_best_return_pct": 5.269602669673769,
+        "mean_5d_close_return_pct": 0.41883566718700077,
+        "mean_mae_pct": -4.262334965499449,
+        "mean_mfe_pct": 5.3696026696737675,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          161
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.5,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.5",
+        "samples": 89057,
+        "wins": 63380,
+        "path_win_1pct_rate_pct": 71.16790370212335,
+        "wilson_lower_pct": 70.86948519076273,
+        "mean_best_return_pct": 4.963308933938933,
+        "mean_5d_close_return_pct": 0.6804392979205087,
+        "mean_mae_pct": -3.1753261492600284,
+        "mean_mfe_pct": 5.063308933938937,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          161
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.5,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.5",
+        "samples": 71343,
+        "wins": 50472,
+        "path_win_1pct_rate_pct": 70.7455531727009,
+        "wilson_lower_pct": 70.41061284965261,
+        "mean_best_return_pct": 3.6830487457711536,
+        "mean_5d_close_return_pct": 0.28015040073855446,
+        "mean_mae_pct": -2.9343380271392707,
+        "mean_mfe_pct": 3.783048745771154,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        219
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.6",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          219
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.6",
+        "samples": 354940,
+        "wins": 249093,
+        "path_win_1pct_rate_pct": 70.17890347664394,
+        "wilson_lower_pct": 70.0281832415064,
+        "mean_best_return_pct": 5.442536266431178,
+        "mean_5d_close_return_pct": 0.4371598927690165,
+        "mean_mae_pct": -4.444537358686416,
+        "mean_mfe_pct": 5.542536266431184,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          219
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.6",
+        "samples": 106411,
+        "wins": 75723,
+        "path_win_1pct_rate_pct": 71.16087622520229,
+        "wilson_lower_pct": 70.88792470140899,
+        "mean_best_return_pct": 5.074689531977835,
+        "mean_5d_close_return_pct": 0.6407404541787309,
+        "mean_mae_pct": -3.2847508682880964,
+        "mean_mfe_pct": 5.174689531977835,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          219
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.6",
+        "samples": 85510,
+        "wins": 60342,
+        "path_win_1pct_rate_pct": 70.56718512454684,
+        "wilson_lower_pct": 70.26079920162232,
+        "mean_best_return_pct": 3.9674712620288206,
+        "mean_5d_close_return_pct": 0.3432889709825055,
+        "mean_mae_pct": -3.132054820358612,
+        "mean_mfe_pct": 4.067471262028824,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        217
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.5",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          217
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.5,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.5",
+        "samples": 295805,
+        "wins": 207494,
+        "path_win_1pct_rate_pct": 70.1455350653302,
+        "wilson_lower_pct": 69.98036013147711,
+        "mean_best_return_pct": 5.279911150702759,
+        "mean_5d_close_return_pct": 0.4148218232886755,
+        "mean_mae_pct": -4.343957109495794,
+        "mean_mfe_pct": 5.379911150702762,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          217
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.5,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.5",
+        "samples": 88708,
+        "wins": 62924,
+        "path_win_1pct_rate_pct": 70.93385038553456,
+        "wilson_lower_pct": 70.63413890773671,
+        "mean_best_return_pct": 4.856263347876968,
+        "mean_5d_close_return_pct": 0.5557684272864796,
+        "mean_mae_pct": -3.2076335596649677,
+        "mean_mfe_pct": 4.9562633478769715,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          217
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.5,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.5",
+        "samples": 71276,
+        "wins": 50203,
+        "path_win_1pct_rate_pct": 70.43464840900164,
+        "wilson_lower_pct": 70.0985355611089,
+        "mean_best_return_pct": 3.788648917458801,
+        "mean_5d_close_return_pct": 0.32747437763374027,
+        "mean_mae_pct": -2.996473164735163,
+        "mean_mfe_pct": 3.888648917458803,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        159
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.4",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          159
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.4,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.4",
+        "samples": 237013,
+        "wins": 167826,
+        "path_win_1pct_rate_pct": 70.80877420225895,
+        "wilson_lower_pct": 70.62540076516729,
+        "mean_best_return_pct": 5.084920170243304,
+        "mean_5d_close_return_pct": 0.3869417889617444,
+        "mean_mae_pct": -4.135398921776449,
+        "mean_mfe_pct": 5.184920170243309,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          159
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.4,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.4",
+        "samples": 71272,
+        "wins": 50498,
+        "path_win_1pct_rate_pct": 70.85250869906837,
+        "wilson_lower_pct": 70.51775443702995,
+        "mean_best_return_pct": 4.75457747741141,
+        "mean_5d_close_return_pct": 0.6294098967458936,
+        "mean_mae_pct": -3.0781974678332404,
+        "mean_mfe_pct": 4.854577477411412,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          159
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.4,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND volatility_10d_pct<=0.4",
+        "samples": 57066,
+        "wins": 40129,
+        "path_win_1pct_rate_pct": 70.32033084498651,
+        "wilson_lower_pct": 69.94414053905717,
+        "mean_best_return_pct": 3.475217908303719,
+        "mean_5d_close_return_pct": 0.24903634400211547,
+        "mean_mae_pct": -2.8016209876564013,
+        "mean_mfe_pct": 3.5752179083037197,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        67
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "return_20d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND return_20d_pct<=0.7",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          67
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "return_20d_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND return_20d_pct<=0.7",
+        "samples": 416885,
+        "wins": 295178,
+        "path_win_1pct_rate_pct": 70.80561785624333,
+        "wilson_lower_pct": 70.66741000019277,
+        "mean_best_return_pct": 5.874647811413073,
+        "mean_5d_close_return_pct": 0.5911951301394166,
+        "mean_mae_pct": -4.597871878477699,
+        "mean_mfe_pct": 5.974647811413068,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          67
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "return_20d_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND return_20d_pct<=0.7",
+        "samples": 124439,
+        "wins": 87862,
+        "path_win_1pct_rate_pct": 70.60648189072558,
+        "wilson_lower_pct": 70.35272920348781,
+        "mean_best_return_pct": 5.837347241164731,
+        "mean_5d_close_return_pct": 0.912313441524854,
+        "mean_mae_pct": -3.6364589412519446,
+        "mean_mfe_pct": 5.937347241164729,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          67
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "return_20d_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND return_20d_pct<=0.7",
+        "samples": 99810,
+        "wins": 69925,
+        "path_win_1pct_rate_pct": 70.05811040977858,
+        "wilson_lower_pct": 69.77319925462847,
+        "mean_best_return_pct": 4.551920973373037,
+        "mean_5d_close_return_pct": 0.4610392269290397,
+        "mean_mae_pct": -3.5420828887962275,
+        "mean_mfe_pct": 4.651920973373043,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        215
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.4",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          215
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.4,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.4",
+        "samples": 236569,
+        "wins": 165450,
+        "path_win_1pct_rate_pct": 69.93731215839776,
+        "wilson_lower_pct": 69.75221363670944,
+        "mean_best_return_pct": 5.09862036296839,
+        "mean_5d_close_return_pct": 0.3749801672356517,
+        "mean_mae_pct": -4.241023486358127,
+        "mean_mfe_pct": 5.19862036296839,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          215
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.4,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.4",
+        "samples": 70969,
+        "wins": 50060,
+        "path_win_1pct_rate_pct": 70.53784046555538,
+        "wilson_lower_pct": 70.20133445938784,
+        "mean_best_return_pct": 4.647894692428005,
+        "mean_5d_close_return_pct": 0.48391832833689297,
+        "mean_mae_pct": -3.1353515654613946,
+        "mean_mfe_pct": 4.747894692428005,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          215
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.4,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND turnover_pct<=0.4",
+        "samples": 57008,
+        "wins": 40003,
+        "path_win_1pct_rate_pct": 70.17085321358407,
+        "wilson_lower_pct": 69.79393764478591,
+        "mean_best_return_pct": 3.612036796342804,
+        "mean_5d_close_return_pct": 0.3057727024492792,
+        "mean_mae_pct": -2.8722788729562185,
+        "mean_mfe_pct": 3.712036796342803,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "atomic",
+      "rule_indices": [
+        258
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1",
+      "train": {
+        "rule_type": "atomic",
+        "rule_indices": [
+          258
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1",
+        "samples": 591350,
+        "wins": 407224,
+        "path_win_1pct_rate_pct": 68.86344804261437,
+        "wilson_lower_pct": 68.74530370006865,
+        "mean_best_return_pct": 6.173650328337612,
+        "mean_5d_close_return_pct": 0.3643793262730845,
+        "mean_mae_pct": -5.021798522875881,
+        "mean_mfe_pct": 6.273650328337613,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "atomic",
+        "rule_indices": [
+          258
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1",
+        "samples": 177083,
+        "wins": 124900,
+        "path_win_1pct_rate_pct": 70.531897471807,
+        "wilson_lower_pct": 70.31911160857375,
+        "mean_best_return_pct": 6.111670963555069,
+        "mean_5d_close_return_pct": 0.8065186102776704,
+        "mean_mae_pct": -3.8473784490392595,
+        "mean_mfe_pct": 6.211670963555071,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "atomic",
+        "rule_indices": [
+          258
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1",
+        "samples": 142354,
+        "wins": 97784,
+        "path_win_1pct_rate_pct": 68.69072874664569,
+        "wilson_lower_pct": 68.44931600974334,
+        "mean_best_return_pct": 4.985468323447696,
+        "mean_5d_close_return_pct": 0.2998046995968301,
+        "mean_mae_pct": -4.001530182142395,
+        "mean_mfe_pct": 5.085468323447703,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        248
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=65",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          248
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=65",
+        "samples": 590216,
+        "wins": 407171,
+        "path_win_1pct_rate_pct": 68.9867777220543,
+        "wilson_lower_pct": 68.86864768153481,
+        "mean_best_return_pct": 6.16910119954399,
+        "mean_5d_close_return_pct": 0.35533168003730986,
+        "mean_mae_pct": -5.004734538822678,
+        "mean_mfe_pct": 6.26910119954399,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          248
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=65",
+        "samples": 177083,
+        "wins": 124900,
+        "path_win_1pct_rate_pct": 70.531897471807,
+        "wilson_lower_pct": 70.31911160857375,
+        "mean_best_return_pct": 6.111670963555069,
+        "mean_5d_close_return_pct": 0.8065186102776704,
+        "mean_mae_pct": -3.8473784490392595,
+        "mean_mfe_pct": 6.211670963555071,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          248
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=65",
+        "samples": 142354,
+        "wins": 97784,
+        "path_win_1pct_rate_pct": 68.69072874664569,
+        "wilson_lower_pct": 68.44931600974334,
+        "mean_best_return_pct": 4.985468323447696,
+        "mean_5d_close_return_pct": 0.2998046995968301,
+        "mean_mae_pct": -4.001530182142395,
+        "mean_mfe_pct": 5.085468323447703,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        258,
+        246
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 1.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 60.0,
+          "scale": "pct"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=60",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          246
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 60.0,
+            "scale": "pct"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=60",
+        "samples": 590216,
+        "wins": 407171,
+        "path_win_1pct_rate_pct": 68.9867777220543,
+        "wilson_lower_pct": 68.86864768153481,
+        "mean_best_return_pct": 6.16910119954399,
+        "mean_5d_close_return_pct": 0.35533168003730986,
+        "mean_mae_pct": -5.004734538822678,
+        "mean_mfe_pct": 6.26910119954399,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          246
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 60.0,
+            "scale": "pct"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=60",
+        "samples": 177083,
+        "wins": 124900,
+        "path_win_1pct_rate_pct": 70.531897471807,
+        "wilson_lower_pct": 70.31911160857375,
+        "mean_best_return_pct": 6.111670963555069,
+        "mean_5d_close_return_pct": 0.8065186102776704,
+        "mean_mae_pct": -3.8473784490392595,
+        "mean_mfe_pct": 6.211670963555071,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          258,
+          246
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 1.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 60.0,
+            "scale": "pct"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=1 AND market_breadth_pct>=60",
+        "samples": 142354,
+        "wins": 97784,
+        "path_win_1pct_rate_pct": 68.69072874664569,
+        "wilson_lower_pct": 68.44931600974334,
+        "mean_best_return_pct": 4.985468323447696,
+        "mean_5d_close_return_pct": 0.2998046995968301,
+        "mean_mae_pct": -4.001530182142395,
+        "mean_mfe_pct": 5.085468323447703,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        256,
+        163
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 0.5,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.6",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          256,
+          163
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 0.5,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.6",
+        "samples": 614915,
+        "wins": 424196,
+        "path_win_1pct_rate_pct": 68.98449379182489,
+        "wilson_lower_pct": 68.86876061701287,
+        "mean_best_return_pct": 4.9470145647001695,
+        "mean_5d_close_return_pct": 0.2658435509751637,
+        "mean_mae_pct": -4.194603605018661,
+        "mean_mfe_pct": 5.047014564700174,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          256,
+          163
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 0.5,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.6",
+        "samples": 194569,
+        "wins": 132773,
+        "path_win_1pct_rate_pct": 68.23954484013383,
+        "wilson_lower_pct": 68.03232447620921,
+        "mean_best_return_pct": 4.573153966772426,
+        "mean_5d_close_return_pct": 0.29875288290172963,
+        "mean_mae_pct": -3.280913401987909,
+        "mean_mfe_pct": 4.673153966772429,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          256,
+          163
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 0.5,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.6",
+        "samples": 196799,
+        "wins": 136993,
+        "path_win_1pct_rate_pct": 69.61061794013182,
+        "wilson_lower_pct": 69.40702759053613,
+        "mean_best_return_pct": 3.7184173003589605,
+        "mean_5d_close_return_pct": 0.229504751532456,
+        "mean_mae_pct": -2.9747258278939546,
+        "mean_mfe_pct": 3.8184173003589668,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        167
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.8,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.8",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          167
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.8,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.8",
+        "samples": 745427,
+        "wins": 515713,
+        "path_win_1pct_rate_pct": 69.18356861235239,
+        "wilson_lower_pct": 69.07864948788402,
+        "mean_best_return_pct": 5.237498196704628,
+        "mean_5d_close_return_pct": 0.32254088736767883,
+        "mean_mae_pct": -4.313729622019658,
+        "mean_mfe_pct": 5.337498196704635,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          167
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.8,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.8",
+        "samples": 243800,
+        "wins": 166350,
+        "path_win_1pct_rate_pct": 68.23215750615257,
+        "wilson_lower_pct": 68.047060534327,
+        "mean_best_return_pct": 4.867379068290363,
+        "mean_5d_close_return_pct": 0.28105856342040525,
+        "mean_mae_pct": -3.4769330382500683,
+        "mean_mfe_pct": 4.967379068290365,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          167
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.8,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.8",
+        "samples": 248290,
+        "wins": 174894,
+        "path_win_1pct_rate_pct": 70.43940553385154,
+        "wilson_lower_pct": 70.25960014829359,
+        "mean_best_return_pct": 4.142317517487824,
+        "mean_5d_close_return_pct": 0.3107025179155829,
+        "mean_mae_pct": -3.2006563069916645,
+        "mean_mfe_pct": 4.242317517487824,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        165
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.7",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          165
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.7",
+        "samples": 652444,
+        "wins": 453031,
+        "path_win_1pct_rate_pct": 69.43599757220544,
+        "wilson_lower_pct": 69.3240988230407,
+        "mean_best_return_pct": 5.08335841620795,
+        "mean_5d_close_return_pct": 0.3358206918075912,
+        "mean_mae_pct": -4.17567189870757,
+        "mean_mfe_pct": 5.183358416207954,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          165
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.7",
+        "samples": 213430,
+        "wins": 145602,
+        "path_win_1pct_rate_pct": 68.22002530103546,
+        "wilson_lower_pct": 68.02215613426308,
+        "mean_best_return_pct": 4.691408464386056,
+        "mean_5d_close_return_pct": 0.2798426256351969,
+        "mean_mae_pct": -3.3517288655854953,
+        "mean_mfe_pct": 4.791408464386056,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          165
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.7",
+        "samples": 217299,
+        "wins": 153414,
+        "path_win_1pct_rate_pct": 70.60041693703147,
+        "wilson_lower_pct": 70.40849559917733,
+        "mean_best_return_pct": 3.9287238656035273,
+        "mean_5d_close_return_pct": 0.313629003156138,
+        "mean_mae_pct": -3.0269423444574817,
+        "mean_mfe_pct": 4.028723865603533,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        256,
+        161
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 0.5,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.5,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.5",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          256,
+          161
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 0.5,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.5,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.5",
+        "samples": 512579,
+        "wins": 353922,
+        "path_win_1pct_rate_pct": 69.04730782962235,
+        "wilson_lower_pct": 68.92060494998042,
+        "mean_best_return_pct": 4.786737045378108,
+        "mean_5d_close_return_pct": 0.257637612026193,
+        "mean_mae_pct": -4.062328186026995,
+        "mean_mfe_pct": 4.886737045378111,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          256,
+          161
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 0.5,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.5,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.5",
+        "samples": 162215,
+        "wins": 110540,
+        "path_win_1pct_rate_pct": 68.14412970440465,
+        "wilson_lower_pct": 67.91696679765862,
+        "mean_best_return_pct": 4.394199864732582,
+        "mean_5d_close_return_pct": 0.2759441674243267,
+        "mean_mae_pct": -3.1648680012626156,
+        "mean_mfe_pct": 4.494199864732583,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          256,
+          161
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 0.5,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.5,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.5",
+        "samples": 164022,
+        "wins": 113706,
+        "path_win_1pct_rate_pct": 69.32362731828657,
+        "wilson_lower_pct": 69.10000081140669,
+        "mean_best_return_pct": 3.514182070452875,
+        "mean_5d_close_return_pct": 0.2051081708813925,
+        "mean_mae_pct": -2.83809019620824,
+        "mean_mfe_pct": 3.614182070452879,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        163
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.6,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.6",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          163
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.6",
+        "samples": 559318,
+        "wins": 389076,
+        "path_win_1pct_rate_pct": 69.56257442099127,
+        "wilson_lower_pct": 69.4418484102652,
+        "mean_best_return_pct": 4.93183936188626,
+        "mean_5d_close_return_pct": 0.3381045069255238,
+        "mean_mae_pct": -4.046901631306874,
+        "mean_mfe_pct": 5.0318393618862585,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          163
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.6",
+        "samples": 183035,
+        "wins": 124676,
+        "path_win_1pct_rate_pct": 68.11593411096239,
+        "wilson_lower_pct": 67.90205465333855,
+        "mean_best_return_pct": 4.51555909660026,
+        "mean_5d_close_return_pct": 0.259556370105281,
+        "mean_mae_pct": -3.2446961567170036,
+        "mean_mfe_pct": 4.615559096600262,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          163
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.6,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND volatility_10d_pct<=0.6",
+        "samples": 186295,
+        "wins": 131407,
+        "path_win_1pct_rate_pct": 70.53705145065622,
+        "wilson_lower_pct": 70.3296144687885,
+        "mean_best_return_pct": 3.7254430644643657,
+        "mean_5d_close_return_pct": 0.3047028442699679,
+        "mean_mae_pct": -2.8749843916974434,
+        "mean_mfe_pct": 3.825443064464372,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        248,
+        221
+      ],
+      "rules": [
+        {
+          "feature": "market_breadth_pct",
+          "op": ">=",
+          "threshold": 65.0,
+          "scale": "pct"
+        },
+        {
+          "feature": "turnover_pct",
+          "op": "<=",
+          "threshold": 0.7,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_breadth_pct>=65 AND turnover_pct<=0.7",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          221
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND turnover_pct<=0.7",
+        "samples": 651669,
+        "wins": 449358,
+        "path_win_1pct_rate_pct": 68.95494491835579,
+        "wilson_lower_pct": 68.84249680559003,
+        "mean_best_return_pct": 5.0789145987216795,
+        "mean_5d_close_return_pct": 0.3408514640290374,
+        "mean_mae_pct": -4.208162754079038,
+        "mean_mfe_pct": 5.17891459872169,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          221
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND turnover_pct<=0.7",
+        "samples": 212971,
+        "wins": 144841,
+        "path_win_1pct_rate_pct": 68.00972902413943,
+        "wilson_lower_pct": 67.81130302338299,
+        "mean_best_return_pct": 4.635275919149448,
+        "mean_5d_close_return_pct": 0.2241740757826349,
+        "mean_mae_pct": -3.3717871038508243,
+        "mean_mfe_pct": 4.7352759191494505,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          248,
+          221
+        ],
+        "rules": [
+          {
+            "feature": "market_breadth_pct",
+            "op": ">=",
+            "threshold": 65.0,
+            "scale": "pct"
+          },
+          {
+            "feature": "turnover_pct",
+            "op": "<=",
+            "threshold": 0.7,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_breadth_pct>=65 AND turnover_pct<=0.7",
+        "samples": 217016,
+        "wins": 152618,
+        "path_win_1pct_rate_pct": 70.32569027168503,
+        "wilson_lower_pct": 70.13313001298015,
+        "mean_best_return_pct": 3.945253204471611,
+        "mean_5d_close_return_pct": 0.30846240611904635,
+        "mean_mae_pct": -3.075016314501313,
+        "mean_mfe_pct": 4.045253204471612,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    },
+    {
+      "rule_type": "pair",
+      "rule_indices": [
+        256,
+        159
+      ],
+      "rules": [
+        {
+          "feature": "market_median_return_pct",
+          "op": ">=",
+          "threshold": 0.5,
+          "scale": "pct"
+        },
+        {
+          "feature": "volatility_10d_pct",
+          "op": "<=",
+          "threshold": 0.4,
+          "scale": "rank"
+        }
+      ],
+      "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.4",
+      "train": {
+        "rule_type": "pair",
+        "rule_indices": [
+          256,
+          159
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 0.5,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.4,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.4",
+        "samples": 409965,
+        "wins": 282589,
+        "path_win_1pct_rate_pct": 68.93003061236935,
+        "wilson_lower_pct": 68.78819049001673,
+        "mean_best_return_pct": 4.606788517341744,
+        "mean_5d_close_return_pct": 0.2342284149817855,
+        "mean_mae_pct": -3.9274050083030603,
+        "mean_mfe_pct": 4.706788517341737,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation": {
+        "rule_type": "pair",
+        "rule_indices": [
+          256,
+          159
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 0.5,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.4,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.4",
+        "samples": 129792,
+        "wins": 88226,
+        "path_win_1pct_rate_pct": 67.97491370808679,
+        "wilson_lower_pct": 67.72054984562183,
+        "mean_best_return_pct": 4.220130342526372,
+        "mean_5d_close_return_pct": 0.26390508479914165,
+        "mean_mae_pct": -3.044017112616261,
+        "mean_mfe_pct": 4.320130342526371,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "final": {
+        "rule_type": "pair",
+        "rule_indices": [
+          256,
+          159
+        ],
+        "rules": [
+          {
+            "feature": "market_median_return_pct",
+            "op": ">=",
+            "threshold": 0.5,
+            "scale": "pct"
+          },
+          {
+            "feature": "volatility_10d_pct",
+            "op": "<=",
+            "threshold": 0.4,
+            "scale": "rank"
+          }
+        ],
+        "rule_label": "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.4",
+        "samples": 131204,
+        "wins": 90336,
+        "path_win_1pct_rate_pct": 68.85155940367672,
+        "wilson_lower_pct": 68.60042406724762,
+        "mean_best_return_pct": 3.308891209844372,
+        "mean_5d_close_return_pct": 0.1809122535390366,
+        "mean_mae_pct": -2.7049311207403948,
+        "mean_mfe_pct": 3.4088912098443727,
+        "target_day_mean": NaN,
+        "stop_day_mean": NaN
+      },
+      "validation_target_80pct": false
+    }
+  ],
+  "final_qualified_rules_ge_80pct": [],
+  "audit": {
+    "no_future_features": true,
+    "path_label_target_first": true,
+    "same_day_stop_first": true,
+    "entry_is_T_plus_1_open": true,
+    "limit_up_entry_blocked": true,
+    "final_holdout_used_only_after_validation_selection": true,
+    "rule_discovery_split": "train",
+    "rule_selection_split": "validation",
+    "final_holdout_split": "final",
+    "formal_production_changed": false
+  },
+  "elapsed_seconds": 1874.86
+}
