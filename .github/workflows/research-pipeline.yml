@@ -51,6 +51,9 @@ jobs:
         working-directory: .private-strategy
         run: pytest -q
 
+      - name: 初始化研究运行目录
+        run: mkdir -p runtime
+
       - name: 第一层：全市场特征研究
         run: python scripts/train_short_term_model.py --start 2015-01-05 --final-end 2026-09-30
 
