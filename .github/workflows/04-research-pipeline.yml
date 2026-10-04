@@ -50,7 +50,8 @@ jobs:
           assert c["gates"]["future_function"] is False
           assert c["checkpoint_resume"] is True
           assert c["progress_logging"]["enabled"] is True
-          assert c["progress_logging"]["interval_seconds"] == 30
+          assert c["progress_logging"]["checkpoint_days"] == 5
+          assert c["progress_logging"]["persist_by_research_day"] is True
           print("研究契约校验通过。")
           PY
 
@@ -90,16 +91,13 @@ jobs:
           git worktree add --detach research-baseline "$PUBLIC_CODE_COMMIT"
           test "$(git -C research-baseline rev-parse HEAD)" = "$PUBLIC_CODE_COMMIT"
 
-      - name: "执行可断点续传的开发验证最终留出研究"
+      - name: "执行按交易日断点续传的开发验证最终留出研究"
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+          AQUANT_CHECKPOINT_REPO_ROOT: ${{ github.workspace }}
         working-directory: research-baseline
         run: |
-          set -o pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          mkdir -p ../data/research_runtime
           python scripts/short_term_release_validation.py \
             --development-start 2018-01-05 \
             --development-end 2024-12-20 \
@@ -109,23 +107,8 @@ jobs:
             --final-end 2026-09-30 \
             --cost-bps 3 \
             --slippage-bps 2 \
-            --output data/backtest/short_term_release_validation.json \
-            --checkpoint ../data/research_runtime/short_term_release_validation.checkpoint.json \
-            --progress-log ../data/research_runtime/short_term_release_validation.progress.jsonl &
-          RESEARCH_PID=$!
-          while kill -0 "$RESEARCH_PID" 2>/dev/null; do
-            sleep 30
-            echo "[研究进度同步] 正在检查并持久化最近断点。"
-            cd ..
-            git add data/research_runtime
-            if ! git diff --cached --quiet; then
-              git commit -m "保存历史研究断点与实时进度"
-              git push origin HEAD:main
-            fi
-            cd research-baseline
-          done
-          wait "$RESEARCH_PID"
-
+            --output ../data/backtest/short_term_release_validation.json \
+            --research-root ../data/research/short_term_release_validation
       - name: "执行研究契约最终门禁"
         run: |
           python - <<'PY'
