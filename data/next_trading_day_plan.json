@@ -1,34 +1,69 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "generated_at": "2026-10-05T00:22:00+08:00",
   "timezone": "Asia/Shanghai",
   "next_trading_day": "2026-10-08",
-  "status": "observation_only",
+  "signal_date": "2026-09-30",
+  "data_cutoff": "2026-09-30",
+  "status": "research_plan",
   "production_release": false,
-  "title": "10月8日节后首个交易日计划",
-  "summary": "国庆休市结束后的首个A股交易日。当前网页候选快照截至2026-09-30，不能直接作为10月8日开盘信号。",
+  "title": "2026年10月8日下一交易日计划",
+  "summary": "2026年10月1日至10月7日为A股国庆休市期，9月30日是当前最新可用交易日数据，因此以9月30日收盘已知数据形成10月8日开盘计划。该计划不使用10月1日至10月7日任何未知行情，不含未来函数；当前production_status为not_released，仅作为研究/模拟计划。",
+  "strategy_version": "2.5.0",
+  "strategy_commit": "41118d2ea019df87f67b240f418beafb31d4897a",
+  "candidate_policy": "0.89主层 → 0.88回退 → 0.85 Top-1救援；统一硬风控",
+  "market": {
+    "breadth_pct": 54.387,
+    "median_return_pct": 0.245,
+    "regime": "neutral"
+  },
+  "candidate_count": 1,
+  "candidates": [
+    {
+      "rank": 1,
+      "symbol": "601579",
+      "name": "会稽山",
+      "price": 37.3,
+      "score": 88.601,
+      "precision_probability": 0.886014,
+      "admission_tier": "coverage_fallback_088",
+      "signal_date": "2026-09-30",
+      "execution_date": "2026-10-08",
+      "earliest_exit_date": "2026-10-09",
+      "net_win_threshold_pct": 1,
+      "stop_loss_pct": 3,
+      "flags": []
+    }
+  ],
   "steps": [
     {
-      "time": "盘前",
-      "action": "不执行9月30日旧候选；检查最新交易日状态、数据完整性、策略版本和生产门禁状态。"
+      "time": "10月8日盘前",
+      "action": "计划候选：601579 会稽山。仅核对开盘前可执行性与硬风控状态，不重新计算使用未来行情的指标。"
+    },
+    {
+      "time": "10月8日开盘",
+      "action": "若仅作为研究/模拟执行，按9月30日收盘形成的信号对应T+1开盘执行；当前正式生产门禁未通过，不允许实盘下单。"
     },
     {
       "time": "10月8日收盘后",
-      "action": "以10月8日收盘数据重新生成2.5.0候选池，并完成候选池质量校验。"
+      "action": "把10月8日作为新的T日，使用10月8日收盘及此前数据重新生成下一交易日信号，形成10月9日计划。"
     },
     {
-      "time": "10月8日晚间",
-      "action": "将新的候选快照写入网页，明确显示候选来源、策略版本、市场状态和准入层级。"
-    },
-    {
-      "time": "10月9日开盘",
-      "action": "只有策略先通过正式发布门禁且候选快照为最新时，才允许进入下一层执行流程；当前系统不得实盘执行。"
+      "time": "10月9日起",
+      "action": "对10月8日新信号严格执行T+2最早卖出规则；同时评估9月30日信号的持仓/退出状态。"
     }
   ],
   "hard_rules": [
-    "T日收盘产生信号，T+1开盘执行，T+2起最早卖出。",
-    "当前production_status为not_released，研究候选不得视为正式生产信号。",
+    "只使用信号日收盘及之前已经存在的数据；不得使用未来交易日的收盘、最高、最低、成交量或结果标签参与选股。",
+    "T日收盘产生信号，T+1开盘执行，T+2起最早卖出，最长持有5个完整交易日。",
+    "当前production_status为not_released，研究计划不得视为正式生产信号。",
     "风险规避状态或全部候选未通过统一硬风控时允许空池。",
-    "国庆长假后的旧候选不得跨节直接继承为下一交易日实盘信号。"
-  ]
+    "节假日期间没有新的A股收盘数据时，以最新已知交易日形成下一实际交易日计划；一旦新的T日收盘数据产生，就立即生成更新计划。"
+  ],
+  "source_snapshot": {
+    "path": "data/candidates.json",
+    "as_of": "2026-09-30T18:00:00+08:00",
+    "strategy_version": "2.5.0",
+    "strategy_commit": "41118d2ea019df87f67b240f418beafb31d4897a"
+  }
 }
