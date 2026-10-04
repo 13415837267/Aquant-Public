@@ -28,7 +28,7 @@ def test_build_candidates_uses_short_term_contract():
     snapshot=build_candidates(_history(),FakeStrategy,"test","abc123")
     assert {r["symbol"] for r in snapshot["candidates"]}=={"000001","000002"}
     assert snapshot["lookback_trading_days"]==20
-    assert snapshot["signal_horizon"]=="T收盘信号 → T+1开盘进入 → 最长5个交易日"
+    assert snapshot["signal_horizon"]=="T收盘信号 → T+1开盘买入 → T+2起最早卖出 → 最长5个交易日"
     assert snapshot["strategy_source"]=="Aquant-Private/main"
     assert snapshot["diagnostics"]["candidate_count"]==2
     assert snapshot["audit"]["short_term_features_only"] is True
