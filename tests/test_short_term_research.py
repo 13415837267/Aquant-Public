@@ -16,7 +16,7 @@ def _day(symbol, open_, high, low, close, high_limit=20.0):
 
 def test_t1_position_can_exit_when_net_profit_reaches_1pct():
     future = [
-        _day("600000", 10.0, 10.6, 9.4, 10.5),
+        _day("600000", 10.0, 10.6, 9.8, 10.5),
         _day("600000", 10.5, 10.8, 10.4, 10.7),
         _day("600000", 10.7, 10.8, 10.6, 10.75),
     ]
