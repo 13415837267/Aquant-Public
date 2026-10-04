@@ -502,7 +502,7 @@ def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
     )
     git_checkpoint(
         ["data/history/_ZZSHARE_VALIDATION.json", "data/universe.json"],
-        "test: validate full-field daily bulk source",
+        "测试：验证全字段日线批量数据源",
     )
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
@@ -600,7 +600,7 @@ def backfill_daily() -> None:
         if days_since_remote_checkpoint >= DAILY_GIT_CHECKPOINT_DAYS:
             git_checkpoint(
                 ["data/history", "data/universe.json"],
-                f"data: checkpoint full-market through {trade_date}",
+                f"数据：全市场历史数据检查点至 {trade_date}",
             )
             days_since_remote_checkpoint = 0
             print(
@@ -619,7 +619,7 @@ def backfill_daily() -> None:
     if days_since_remote_checkpoint:
         git_checkpoint(
             ["data/history", "data/universe.json"],
-            f"data: checkpoint full-market through {state['completed_dates'][0]}",
+            f"数据：全市场历史数据检查点至 {state['completed_dates'][0]}",
         )
 
     state["status"] = "complete"
@@ -647,7 +647,7 @@ def backfill_daily() -> None:
     )
     git_checkpoint(
         ["data/history/_BACKFILL_STATE.json", "data/history/_BACKFILL_COMPLETE"],
-        "data: complete five-year database stock history",
+        "数据：完成五年股票历史数据库",
     )
 
 
@@ -855,7 +855,7 @@ def backfill_fundamentals() -> None:
 
             git_checkpoint(
                 [f"data/fundamentals/{table}", "data/fundamentals/_FUNDAMENTALS_STATE.json"],
-                f"data: {table} checkpoint {q}",
+                f"数据：{table} 检查点 {q}",
             )
             print(
                 f"FINANCE CHECKPOINT {table} {q}: rows={len(df)}"
@@ -895,7 +895,7 @@ def backfill_fundamentals() -> None:
             "data/fundamentals/_FUNDAMENTALS_STATE.json",
             "data/fundamentals/_FUNDAMENTALS_COMPLETE",
         ],
-        "data: complete five-year fundamentals database",
+        "数据：完成五年基本面数据库",
     )
 
 
@@ -955,7 +955,7 @@ def validate_fundamentals() -> None:
     )
     git_checkpoint(
         ["data/fundamentals/_FUNDAMENTALS_VALIDATION.json"],
-        "test: validate zzshare fundamentals source",
+        "测试：验证基本面数据源",
     )
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
