@@ -74,7 +74,7 @@ def validate_candidates(payload, private_version=None, private_commit=None):
         raise RuntimeError("factor weights must sum to 1")
     candidates = payload.get("candidates")
     policy = str(payload.get("candidate_admission_policy") or "")
-    if policy != "precision_top_2_with_089_gate_and_088_daily_fallback":
+    if policy != "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue":
         raise RuntimeError("candidate admission policy is invalid")
     max_candidates = 2
     if not isinstance(candidates, list) or len(candidates) > max_candidates: raise RuntimeError("invalid candidate count")
@@ -93,7 +93,7 @@ def validate_candidates(payload, private_version=None, private_commit=None):
         if not 0 <= score <= 100: raise RuntimeError(f"{symbol} score outside 0..100")
         if not 0 <= probability <= 1: raise RuntimeError(f"{symbol} precision_probability outside 0..1")
         tier = str(row.get("admission_tier") or "")
-        if tier not in {"primary_089","coverage_fallback_088"}: raise RuntimeError(f"{symbol} admission tier invalid")
+        if tier not in {"primary_089","coverage_fallback_088","daily_top1_rescue"}: raise RuntimeError(f"{symbol} admission tier invalid")
         if tier == "primary_089" and probability < 0.89 - 1e-9: raise RuntimeError(f"{symbol} primary probability gate failed")
         if tier == "coverage_fallback_088" and probability < 0.88 - 1e-9: raise RuntimeError(f"{symbol} fallback probability gate failed")
         if score > previous + 1e-9: raise RuntimeError("candidates not sorted by score")
@@ -107,8 +107,10 @@ def validate_candidates(payload, private_version=None, private_commit=None):
     if not isinstance(diag, dict) or diag.get("candidate_count") != len(candidates):
         raise RuntimeError("candidate diagnostics mismatch")
     fallback_count = sum(1 for row in candidates if str(row.get("admission_tier")) == "coverage_fallback_088")
-    if fallback_count > 1: raise RuntimeError("coverage fallback must select at most one candidate")
+    rescue_count = sum(1 for row in candidates if str(row.get("admission_tier")) == "daily_top1_rescue")
+    if fallback_count > 1 or rescue_count > 1 or fallback_count + rescue_count > 1: raise RuntimeError("fallback/rescue must select at most one candidate")
     if diag.get("coverage_fallback_used") != (fallback_count == 1): raise RuntimeError("coverage fallback audit mismatch")
+    if diag.get("daily_top1_rescue_used") != (rescue_count == 1): raise RuntimeError("daily top1 rescue audit mismatch")
     if diag.get("primary_candidate_count") != sum(1 for row in candidates if str(row.get("admission_tier")) == "primary_089"):
         raise RuntimeError("primary candidate diagnostics mismatch")
     if diag.get("risk_off_no_trade") != (market["regime"] == "risk_off"):
