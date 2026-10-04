@@ -34,23 +34,24 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v6
-      - name: Lock public source revision
+      - name: 检出公开仓库
+        uses: actions/checkout@v6
+      - name: 锁定公开仓库版本
         run: echo "PUBLIC_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-      - name: Checkout private strategy
+      - name: 检出私有策略
         uses: actions/checkout@v6
         with:
           repository: 13415837267/Aquant-Private
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: .private-strategy
           fetch-depth: 1
-      - name: Initialize runtime progress
+      - name: 初始化运行进度
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p runtime
           printf '%s\n' "{\"timestamp_utc\":\"$(date -u +%FT%TZ)\",\"event\":\"workflow_started\",\"run_id\":\"${GITHUB_RUN_ID}\",\"resume_run_id\":\"${{ inputs.resume_run_id }}\"}" > runtime/workflow_progress.jsonl
-      - name: Restore checkpoint from previous run
+      - name: 恢复上次研究检查点
         if: ${{ inputs.resume_run_id != '' }}
         uses: actions/download-artifact@v5
         with:
@@ -58,7 +59,7 @@ jobs:
           path: runtime
           run-id: ${{ inputs.resume_run_id }}
           github-token: ${{ github.token }}
-      - name: Record resume or fresh start
+      - name: 记录续跑或重新开始
         shell: bash
         run: |
           set -euo pipefail
@@ -67,37 +68,38 @@ jobs:
           else
             echo "{\"timestamp_utc\":\"$(date -u +%FT%TZ)\",\"event\":\"workflow_fresh_start\"}" >> runtime/workflow_progress.jsonl
           fi
-      - uses: actions/setup-python@v6
+      - name: 设置Python环境
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Install dependencies
+      - name: 安装依赖
         run: pip install -r requirements.txt
-      - name: Resolve strategy
+      - name: 解析当前策略
         id: strategy
         shell: bash
         run: |
           echo "version=$(python -c 'import sys; sys.path.insert(0, ".private-strategy"); from strategy.version import STRATEGY_VERSION; print(STRATEGY_VERSION)')" >> "$GITHUB_OUTPUT"
           echo "commit=$(git -C .private-strategy rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      - name: Python quality
+      - name: Python质量检查
         run: python -m pytest -q
-      - name: Private strategy quality
+      - name: 私有策略质量检查
         working-directory: .private-strategy
         run: python -m pytest -q
-      - name: Preserve current production candidate
+      - name: 保留当前生产候选
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p runtime
           cp data/candidates.json runtime/production_candidates.json
-      - name: Generate research candidates
+      - name: 生成研究候选
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/update_candidates.py
-      - name: Validate candidates
+      - name: 验证候选池
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/validate_candidates.py
-      - name: Run short-term research
+      - name: 运行短线历史研究
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
@@ -106,7 +108,7 @@ jobs:
           echo "{\"timestamp_utc\":\"$(date -u +%FT%TZ)\",\"event\":\"stage_started\",\"stage\":\"short_term_research\"}" >> runtime/workflow_progress.jsonl
           python scripts/short_term_research.py --start 2018-01-05 --end 2026-09-30 --cost-bps 3 --slippage-bps 2 --checkpoint runtime/research_checkpoint.json.gz --progress-log runtime/progress.jsonl
           echo "{\"timestamp_utc\":\"$(date -u +%FT%TZ)\",\"event\":\"stage_completed\",\"stage\":\"short_term_research\"}" >> runtime/workflow_progress.jsonl
-      - name: Persist checkpoint and progress
+      - name: 保存研究检查点与进度
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
@@ -116,12 +118,12 @@ jobs:
             runtime/progress.jsonl
             runtime/workflow_progress.jsonl
           retention-days: 30
-      - name: Release holdout validation
+      - name: 运行最终留出集验证
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
         run: python scripts/short_term_release_validation.py --development-start 2018-01-05 --development-end 2024-12-20 --validation-start 2025-01-02 --validation-end 2025-12-31 --final-start 2026-01-05 --final-end 2026-09-21
-      - name: Record research candidate without declaring production
+      - name: 记录研究候选，不声明生产
         shell: bash
         run: |
           set -euo pipefail
@@ -144,15 +146,15 @@ jobs:
           }
           Path("data/production_status.json").write_text(json.dumps(status,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
           PY
-      - name: Run system audit
+      - name: 运行系统审计
         run: python scripts/system_audit.py
-      - name: Record workflow failure or cancellation
+      - name: 记录工作流失败或取消
         if: ${{ failure() || cancelled() }}
         shell: bash
         run: |
           mkdir -p runtime
           echo "{\"timestamp_utc\":\"$(date -u +%FT%TZ)\",\"event\":\"workflow_interrupted\",\"status\":\"${{ job.status }}\"}" >> runtime/workflow_progress.jsonl
-      - name: Commit research outputs
+      - name: 提交研究结果
         shell: bash
         run: |
           set -euo pipefail
