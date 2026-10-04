@@ -1,0 +1,569 @@
+{
+  "schema_version": 1,
+  "status": "research_only",
+  "method": "high_precision_profit_mining",
+  "objective": "net_profit_at_least_1pct_within_5_sessions",
+  "data_start": "2015-01-05",
+  "data_end": "2026-09-30",
+  "splits": {
+    "train": [
+      "2015-01-05",
+      "2022-12-30"
+    ],
+    "validation": [
+      "2023-01-03",
+      "2024-12-31"
+    ],
+    "final": [
+      "2025-01-02",
+      "2026-09-30"
+    ]
+  },
+  "parameters": {
+    "net_win_threshold_pct": 1.0,
+    "round_trip_cost_bps": 10.0,
+    "max_forward_sessions": 5,
+    "high_precision_thresholds": [
+      0.85,
+      0.86,
+      0.87,
+      0.88,
+      0.89,
+      0.9,
+      0.91,
+      0.92,
+      0.93,
+      0.94,
+      0.95,
+      0.96,
+      0.97,
+      0.98,
+      0.99
+    ],
+    "min_selection_samples": 100,
+    "top_k_per_day": [
+      1,
+      2,
+      3,
+      5,
+      10
+    ],
+    "min_daily_topk_days": 50
+  },
+  "model": {
+    "type": "same_as_full_market_feature_training",
+    "features": [
+      "return_1d_pct",
+      "return_3d_pct",
+      "return_5d_pct",
+      "return_10d_pct",
+      "return_20d_pct",
+      "overnight_1d_pct",
+      "overnight_3d_pct",
+      "overnight_5d_pct",
+      "overnight_10d_pct",
+      "volume_ratio_5d",
+      "amount_20d",
+      "volatility_10d_pct",
+      "close_strength",
+      "intraday_return_pct",
+      "limit_up_5d_count",
+      "turnover_pct",
+      "change_pct",
+      "market_breadth_pct",
+      "market_median_return_pct"
+    ],
+    "intercept": 1.0056833058421484,
+    "coefficients": {
+      "return_1d_pct": -0.012377735070574542,
+      "return_3d_pct": 0.04156140917509991,
+      "return_5d_pct": 0.04489116716358893,
+      "return_10d_pct": 0.112526740604831,
+      "return_20d_pct": 0.12141604997111276,
+      "overnight_1d_pct": 0.019459227680592044,
+      "overnight_3d_pct": 0.00692519546463901,
+      "overnight_5d_pct": -0.0046662919632875725,
+      "overnight_10d_pct": 0.011953811785401225,
+      "volume_ratio_5d": 0.03692471507744279,
+      "amount_20d": 0.09847798332137227,
+      "volatility_10d_pct": 0.33542917081575063,
+      "close_strength": -0.03378222868296092,
+      "intraday_return_pct": -0.015260387693056047,
+      "limit_up_5d_count": 0.08042449828330982,
+      "turnover_pct": 0.2714344490244177,
+      "change_pct": -0.012377735070574485,
+      "market_breadth_pct": -0.04686513829860984,
+      "market_median_return_pct": -0.16694117694327232
+    }
+  },
+  "train": {
+    "processed_days": 1938,
+    "samples": 3487561
+  },
+  "validation": {
+    "processed_days": 484,
+    "samples": 1134319,
+    "thresholds": [
+      {
+        "probability_threshold": 0.85,
+        "samples": 209921,
+        "sample_share_pct": 18.506346098407946,
+        "wins": 177502,
+        "hit_1pct_rate_pct": 84.55657128157735,
+        "wilson_lower_pct": 84.40135177040989,
+        "mean_best_return_pct": 6.884560735072893,
+        "mean_5d_close_return_pct": -0.4319659399034249
+      },
+      {
+        "probability_threshold": 0.86,
+        "samples": 128592,
+        "sample_share_pct": 11.33649352607159,
+        "wins": 110505,
+        "hit_1pct_rate_pct": 85.93458379992535,
+        "wilson_lower_pct": 85.74348571268101,
+        "mean_best_return_pct": 7.511856454775506,
+        "mean_5d_close_return_pct": -0.5905456154497271
+      },
+      {
+        "probability_threshold": 0.87,
+        "samples": 67090,
+        "sample_share_pct": 5.91456195303085,
+        "wins": 58864,
+        "hit_1pct_rate_pct": 87.73885825011179,
+        "wilson_lower_pct": 87.48850264942088,
+        "mean_best_return_pct": 8.313384260840499,
+        "mean_5d_close_return_pct": -0.8532156082362519
+      },
+      {
+        "probability_threshold": 0.88,
+        "samples": 24672,
+        "sample_share_pct": 2.175049523105934,
+        "wins": 22223,
+        "hit_1pct_rate_pct": 90.07376783398185,
+        "wilson_lower_pct": 89.69438872795209,
+        "mean_best_return_pct": 9.34897460145571,
+        "mean_5d_close_return_pct": -1.1172466227118611
+      },
+      {
+        "probability_threshold": 0.89,
+        "samples": 4196,
+        "sample_share_pct": 0.36991357810280884,
+        "wins": 3915,
+        "hit_1pct_rate_pct": 93.30314585319351,
+        "wilson_lower_pct": 92.50649708322295,
+        "mean_best_return_pct": 10.497255998697677,
+        "mean_5d_close_return_pct": -1.3823465465136164
+      },
+      {
+        "probability_threshold": 0.9,
+        "samples": 371,
+        "sample_share_pct": 0.032706848778870846,
+        "wins": 347,
+        "hit_1pct_rate_pct": 93.53099730458221,
+        "wilson_lower_pct": 90.55504961187033,
+        "mean_best_return_pct": 9.684940061085209,
+        "mean_5d_close_return_pct": -2.2477364718780803
+      },
+      {
+        "probability_threshold": 0.91,
+        "samples": 39,
+        "sample_share_pct": 0.0034381862597734855,
+        "wins": 35,
+        "hit_1pct_rate_pct": 89.74358974358975,
+        "wilson_lower_pct": 76.42084129775517,
+        "mean_best_return_pct": 7.130528244402661,
+        "mean_5d_close_return_pct": -2.68093497537898
+      },
+      {
+        "probability_threshold": 0.92,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.93,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.94,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.95,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.96,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.97,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.98,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.99,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      }
+    ],
+    "daily_topk": [
+      {
+        "top_k_per_day": 1,
+        "days": 484,
+        "samples": 484,
+        "days_meet_minimum": true,
+        "hit_1pct_rate_pct": 90.9090909090909,
+        "wilson_lower_pct": 88.01560562898891,
+        "mean_best_return_pct": 11.211956311629558,
+        "mean_5d_close_return_pct": -1.4303886531968395
+      },
+      {
+        "top_k_per_day": 2,
+        "days": 484,
+        "samples": 968,
+        "days_meet_minimum": true,
+        "hit_1pct_rate_pct": 92.25206611570248,
+        "wilson_lower_pct": 90.39588009240535,
+        "mean_best_return_pct": 11.031880582027057,
+        "mean_5d_close_return_pct": -1.3871178478687274
+      },
+      {
+        "top_k_per_day": 3,
+        "days": 484,
+        "samples": 1452,
+        "days_meet_minimum": true,
+        "hit_1pct_rate_pct": 92.63085399449037,
+        "wilson_lower_pct": 91.17155402366478,
+        "mean_best_return_pct": 10.976911738086113,
+        "mean_5d_close_return_pct": -1.292925464352579
+      },
+      {
+        "top_k_per_day": 5,
+        "days": 484,
+        "samples": 2420,
+        "days_meet_minimum": true,
+        "hit_1pct_rate_pct": 93.05785123966942,
+        "wilson_lower_pct": 91.97543297142256,
+        "mean_best_return_pct": 10.771176559388387,
+        "mean_5d_close_return_pct": -1.286891222016864
+      },
+      {
+        "top_k_per_day": 10,
+        "days": 484,
+        "samples": 4840,
+        "days_meet_minimum": true,
+        "hit_1pct_rate_pct": 92.8099173553719,
+        "wilson_lower_pct": 92.04768640736324,
+        "mean_best_return_pct": 10.602213520415606,
+        "mean_5d_close_return_pct": -1.24772694695574
+      }
+    ]
+  },
+  "final": {
+    "processed_days": 419,
+    "samples": 1169615,
+    "thresholds": [
+      {
+        "probability_threshold": 0.85,
+        "samples": 236524,
+        "sample_share_pct": 20.222380868918403,
+        "wins": 205079,
+        "hit_1pct_rate_pct": 86.70536605164804,
+        "wilson_lower_pct": 86.56794023904322,
+        "mean_best_return_pct": 7.564901039554531,
+        "mean_5d_close_return_pct": 0.11739246652658397
+      },
+      {
+        "probability_threshold": 0.86,
+        "samples": 150882,
+        "sample_share_pct": 12.900142354535465,
+        "wins": 132333,
+        "hit_1pct_rate_pct": 87.70628703225036,
+        "wilson_lower_pct": 87.53963712689922,
+        "mean_best_return_pct": 8.189417699264803,
+        "mean_5d_close_return_pct": -0.004539625294264596
+      },
+      {
+        "probability_threshold": 0.87,
+        "samples": 80969,
+        "sample_share_pct": 6.922705334661405,
+        "wins": 72048,
+        "hit_1pct_rate_pct": 88.9822030653707,
+        "wilson_lower_pct": 88.76467788456085,
+        "mean_best_return_pct": 9.032898699253263,
+        "mean_5d_close_return_pct": -0.09245600764378709
+      },
+      {
+        "probability_threshold": 0.88,
+        "samples": 29743,
+        "sample_share_pct": 2.542973542575976,
+        "wins": 26981,
+        "hit_1pct_rate_pct": 90.71378139394143,
+        "wilson_lower_pct": 90.37865038836215,
+        "mean_best_return_pct": 9.976461790263436,
+        "mean_5d_close_return_pct": -0.2925621340885177
+      },
+      {
+        "probability_threshold": 0.89,
+        "samples": 4322,
+        "sample_share_pct": 0.3695233046771801,
+        "wins": 4018,
+        "hit_1pct_rate_pct": 92.9662193428968,
+        "wilson_lower_pct": 92.16506816491035,
+        "mean_best_return_pct": 11.0525370427039,
+        "mean_5d_close_return_pct": -0.07620248375642684
+      },
+      {
+        "probability_threshold": 0.9,
+        "samples": 253,
+        "sample_share_pct": 0.021631049533393468,
+        "wins": 246,
+        "hit_1pct_rate_pct": 97.23320158102767,
+        "wilson_lower_pct": 94.40001416001346,
+        "mean_best_return_pct": 14.012425986764413,
+        "mean_5d_close_return_pct": 5.749752725402238
+      },
+      {
+        "probability_threshold": 0.91,
+        "samples": 46,
+        "sample_share_pct": 0.00393291809698063,
+        "wins": 45,
+        "hit_1pct_rate_pct": 97.82608695652173,
+        "wilson_lower_pct": 88.66444550566696,
+        "mean_best_return_pct": 16.38287663690749,
+        "mean_5d_close_return_pct": 7.029438850028237
+      },
+      {
+        "probability_threshold": 0.92,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.93,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.94,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.95,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.96,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.97,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.98,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      },
+      {
+        "probability_threshold": 0.99,
+        "samples": 0,
+        "sample_share_pct": 0.0,
+        "wins": 0,
+        "hit_1pct_rate_pct": null,
+        "wilson_lower_pct": null,
+        "mean_best_return_pct": null,
+        "mean_5d_close_return_pct": null
+      }
+    ],
+    "daily_topk": [
+      {
+        "top_k_per_day": 1,
+        "days": 419,
+        "samples": 419,
+        "days_meet_minimum": true,
+        "hit_1pct_rate_pct": 93.7947494033413,
+        "wilson_lower_pct": 91.0631819563586,
+        "mean_best_return_pct": 11.899577008542787,
+        "mean_5d_close_return_pct": -0.7918199601051407
+      },
+      {
+        "top_k_per_day": 2,
+        "days": 419,
+        "samples": 838,
+        "days_meet_minimum": true,
+        "hit_1pct_rate_pct": 92.95942720763723,
+        "wilson_lower_pct": 91.02411550160353,
+        "mean_best_return_pct": 11.029364268505857,
+        "mean_5d_close_return_pct": -1.6036190284413825
+      },
+      {
+        "top_k_per_day": 3,
+        "days": 419,
+        "samples": 1257,
+        "days_meet_minimum": true,
+        "hit_1pct_rate_pct": 93.23786793953859,
+        "wilson_lower_pct": 91.71387982739914,
+        "mean_best_return_pct": 11.23316807744404,
+        "mean_5d_close_return_pct": -1.1955653265943649
+      },
+      {
+        "top_k_per_day": 5,
+        "days": 419,
+        "samples": 2095,
+        "days_meet_minimum": true,
+        "hit_1pct_rate_pct": 93.36515513126493,
+        "wilson_lower_pct": 92.21801311923552,
+        "mean_best_return_pct": 11.172699781568268,
+        "mean_5d_close_return_pct": -0.9573660645210573
+      },
+      {
+        "top_k_per_day": 10,
+        "days": 419,
+        "samples": 4190,
+        "days_meet_minimum": true,
+        "hit_1pct_rate_pct": 92.88782816229116,
+        "wilson_lower_pct": 92.0696389284693,
+        "mean_best_return_pct": 10.979998087064619,
+        "mean_5d_close_return_pct": -0.8552479967791331
+      }
+    ],
+    "selected_threshold": {
+      "probability_threshold": 0.9,
+      "samples": 253,
+      "sample_share_pct": 0.021631049533393468,
+      "wins": 246,
+      "hit_1pct_rate_pct": 97.23320158102767,
+      "wilson_lower_pct": 94.40001416001346,
+      "mean_best_return_pct": 14.012425986764413,
+      "mean_5d_close_return_pct": 5.749752725402238
+    },
+    "selected_threshold_yearly": [
+      {
+        "year": "2025",
+        "samples": 189,
+        "wins": 186,
+        "hit_1pct_rate_pct": 98.4126984126984,
+        "wilson_lower_pct": 95.43779603454308,
+        "mean_best_return_pct": 14.03455691618433,
+        "mean_5d_close_return_pct": 7.223328178020491
+      },
+      {
+        "year": "2026",
+        "samples": 64,
+        "wins": 60,
+        "hit_1pct_rate_pct": 93.75,
+        "wilson_lower_pct": 85.00230335750312,
+        "mean_best_return_pct": 13.947070585821216,
+        "mean_5d_close_return_pct": 1.3981002168889567
+      }
+    ]
+  },
+  "selected_validation_operating_point": {
+    "probability_threshold": 0.9,
+    "samples": 371,
+    "sample_share_pct": 0.032706848778870846,
+    "wins": 347,
+    "hit_1pct_rate_pct": 93.53099730458221,
+    "wilson_lower_pct": 90.55504961187033,
+    "mean_best_return_pct": 9.684940061085209,
+    "mean_5d_close_return_pct": -2.2477364718780803
+  },
+  "audit": {
+    "no_future_features": true,
+    "entry_is_T_plus_1_open": true,
+    "label_is_net_profit_at_least_1pct": true,
+    "future_window_is_five_sessions": true,
+    "threshold_selected_only_on_validation": true,
+    "final_holdout_used_once_after_selection": true,
+    "formal_production_changed": false
+  },
+  "elapsed_seconds": 1409.48
+}
