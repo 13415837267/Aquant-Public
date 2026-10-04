@@ -1,0 +1,104 @@
+name: "03 候选池生产"
+
+on:
+  workflow_run:
+    workflows: ["02 数据维护"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "候选生产-main"
+  cancel-in-progress: false
+
+jobs:
+  produce:
+    name: "生成候选池与下一交易日计划"
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: "检出公开仓库"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "检出固定Private策略"
+        uses: actions/checkout@v7
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          path: ../Aquant-Private
+          token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
+          fetch-depth: 1
+
+      - name: "验证策略提交未漂移"
+        env:
+          EXPECTED_PRIVATE_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+        run: |
+          ACTUAL_PRIVATE_COMMIT="$(git -C ../Aquant-Private rev-parse HEAD)"
+          echo "Private策略提交: $ACTUAL_PRIVATE_COMMIT"
+          test "$ACTUAL_PRIVATE_COMMIT" = "$EXPECTED_PRIVATE_COMMIT"
+
+      - name: "设置Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: "安装Python依赖"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: "生成候选池"
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/../Aquant-Private
+          AQUANT_PRIVATE_STRATEGY_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+        run: |
+          python scripts/update_candidates.py
+
+      - name: "生成下一交易日计划"
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: |
+          python scripts/next_trading_day_plan.py
+
+      - name: "校验下一交易日计划"
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: |
+          python scripts/next_trading_day_plan.py --validate
+
+      - name: "校验候选快照"
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          candidates = json.loads(Path("data/candidates.json").read_text(encoding="utf-8"))
+          production = json.loads(Path("data/production_status.json").read_text(encoding="utf-8"))
+          assert candidates["status"] == "ready"
+          assert candidates["future_function"] is False
+          assert candidates["strategy_source"] == "Aquant-Private/main"
+          assert candidates["strategy_commit"] == "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+          assert candidates["risk_controls"]["net_win_threshold_pct"] == 1.0
+          assert candidates["risk_controls"]["stop_loss_pct"] == 3.0
+          assert candidates["holding_window_sessions"] == [2, 5]
+          assert production["release_gate"] is False
+          assert production["system_audit"] is False
+          print("候选快照硬规则校验通过。")
+          PY
+
+      - name: "提交候选产物"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/candidates.json data/next_trading_day_plan.json
+          if git diff --cached --quiet; then
+            echo "候选产物无变化，无需提交。"
+          else
+            git commit -m "生成候选池与下一交易日计划"
+            git push
+          fi
