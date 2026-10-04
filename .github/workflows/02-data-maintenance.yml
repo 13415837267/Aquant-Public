@@ -15,7 +15,7 @@ concurrency:
 jobs:
   maintain:
     name: "交易日数据维护"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - name: "检出代码"
