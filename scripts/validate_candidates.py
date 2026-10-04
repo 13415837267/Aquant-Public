@@ -98,7 +98,7 @@ def validate_candidates(payload, private_version=None, private_commit=None):
         if tier == "coverage_fallback_088" and probability < 0.88 - 1e-9: raise RuntimeError(f"{symbol} fallback probability gate failed")
         if score > previous + 1e-9: raise RuntimeError("candidates not sorted by score")
         previous = score
-        for field in REQUIRED_CANDIDATE_FIELDS - {"rank","symbol","name"}: finite(row[field], f"{symbol}.{field}")
+        for field in REQUIRED_CANDIDATE_FIELDS - {"rank","symbol","name","admission_tier"}: finite(row[field], f"{symbol}.{field}")
         if not str(row.get("name") or "").strip(): raise RuntimeError(f"{symbol} has empty name")
     market = payload.get("market")
     if not isinstance(market, dict) or market.get("regime") not in {"risk_on","neutral","risk_off"}:
