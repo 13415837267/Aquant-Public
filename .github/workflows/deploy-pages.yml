@@ -29,6 +29,7 @@ concurrency:
 jobs:
   build:
     name: 构建网页
+    name: 构建网页
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -56,6 +57,7 @@ jobs:
           path: ./out
 
   deploy:
+    name: 部署网页
     name: 部署网页
     runs-on: ubuntu-24.04
     needs: build
