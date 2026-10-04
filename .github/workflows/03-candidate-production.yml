@@ -30,7 +30,7 @@ jobs:
         with:
           repository: 13415837267/Aquant-Private
           ref: main
-          path: ../Aquant-Private
+          path: private-strategy
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
 
@@ -38,7 +38,7 @@ jobs:
         env:
           EXPECTED_PRIVATE_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
         run: |
-          ACTUAL_PRIVATE_COMMIT="$(git -C ../Aquant-Private rev-parse HEAD)"
+          ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
           echo "Private策略提交: $ACTUAL_PRIVATE_COMMIT"
           test "$ACTUAL_PRIVATE_COMMIT" = "$EXPECTED_PRIVATE_COMMIT"
 
@@ -55,7 +55,7 @@ jobs:
 
       - name: "生成候选池"
         env:
-          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/../Aquant-Private
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
         run: |
           python scripts/update_candidates.py
