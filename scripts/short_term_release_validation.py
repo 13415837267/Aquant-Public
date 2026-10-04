@@ -168,8 +168,9 @@ def run(args):
         if start not in dates or end not in dates:
             raise ValueError(f"{name} dates must be trading dates")
         indices[name] = (dates.index(start), dates.index(end))
-        if indices[name][1] + 5 >= len(files):
-            raise ValueError(f"{name} end needs five future sessions")
+        # 窗口末端不要求数据集存在窗口外的未来交易日。
+        # 统计时只纳入能够完整观察 T+1 至 T+5 的信号日，
+        # 因此最终留出截止日附近最后五个信号日会自然被剔除。
 
     begin = max(0, indices["development"][0] - 20)
     end_i = indices["final_holdout"][1]
