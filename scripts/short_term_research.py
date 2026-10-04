@@ -173,9 +173,10 @@ def managed_trade(symbol: str, future_days: list[pd.DataFrame], round_trip_cost_
         hi = float(r.high) if pd.notna(r.high) else np.nan
         lo = float(r.low) if pd.notna(r.low) else np.nan
         cl = float(r.close) if pd.notna(r.close) else np.nan
-        if day_no == 1 and np.isfinite(op):
-            if op <= stop: return {"gross_return_pct":(op/entry-1)*100,"holding_days":1,"exit_reason":"stop_gap"}
-            if op >= target: return {"gross_return_pct":(op/entry-1)*100,"holding_days":1,"exit_reason":"target_gap"}
+        # T+1 是建仓日，项目硬规则要求 T+2 才允许退出。
+        # 因此即使 T+1 出现止损/止盈价，也不能在研究中提前平仓。
+        if day_no < MIN_EXIT_DAY:
+            continue
         if np.isfinite(lo) and lo <= stop:
             return {"gross_return_pct":(stop/entry-1)*100,"holding_days":day_no,"exit_reason":"stop"}
         if np.isfinite(hi) and hi >= target:
