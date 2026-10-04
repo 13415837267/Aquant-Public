@@ -1,0 +1,103 @@
+name: 行情与候选更新
+
+on:
+  schedule:
+    - cron: "0 10 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-data-and-candidates
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: 更新行情、候选池与下一交易日计划
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: 检出公开仓库
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: 设置Python环境
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+      - name: 检查中国A股交易日
+        id: market
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: |
+          set -euo pipefail
+          result="$(python scripts/check_trading_day.py)"
+          printf '%s\n' "$result"
+          is_trading_day="$(printf '%s\n' "$result" | awk -F= '/^IS_TRADING_DAY=/{print $2}')"
+          [[ "$is_trading_day" == "true" || "$is_trading_day" == "false" ]]
+          echo "is_trading_day=$is_trading_day" >> "$GITHUB_OUTPUT"
+      - name: 更新当前年份行情
+        if: steps.market.outputs.is_trading_day == 'true'
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/backfill_year.py --year $(date +%Y)
+      - name: 刷新股票池
+        if: steps.market.outputs.is_trading_day == 'true'
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/refresh_universe.py
+      - name: 检出私有策略
+        if: steps.market.outputs.is_trading_day == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: .private-strategy
+          fetch-depth: 1
+      - name: 生成候选池
+        if: steps.market.outputs.is_trading_day == 'true'
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+        run: |
+          set -euo pipefail
+          export AQUANT_PRIVATE_STRATEGY_COMMIT="$(git -C .private-strategy rev-parse HEAD)"
+          python scripts/update_candidates.py
+      - name: 验证候选池
+        if: steps.market.outputs.is_trading_day == 'true'
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
+        run: python scripts/validate_candidates.py
+      - name: 生成并验证下一交易日计划
+        if: steps.market.outputs.is_trading_day == 'true'
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: |
+          set -euo pipefail
+          python scripts/next_trading_day_plan.py
+          python scripts/next_trading_day_plan.py --validate
+      - name: 归档候选池
+        if: steps.market.outputs.is_trading_day == 'true'
+        run: python scripts/archive_candidates.py
+      - name: 固化数据快照
+        if: steps.market.outputs.is_trading_day == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "aquant-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/candidates.json data/candidates_history/ data/universe.json data/next_trading_day_plan.json
+          if git diff --cached --quiet; then
+            echo "数据快照无变化"
+            exit 0
+          fi
+          git commit -m "data: 更新行情候选与下一交易日计划"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
+      - name: 非交易日
+        if: steps.market.outputs.is_trading_day == 'false'
+        run: echo "中国A股今日休市，跳过行情与候选更新。"
