@@ -258,7 +258,7 @@ if __name__ == "__main__":
     ap.add_argument("--validation-start", default="2025-01-02")
     ap.add_argument("--validation-end", default="2025-12-31")
     ap.add_argument("--final-start", default="2026-01-05")
-    ap.add_argument("--final-end", default="2026-09-21")
+    ap.add_argument("--final-end", default="2026-09-30")
     ap.add_argument("--cost-bps", type=float, default=3.0)
     ap.add_argument("--slippage-bps", type=float, default=2.0)
     ap.add_argument("--output", default=str(ROOT / "data/backtest/short_term_release_validation.json"))
