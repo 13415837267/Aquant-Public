@@ -329,4 +329,6 @@ if __name__ == "__main__":
     ap.add_argument("--cost-bps", type=float, default=3.0)
     ap.add_argument("--slippage-bps", type=float, default=2.0)
     ap.add_argument("--output", default=str(ROOT / "data/backtest/short_term_release_validation.json"))
+    ap.add_argument("--checkpoint", default=str(ROOT / "data/research_runtime/short_term_release_validation.checkpoint.json"))
+    ap.add_argument("--progress-log", default=str(ROOT / "data/research_runtime/short_term_release_validation.progress.jsonl"))
     run(ap.parse_args())
