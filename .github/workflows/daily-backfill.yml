@@ -1,4 +1,4 @@
-name: 每日行情数据更新
+name: 更新每日行情数据
 
 on:
   schedule:
