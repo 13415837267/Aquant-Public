@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: latest-candidate-scan-main
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   scan:
