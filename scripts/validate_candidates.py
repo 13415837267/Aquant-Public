@@ -96,6 +96,7 @@ def validate_candidates(payload, private_version=None, private_commit=None):
         if tier not in {"primary_089","coverage_fallback_088","daily_top1_rescue"}: raise RuntimeError(f"{symbol} admission tier invalid")
         if tier == "primary_089" and probability < 0.89 - 1e-9: raise RuntimeError(f"{symbol} primary probability gate failed")
         if tier == "coverage_fallback_088" and probability < 0.88 - 1e-9: raise RuntimeError(f"{symbol} fallback probability gate failed")
+        if tier == "daily_top1_rescue" and probability < 0.85 - 1e-9: raise RuntimeError(f"{symbol} daily rescue probability floor failed")
         if score > previous + 1e-9: raise RuntimeError("candidates not sorted by score")
         previous = score
         for field in REQUIRED_CANDIDATE_FIELDS - {"rank","symbol","name","admission_tier"}: finite(row[field], f"{symbol}.{field}")
