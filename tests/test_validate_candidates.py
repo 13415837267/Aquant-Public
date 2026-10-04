@@ -8,7 +8,7 @@ def _payload():
         "strategy_source":"Aquant-Private/main","strategy_version":"2.1.0","strategy_commit":"abc123",
         "market_scope":"沪深主板","universe":"沪深主板；排除 ST/退市相关标的",
         "history_window_start":"2026-09-03","history_window_end":"2026-09-30","history_files_used":20,
-        "lookback_trading_days":20,"signal_horizon":"T收盘信号 → T+1开盘进入 → 最长5个交易日",
+        "lookback_trading_days":20,"signal_horizon":"T收盘信号 → T+1开盘买入 → T+2起最早卖出 → 最长5个交易日",
         "factor_weights":{"momentum_short":0.25,"overnight_structure":0.15,"volume_activity":0.20,"price_strength":0.10,"liquidity":0.15,"safety":0.15},
         "market":{"breadth_pct":58.0,"median_return_pct":0.4,"regime":"risk_on"},
         "candidates":[
