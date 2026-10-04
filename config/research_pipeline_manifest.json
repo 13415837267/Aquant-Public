@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "status": "research_architecture_rebuilt",
+  "timezone": "Asia/Shanghai",
+  "formal_cloud_runtime": "GitHub Actions",
+  "strategy_source": {
+    "repository": "13415837267/Aquant-Private",
+    "branch": "main",
+    "rule": "研究结果不得直接改写策略源；只有通过独立验证、最终留出、系统审计和发布门禁后才允许进入正式生产。"
+  },
+  "hard_rules": {
+    "signal": "T日收盘",
+    "entry": "T+1开盘",
+    "earliest_exit": "T+2",
+    "max_holding_sessions": 5,
+    "net_win_threshold_pct": 1.0,
+    "stop_loss_pct": 3.0,
+    "future_function": false,
+    "timezone": "Asia/Shanghai"
+  },
+  "pipeline": [
+    {
+      "stage": 1,
+      "name": "数据层",
+      "workflow": "数据更新",
+      "inputs": ["行情数据源", "中国A股交易日历"],
+      "outputs": ["data/history", "data/universe", "data/fundamentals"],
+      "writes_strategy_source": false
+    },
+    {
+      "stage": 2,
+      "name": "特征研究",
+      "workflow": "研究流水线",
+      "modules": [
+        "scripts/train_short_term_model.py",
+        "scripts/train_path_aware_model.py"
+      ],
+      "outputs": [
+        "data/backtest/feature_training_latest.json",
+        "data/backtest/path_aware_feature_training_latest.json"
+      ],
+      "writes_strategy_source": false
+    },
+    {
+      "stage": 3,
+      "name": "规则挖掘",
+      "workflow": "研究流水线",
+      "modules": [
+        "scripts/path_rule_mining.py",
+        "scripts/path_regime_rule_mining.py",
+        "scripts/high_precision_profit_mining.py",
+        "scripts/strict_path_strategy_score_mining.py"
+      ],
+      "outputs": [
+        "data/backtest/path_rule_mining_latest.json",
+        "data/backtest/path_regime_rule_mining_latest.json",
+        "data/backtest/high_precision_profit_mining_latest.json",
+        "data/backtest/strict_path_strategy_score_mining_latest.json"
+      ],
+      "writes_strategy_source": false
+    },
+    {
+      "stage": 4,
+      "name": "综合历史研究与最终留出",
+      "workflow": "研究流水线",
+      "modules": [
+        "scripts/short_term_research.py",
+        "scripts/short_term_release_validation.py"
+      ],
+      "outputs": [
+        "data/backtest/short_term_latest.json",
+        "data/backtest/short_term_sensitivity.json",
+        "data/backtest/short_term_exit_diagnostics.json",
+        "data/backtest/short_term_release_validation.json"
+      ],
+      "gate": "最终留出集必须独立于开发与参数选择"
+    },
+    {
+      "stage": 5,
+      "name": "候选层",
+      "workflow": "行情与候选更新",
+      "modules": [
+        "scripts/update_candidates.py",
+        "scripts/validate_candidates.py",
+        "scripts/next_trading_day_plan.py"
+      ],
+      "outputs": [
+        "data/candidates.json",
+        "data/next_trading_day_plan.json"
+      ],
+      "source_of_truth": "data/candidates.json"
+    },
+    {
+      "stage": 6,
+      "name": "系统审计",
+      "workflow": "系统审计",
+      "module": "scripts/system_audit.py",
+      "outputs": ["data/system_audit.json"],
+      "production_release": false
+    },
+    {
+      "stage": 7,
+      "name": "发布门禁",
+      "workflow": "正式发布门禁",
+      "condition": "仅人工明确触发；必须同时满足最终留出、系统审计、策略来源一致性和全部硬规则。",
+      "outputs": ["data/production_status.json"],
+      "production_release": true
+    },
+    {
+      "stage": 8,
+      "name": "网页层",
+      "workflow": "网页质量与部署",
+      "rule": "只展示数据与状态，不自动下单。"
+    }
+  ],
+  "isolation_rules": [
+    "研究工作流不使用push触发，避免研究结果提交后递归触发研究。",
+    "研究阶段只在同一云端运行中顺序执行，最终统一固化结果，避免多个研究工作流互相覆盖。",
+    "生产发布必须与研究运行解耦，正式发布使用独立人工门禁。",
+    "候选池与下一交易日计划只允许有一个权威来源，不维护第二套候选列表。",
+    "所有研究运行必须锁定Public与Private提交版本；运行期间发现版本变化必须拒绝固化结果。",
+    "研究结果失败不应写入生产状态为已发布。"
+  ]
+}
