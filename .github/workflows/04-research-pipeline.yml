@@ -34,7 +34,7 @@ jobs:
           p = Path("config/research_run_contract.json")
           c = json.loads(p.read_text(encoding="utf-8"))
           assert c["status"] == "locked_for_research"
-          assert c["public_code_commit"] == "b4bbc8b1080b2a5105286c205c25e3bcfdcd8ebf"
+          assert c["public_code_commit"] == "0f7adbfe79b22db548f04f5363617dfe436cf781"
           assert c["private_commit"] == "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
           assert c["data_cutoff"] == "2026-09-30"
           assert c["execution"]["signal"] == "T_close"
@@ -48,6 +48,9 @@ jobs:
           assert c["gates"]["final_holdout_threshold_win_rate_pct"] >= 80
           assert c["gates"]["minimum_managed_trade_samples"] >= 100
           assert c["gates"]["future_function"] is False
+          assert c["checkpoint_resume"] is True
+          assert c["progress_logging"]["enabled"] is True
+          assert c["progress_logging"]["interval_seconds"] == 30
           print("研究契约校验通过。")
           PY
 
@@ -81,19 +84,45 @@ jobs:
 
       - name: "建立固定公开代码研究基线"
         env:
-          PUBLIC_CODE_COMMIT: "b4bbc8b1080b2a5105286c205c25e3bcfdcd8ebf"
+          PUBLIC_CODE_COMMIT: "0f7adbfe79b22db548f04f5363617dfe436cf781"
         run: |
           git fetch --no-tags origin "$PUBLIC_CODE_COMMIT" --depth=1
           git worktree add --detach research-baseline "$PUBLIC_CODE_COMMIT"
           test "$(git -C research-baseline rev-parse HEAD)" = "$PUBLIC_CODE_COMMIT"
 
-      - name: "执行开发验证最终留出研究"
+      - name: "执行可断点续传的开发验证最终留出研究"
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
         working-directory: research-baseline
         run: |
-          python scripts/short_term_release_validation.py             --development-start 2018-01-05             --development-end 2024-12-20             --validation-start 2025-01-02             --validation-end 2025-12-31             --final-start 2026-01-05             --final-end 2026-09-30             --cost-bps 3             --slippage-bps 2             --output data/backtest/short_term_release_validation.json
+          set -o pipefail
+          mkdir -p ../data/research_runtime
+          python scripts/short_term_release_validation.py \
+            --development-start 2018-01-05 \
+            --development-end 2024-12-20 \
+            --validation-start 2025-01-02 \
+            --validation-end 2025-12-31 \
+            --final-start 2026-01-05 \
+            --final-end 2026-09-30 \
+            --cost-bps 3 \
+            --slippage-bps 2 \
+            --output data/backtest/short_term_release_validation.json \
+            --checkpoint ../data/research_runtime/short_term_release_validation.checkpoint.json \
+            --progress-log ../data/research_runtime/short_term_release_validation.progress.jsonl &
+          RESEARCH_PID=$!
+          while kill -0 "$RESEARCH_PID" 2>/dev/null; do
+            sleep 30
+            echo "[研究进度同步] 正在检查并持久化最近断点。"
+            cd ..
+            git add data/research_runtime
+            if ! git diff --cached --quiet; then
+              git commit -m "保存历史研究断点与实时进度"
+              git push origin HEAD:main
+            fi
+            cd research-baseline
+          done
+          wait "$RESEARCH_PID"
 
       - name: "执行研究契约最终门禁"
         run: |
@@ -171,15 +200,7 @@ jobs:
             "production_version": None,
             "note": "研究已通过验证集与最终留出门禁，等待系统审计；正式生产发布仍未开启。",
           }
-          payload["validation"]["managed_trade"]["wilson_lower_pct"] = wilson_lower(
-              payload["validation"]["managed_trade"]["samples"],
-              round(payload["validation"]["managed_trade"]["samples"] * payload["validation"]["managed_trade"]["threshold_win_rate_pct"] / 100)
-          )
-          payload["final_holdout"]["managed_trade"]["wilson_lower_pct"] = wilson_lower(
-              payload["final_holdout"]["managed_trade"]["samples"],
-              round(payload["final_holdout"]["managed_trade"]["samples"] * payload["final_holdout"]["managed_trade"]["threshold_win_rate_pct"] / 100)
-          )
-          Path("data/research_status.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          # 研究结果没有独立wins字段时不反推Wilson下界，避免虚构胜场数。\n          Path("data/research_status.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           Path("data/backtest/short_term_release_validation.json").write_text(
               json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
           )
