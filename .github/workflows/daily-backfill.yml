@@ -71,17 +71,17 @@ jobs:
         run: python scripts/update_candidates.py
 
       - name: Validate candidate pool
-        if: steps.market.outputs.is_trading_day == 'true' && steps.production.outputs.production_ready == 'true'
+        if: steps.market.outputs.is_trading_day == 'true'
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/validate_candidates.py
 
       - name: Archive candidate pool
-        if: steps.market.outputs.is_trading_day == 'true' && steps.production.outputs.production_ready == 'true'
+        if: steps.market.outputs.is_trading_day == 'true'
         run: python scripts/archive_candidates.py
 
       - name: Publish candidate snapshot
-        if: steps.market.outputs.is_trading_day == 'true' && steps.production.outputs.production_ready == 'true'
+        if: steps.market.outputs.is_trading_day == 'true'
         shell: bash
         run: |
           set -euo pipefail
