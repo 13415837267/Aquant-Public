@@ -146,6 +146,10 @@ jobs:
           }
           Path("data/production_status.json").write_text(json.dumps(status,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
           PY
+      - name: 生成下一交易日计划
+        run: python scripts/next_trading_day_plan.py
+      - name: 验证下一交易日计划
+        run: python scripts/next_trading_day_plan.py --validate
       - name: 运行系统审计
         run: python scripts/system_audit.py
       - name: 记录工作流失败或取消
@@ -170,7 +174,7 @@ jobs:
             echo "Private/main strategy changed during research; refusing stale result commit."
             exit 1
           fi
-          git add data/candidates.json data/backtest/research_candidates.json data/backtest/short_term_latest.json data/backtest/short_term_sensitivity.json data/backtest/short_term_exit_diagnostics.json data/backtest/short_term_release_validation.json data/system_audit.json
+          git add data/candidates.json data/backtest/research_candidates.json data/backtest/short_term_latest.json data/backtest/short_term_sensitivity.json data/backtest/short_term_exit_diagnostics.json data/backtest/short_term_release_validation.json data/system_audit.json data/production_status.json data/next_trading_day_plan.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "research: validate short-term strategy"
           git push origin HEAD:main
