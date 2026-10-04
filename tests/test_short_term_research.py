@@ -14,7 +14,7 @@ def _day(symbol, open_, high, low, close, high_limit=20.0):
     }])
 
 
-def test_t1_position_can_exit_when_net_profit_reaches_1pct():
+def test_t1_position_cannot_exit_on_entry_session():
     future = [
         _day("600000", 10.0, 10.6, 9.8, 10.5),
         _day("600000", 10.5, 10.8, 10.4, 10.7),
@@ -22,8 +22,7 @@ def test_t1_position_can_exit_when_net_profit_reaches_1pct():
     ]
     result = managed_trade("600000", future)
     assert result is not None
-    assert result["holding_days"] == 1
-    assert result["exit_reason"] == "target"
+    assert result["holding_days"] >= 2
 
 
 def test_entry_at_upper_limit_is_not_executable():
