@@ -1,4 +1,4 @@
-name: Daily Market Data Update
+name: 每日行情数据更新
 
 on:
   schedule:
