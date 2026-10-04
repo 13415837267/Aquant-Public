@@ -35,6 +35,98 @@
     "risk_off_no_trade": false
   },
   "candidates": [],
+  "research_observation_candidates": [
+    {
+      "rank": 1,
+      "symbol": "601579",
+      "name": "会稽山",
+      "price": 37.3,
+      "change_pct": -0.956,
+      "score": 88.601,
+      "precision_probability": 0.886014
+    },
+    {
+      "rank": 2,
+      "symbol": "002913",
+      "name": "奥士康",
+      "price": 92.3,
+      "change_pct": 1.339,
+      "score": 88.576,
+      "precision_probability": 0.885762
+    },
+    {
+      "rank": 3,
+      "symbol": "002640",
+      "name": "跨境通",
+      "price": 3.91,
+      "change_pct": -0.761,
+      "score": 88.487,
+      "precision_probability": 0.884867
+    },
+    {
+      "rank": 4,
+      "symbol": "002342",
+      "name": "巨力索具",
+      "price": 8.25,
+      "change_pct": -2.367,
+      "score": 88.373,
+      "precision_probability": 0.883728
+    },
+    {
+      "rank": 5,
+      "symbol": "600059",
+      "name": "古越龙山",
+      "price": 12.27,
+      "change_pct": 10.045,
+      "score": 88.289,
+      "precision_probability": 0.882895
+    },
+    {
+      "rank": 6,
+      "symbol": "002303",
+      "name": "美盈森",
+      "price": 6.8,
+      "change_pct": 1.493,
+      "score": 88.255,
+      "precision_probability": 0.882546
+    },
+    {
+      "rank": 7,
+      "symbol": "000592",
+      "name": "平潭发展",
+      "price": 8.53,
+      "change_pct": -2.403,
+      "score": 88.171,
+      "precision_probability": 0.88171
+    },
+    {
+      "rank": 8,
+      "symbol": "002074",
+      "name": "国轩高科",
+      "price": 29.5,
+      "change_pct": 2.859,
+      "score": 88.133,
+      "precision_probability": 0.881326
+    },
+    {
+      "rank": 9,
+      "symbol": "001201",
+      "name": "东瑞股份",
+      "price": 15.82,
+      "change_pct": 0.636,
+      "score": 88.128,
+      "precision_probability": 0.881284
+    },
+    {
+      "rank": 10,
+      "symbol": "001317",
+      "name": "三羊马",
+      "price": 61.85,
+      "change_pct": -1.04,
+      "score": 88.121,
+      "precision_probability": 0.881205
+    }
+  ],
   "factor_weights": {
     "momentum_short": 0.25,
     "overnight_structure": 0.15,
