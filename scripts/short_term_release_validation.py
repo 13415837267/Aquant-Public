@@ -185,7 +185,7 @@ def run(args):
                 bucket["forward_3d"].append(r3)
             if r5 is not None:
                 bucket["forward_5d"].append(r5)
-            trade = managed_trade(symbol, future)
+            trade = managed_trade(symbol, future, round_trip_cost_bps=2*(args.cost_bps+args.slippage_bps))
             if trade:
                 bucket["trades"].append(trade)
 
