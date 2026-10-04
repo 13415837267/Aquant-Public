@@ -34,7 +34,7 @@ jobs:
           p = Path("config/research_run_contract.json")
           c = json.loads(p.read_text(encoding="utf-8"))
           assert c["status"] == "locked_for_research"
-          assert c["public_code_commit"] == "9e0419753d4f203d8ee2d13a45202329eca9ff96"
+          assert c["public_code_commit"] == "b4bbc8b1080b2a5105286c205c25e3bcfdcd8ebf"
           assert c["private_commit"] == "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
           assert c["data_cutoff"] == "2026-09-30"
           assert c["execution"]["signal"] == "T_close"
@@ -81,7 +81,7 @@ jobs:
 
       - name: "建立固定公开代码研究基线"
         env:
-          PUBLIC_CODE_COMMIT: "9e0419753d4f203d8ee2d13a45202329eca9ff96"
+          PUBLIC_CODE_COMMIT: "b4bbc8b1080b2a5105286c205c25e3bcfdcd8ebf"
         run: |
           git fetch --no-tags origin "$PUBLIC_CODE_COMMIT" --depth=1
           git worktree add --detach research-baseline "$PUBLIC_CODE_COMMIT"
