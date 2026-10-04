@@ -6,11 +6,11 @@ on:
     paths:
       - "scripts/short_term_research.py"
       - "scripts/update_candidates.py"
-      - "scripts/validate_candidates.py"
-      - "scripts/system_audit.py"
+      - "scripts/train_path_aware_model.py"
+      - "scripts/path_rule_mining.py"
+      - "tests/test_short_term_research.py"
       - "scripts/short_term_release_validation.py"
       - "requirements.txt"
-      - "tests/test_validate_candidates.py"
   schedule:
     - cron: "0 13 * * 0"
   workflow_dispatch:
@@ -174,4 +174,4 @@ jobs:
           git push origin HEAD:main
 
 # Cloud research must follow the current Private/main strategy implementation.
-# Precision research candidate: Private 2.2.0.
+# Precision research candidate follows the latest Aquant-Private/main checkout.
