@@ -2,8 +2,7 @@ name: 更新每日行情数据
 
 on:
   schedule:
-    # Check every calendar day at 18:00 Beijing time; continue only when
-    # the China A-share trade calendar says today is open.
+    # 每个自然日检查一次；只有中国A股交易日才更新行情与候选。
     - cron: "0 10 * * *"
   workflow_dispatch:
 
@@ -78,6 +77,14 @@ jobs:
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
         run: python scripts/validate_candidates.py
+      - name: 生成下一交易日计划
+        if: steps.market.outputs.is_trading_day == 'true'
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/next_trading_day_plan.py
+      - name: 验证下一交易日计划
+        if: steps.market.outputs.is_trading_day == 'true'
+        run: python scripts/next_trading_day_plan.py --validate
 
       - name: 归档候选池
         if: steps.market.outputs.is_trading_day == 'true'
@@ -90,7 +97,7 @@ jobs:
           set -euo pipefail
           git config user.name "aquant-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json data/candidates_history/ data/universe.json
+          git add data/candidates.json data/candidates_history/ data/universe.json data/next_trading_day_plan.json
           if git diff --cached --quiet; then
             echo "Candidate snapshot unchanged"
             exit 0
@@ -109,4 +116,4 @@ jobs:
 
       - name: 非交易日
         if: steps.market.outputs.is_trading_day == 'false'
-        run: echo "China A-share market is closed today; data update skipped."
+        run: echo "中国A股今日休市，跳过行情与候选更新。"
