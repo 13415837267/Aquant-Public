@@ -5,12 +5,11 @@ on:
     paths:
       - "data/history/_BACKFILL_COMPLETE"
       - "data/fundamentals/_FUNDAMENTALS_COMPLETE"
-      - "data/candidates.json"
       - "data/backtest/short_term_latest.json"
       - "data/backtest/short_term_sensitivity.json"
       - "data/backtest/short_term_exit_diagnostics.json"
       - "data/backtest/short_term_release_validation.json"
-      - "scripts/system_audit.py"
+      - "data/production_status.json"
   workflow_dispatch:
   schedule:
     - cron: "30 12 * * 1-5"
