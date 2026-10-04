@@ -13,13 +13,16 @@ import math
 import time
 from collections import deque
 from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
 
 from scripts.short_term_research import FeatureState, history_files, read_daily
 
-ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "data" / "backtest"
 
 FEATURES = [
