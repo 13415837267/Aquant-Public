@@ -248,7 +248,7 @@ def new_acc(shape) -> dict:
 
 def int_dot(left: np.ndarray, right: np.ndarray) -> np.ndarray:
     """Integer matrix products must use int64; uint8 matmul silently wraps."""
-    return left.astype(np.int64) @ right.astype(np.int64)
+    return left.astype(np.int64).T @ right.astype(np.int64)
 
 
 def int_vector_dot(left: np.ndarray, right: np.ndarray) -> int:
