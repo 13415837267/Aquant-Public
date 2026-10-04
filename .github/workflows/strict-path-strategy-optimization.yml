@@ -43,13 +43,9 @@ jobs:
       - name: 严格路径评分优化研究
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/.private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: ${{ steps.strategy.outputs.commit }}
         run: |
           set -Eeuo pipefail
-          python - <<'PY' >> "${GITHUB_ENV}"
-          import subprocess
-          print("AQUANT_PRIVATE_STRATEGY_COMMIT="+subprocess.check_output(["git","-C",".private-strategy","rev-parse","HEAD"],text=True).strip())
-          PY
+          export AQUANT_PRIVATE_STRATEGY_COMMIT="$(git -C .private-strategy rev-parse HEAD)"
           python scripts/strict_path_strategy_score_mining.py --start 2015-01-05 --final-end 2026-09-30
       - name: 上传研究结果
         if: always()
