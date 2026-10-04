@@ -19,9 +19,10 @@ MAX_HOLD = 6
 MIN_EXIT_DAY = 2
 MAX_HOLDING_SESSIONS = 5
 ENTRY_LIMIT_UP_BLOCK = True
-TARGET_PCT = 6.0
 STOP_PCT = 3.0
 WIN_THRESHOLD_PCT = 1.0
+ROUND_TRIP_COST_BPS = 10.0
+TARGET_PCT = WIN_THRESHOLD_PCT + ROUND_TRIP_COST_BPS / 100.0
 
 
 def history_files():
@@ -147,7 +148,7 @@ class FeatureState:
         return frame.loc[usable].copy()
 
 
-def managed_trade(symbol: str, future_days: list[pd.DataFrame]):
+def managed_trade(symbol: str, future_days: list[pd.DataFrame], round_trip_cost_bps: float = ROUND_TRIP_COST_BPS):
     if not future_days: return None
     first = future_days[0]
     row = first.loc[first["symbol"].eq(symbol)]
@@ -229,6 +230,10 @@ def _checkpoint_payload(next_i, state, trade_rows, forward_rows, daily, candidat
     return {
         "schema_version": 1, "status": status,
         "start": args.start, "end": args.end,
+        "win_definition": "net_profit_at_least_1pct",
+        "target_gross_pct": TARGET_PCT,
+        "stop_loss_gross_pct": STOP_PCT,
+        "round_trip_cost_bps": ROUND_TRIP_COST_BPS,
         "cost_bps": args.cost_bps, "slippage_bps": args.slippage_bps,
         "strategy_version": version, "strategy_commit": commit,
         "next_active_index": next_i, "state": _state_to_jsonable(state),
@@ -249,7 +254,8 @@ def stats(rows, cost_bps, slippage_bps):
     dd = eq/eq.cummax()-1
     return {
         "samples":int(len(net)),
-        "win_rate_pct":float((net>0).mean()*100),
+        "win_rate_pct":float((net>=WIN_THRESHOLD_PCT).mean()*100),
+        "positive_rate_pct":float((net>0).mean()*100),
         "threshold_win_rate_pct":float((net>=WIN_THRESHOLD_PCT).mean()*100),
         "win_threshold_pct":float(WIN_THRESHOLD_PCT),
         "mean_return_pct":float(net.mean()),
@@ -345,7 +351,7 @@ def run(args):
                             close_value=futures[idx].loc[futures[idx]["symbol"].eq(symbol)]
                             if not close_value.empty and pd.notna(close_value.iloc[0].get("close")):
                                 forward_rows[horizon].append((float(close_value.iloc[0]["close"])/entry-1.0)*100.0)
-            tr=managed_trade(symbol,futures)
+            tr=managed_trade(symbol,futures,round_trip_cost_bps=2*(args.cost_bps+args.slippage_bps))
             if tr:
                 tr.update({"signal_date":signal_date,"symbol":symbol,"score":float(row.score)})
                 trade_rows.append(tr); by_symbol[symbol]=tr
