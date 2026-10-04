@@ -1,6 +1,6 @@
 """Short-term 1-5 session research for the production candidate strategy.
 
-Research trigger: precision strategy 2.2.0.
+Research trigger: precision strategy 2.2.0 regression validation.
 """
 from __future__ import annotations
 
