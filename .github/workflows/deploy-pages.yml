@@ -1,4 +1,4 @@
-name: Deploy GitHub Pages
+name: 网页部署
 
 on:
   push:
