@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "status": "locked_for_research",
+  "timezone": "Asia/Shanghai",
+  "public_repository": "13415837267/Aquant-Public",
+  "public_commit": "9e0419753d4f203d8ee2d13a45202329eca9ff96",
+  "private_repository": "13415837267/Aquant-Private",
+  "private_branch": "main",
+  "private_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
+  "data_cutoff": "2026-09-30",
+  "windows": {
+    "development": [
+      "2018-01-05",
+      "2024-12-20"
+    ],
+    "validation": [
+      "2025-01-02",
+      "2025-12-31"
+    ],
+    "final_holdout": [
+      "2026-01-05",
+      "2026-09-30"
+    ]
+  },
+  "execution": {
+    "signal": "T_close",
+    "entry": "T+1_open",
+    "earliest_exit": "T+2",
+    "max_holding_sessions": 5,
+    "target_net_profit_pct": 1,
+    "stop_loss_pct": 3,
+    "entry_limit_up_block": true
+  },
+  "costs": {
+    "cost_bps": 3,
+    "slippage_bps": 2
+  },
+  "gates": {
+    "validation_threshold_win_rate_pct": 80,
+    "final_holdout_threshold_win_rate_pct": 80,
+    "minimum_managed_trade_samples": 100,
+    "future_function": false
+  },
+  "rules": [
+    "运行开始后必须验证Public当前提交等于public_commit。",
+    "策略源必须验证Private当前提交等于private_commit。",
+    "任何源码版本漂移都必须使本次研究失败，不得固化结果。",
+    "最终留出不得参与参数、阈值或策略选择。",
+    "研究失败不得写入正式生产状态。"
+  ]
+}
