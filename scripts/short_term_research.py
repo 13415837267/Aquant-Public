@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 HISTORY_DIR = ROOT / "data" / "history"
 OUT_DIR = ROOT / "data" / "backtest"
-MAX_HOLD = 6
+MAX_HOLD = 5
 MIN_EXIT_DAY = 2
 MAX_HOLDING_SESSIONS = 5
 ENTRY_LIMIT_UP_BLOCK = True
