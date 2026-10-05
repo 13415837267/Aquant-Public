@@ -112,7 +112,7 @@ def build_targets(symbols, future_days):
                 break
         labels[j] = outcome
         # 研究指标仍记录5日收盘收益，但标签严格服从止盈/止损路径。
-        best_net[j] = np.nanmax(np.minimum(highs[j, 1:] / entry[j] - 1.0, 0.0) + 0.0) if False else (np.nanmax(highs[j, 1:]) / entry[j] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0)
+        best_net[j] = np.nanmax(highs[j, 1:]) / entry[j] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         close_net[j] = closes[j, -1] / entry[j] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
     return labels, best_net, close_net, complete
 
