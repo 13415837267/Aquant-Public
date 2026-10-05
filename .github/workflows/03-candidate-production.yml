@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/03-candidate-production.yml"
       - "scripts/generate_research_candidates.py"
+      - "scripts/archive_candidates.py"
       - "scripts/high_precision_profit_mining.py"
       - "scripts/train_short_term_model.py"
       - "scripts/short_term_research.py"
