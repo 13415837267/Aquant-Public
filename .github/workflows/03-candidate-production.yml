@@ -6,6 +6,9 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+  push:
+    paths:
+      - data/manual_candidate_refresh.json
 
 permissions:
   contents: write
@@ -29,6 +32,11 @@ jobs:
         id: check
         run: |
           set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "手动刷新请求：使用最近一个已完成交易日数据生成候选池。"
+            echo "is_trading_day=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           test -f data/trading_day_status.json
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import json
