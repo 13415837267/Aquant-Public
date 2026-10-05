@@ -79,6 +79,14 @@ jobs:
             --final-end 2026-09-30 \
             --output data/backtest/high_precision_profit_mining_retrained.json
 
+      - name: "保存研究模型实验产物"
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: "严格标签生产兼容模型研究"
+          path: data/backtest/high_precision_profit_mining_retrained.json
+          if-no-files-found: warn
+          retention-days: 30
       - name: "检出固定Private策略"
         uses: actions/checkout@v7
         with:
