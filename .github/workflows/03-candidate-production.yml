@@ -1,0 +1,134 @@
+name: "03 候选池生产"
+
+on:
+  workflow_run:
+    workflows: ["02 数据维护"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "候选生产-main"
+  cancel-in-progress: false
+
+jobs:
+  produce:
+    name: "按正式基准生成候选池与下一交易日计划"
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: "检出公开仓库"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "读取交易日状态"
+        id: trading_day
+        run: |
+          set -euo pipefail
+          test -f data/trading_day_status.json
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+          p = json.loads(Path("data/trading_day_status.json").read_text(encoding="utf-8"))
+          print(f"is_trading_day={str(bool(p.get('is_trading_day'))).lower()}")
+          PY
+
+      - name: "非交易日停止候选生产"
+        if: steps.trading_day.outputs.is_trading_day != 'true' && github.event_name != 'workflow_dispatch'
+        run: echo "非交易日不生成新的候选池，网页继续使用最近一个已完成交易日快照。"
+
+      - name: "检出固定Private策略用于审计"
+        if: steps.trading_day.outputs.is_trading_day == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v7
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          path: private-strategy
+          token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
+          fetch-depth: 1
+
+      - name: "验证策略源提交"
+        if: steps.trading_day.outputs.is_trading_day == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
+          echo "Private/main 当前提交: $ACTUAL_PRIVATE_COMMIT"
+          test "$ACTUAL_PRIVATE_COMMIT" = "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+
+      - name: "设置Python"
+        if: steps.trading_day.outputs.is_trading_day == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: "安装Python依赖"
+        if: steps.trading_day.outputs.is_trading_day == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: "归档上一交易日候选池"
+        if: steps.trading_day.outputs.is_trading_day == 'true' || github.event_name == 'workflow_dispatch'
+        run: python scripts/archive_candidates.py
+
+      - name: "按第一版训练基准生成候选池"
+        if: steps.trading_day.outputs.is_trading_day == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          python scripts/generate_research_candidates.py             --start 2019-01-02             --threshold 0.60             --output data/candidates.json
+
+      - name: "生成下一交易日计划"
+        if: steps.trading_day.outputs.is_trading_day == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/next_trading_day_plan.py
+
+      - name: "校验下一交易日计划"
+        if: steps.trading_day.outputs.is_trading_day == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/next_trading_day_plan.py --validate
+
+      - name: "校验第一版正式基准快照"
+        if: steps.trading_day.outputs.is_trading_day == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          candidates = json.loads(Path("data/candidates.json").read_text(encoding="utf-8"))
+          production = json.loads(Path("data/production_status.json").read_text(encoding="utf-8"))
+          trial = json.loads(Path("data/research_trial_status.json").read_text(encoding="utf-8"))
+          assert candidates["status"] == "ready"
+          assert candidates["future_function"] is False
+          assert candidates["strategy_version"] == trial["strategy_version"]
+          assert candidates["strategy_commit"] == trial["model_code_commit"]
+          assert candidates["model_definition"]["probability_threshold"] == 0.60
+          assert candidates["candidate_admission_policy"] == "top_2_by_recent_window_model_probability_threshold_0.60"
+          assert candidates["risk_controls"]["net_win_threshold_pct"] == 1.0
+          assert candidates["risk_controls"]["stop_loss_pct"] == 3.0
+          assert candidates["holding_window_sessions"] == [2, 5]
+          assert production["production_version"] == "1.0.0"
+          assert production["status"] == "released"
+          assert production["release_gate"] is True
+          assert production["system_audit"] is True
+          assert production["strategy_quality_gate_passed"] is False
+          print("第一版正式基准硬规则校验通过。")
+          PY
+
+      - name: "提交候选池与下一交易日计划"
+        if: steps.trading_day.outputs.is_trading_day == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/candidates.json data/next_trading_day_plan.json data/candidates_history
+          if git diff --cached --quiet; then
+            echo "候选产物无变化，无需提交。"
+          else
+            git commit -m "生产：按第一版正式基准更新候选池与下一交易日计划"
+            git push
+          fi
