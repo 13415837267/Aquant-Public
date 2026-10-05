@@ -150,7 +150,7 @@ jobs:
           from pathlib import Path
           from datetime import datetime, timezone
 
-          result = json.loads(Path("research-baseline/data/backtest/short_term_release_validation.json").read_text(encoding="utf-8"))
+          result = json.loads(Path("data/backtest/short_term_release_validation.json").read_text(encoding="utf-8"))
           contract = json.loads(Path("config/research_run_contract.json").read_text(encoding="utf-8"))
 
           def wilson_lower(samples, wins, z=1.959963984540054):
