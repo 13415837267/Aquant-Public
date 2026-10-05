@@ -33,9 +33,18 @@ def archive_candidates(payload: dict, root: Path = HISTORY_ROOT) -> Path:
             existing_payload = json.loads(destination.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise RuntimeError(f"candidate history is unreadable: {destination}") from exc
-        if existing_payload != payload:
-            raise RuntimeError(f"candidate history is immutable and differs: {destination}")
-        return destination
+        if existing_payload == payload:
+            return destination
+        version = str(payload.get("strategy_version") or "未知版本").replace("/", "_")
+        commit = str(payload.get("strategy_commit") or "未知提交")[:10]
+        versioned = root / f"{day.year:04d}" / f"{day.isoformat()}__{version}__{commit}.json"
+        if versioned.exists():
+            existing_versioned = json.loads(versioned.read_text(encoding="utf-8"))
+            if existing_versioned != payload:
+                raise RuntimeError(f"candidate history version collision: {versioned}")
+            return versioned
+        versioned.write_text(serialized, encoding="utf-8")
+        return versioned
 
     destination.write_text(serialized, encoding="utf-8")
     return destination
