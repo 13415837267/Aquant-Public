@@ -24,12 +24,17 @@ def test_archive_candidates_is_idempotent(tmp_path):
     assert second.read_text(encoding="utf-8") == first_content
 
 
-def test_archive_candidates_rejects_mutation_of_existing_day(tmp_path):
-    archive_candidates(_payload(), tmp_path)
+def test_archive_candidates_versions_same_day_when_payload_changes(tmp_path):
+    first = _payload()
+    archive_candidates(first, tmp_path)
     changed = _payload()
     changed["candidates"][0]["symbol"] = "600001"
-    with pytest.raises(RuntimeError, match="immutable"):
-        archive_candidates(changed, tmp_path)
+    changed["strategy_version"] = "新训练基准"
+    changed["strategy_commit"] = "1234567890abcdef"
+    path = archive_candidates(changed, tmp_path)
+    assert path.name == "2026-09-30__新训练基准__1234567890.json"
+    assert path.exists()
+    assert path != tmp_path / "2026" / "2026-09-30.json"
 
 
 def test_archive_candidates_rejects_non_ready(tmp_path):
