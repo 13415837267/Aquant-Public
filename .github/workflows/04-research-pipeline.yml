@@ -79,6 +79,20 @@ jobs:
             --final-end 2026-09-30 \
             --output data/backtest/high_precision_profit_mining_retrained.json
 
+      - name: "执行云端路径感知梯度提升训练"
+        run: |
+          python scripts/train_path_aware_gbdt.py \
+            --output data/backtest/path_aware_gbdt_research.json
+
+      - name: "保存路径感知模型实验产物"
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: "路径感知梯度提升模型研究"
+          path: data/backtest/path_aware_gbdt_research.json
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: "保存研究模型实验产物"
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
