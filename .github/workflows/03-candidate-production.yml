@@ -17,7 +17,7 @@ concurrency:
 jobs:
   produce:
     name: "按正式基准生成候选池与下一交易日计划"
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
