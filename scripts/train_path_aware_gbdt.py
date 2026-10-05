@@ -12,7 +12,6 @@ from pathlib import Path
 import sys
 
 import numpy as np
-import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +30,8 @@ NET_WIN_THRESHOLD_PCT = 1.0
 MAX_PER_CLASS = 250_000
 SEED = 42
 THRESHOLDS = tuple(np.arange(0.50, 0.991, 0.01))
+MIN_OPERATING_SAMPLES = 1000
+MIN_OPERATING_SAMPLE_SHARE_PCT = 1.0
 
 
 def add_reservoir(buffers, x, y, rng):
@@ -62,9 +63,7 @@ def collect_training(files, dates):
         if date < dates[0] or date > TRAIN_END or frame.empty or i + MAX_FORWARD_SESSIONS >= len(files):
             continue
         future = [read_daily(files[i + j]) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
-        labels, _, _, complete = build_targets(
-            frame["symbol"].astype(str).str.zfill(6).tolist(), future
-        )
+        labels, _, _, complete = build_targets(frame["symbol"].astype(str).str.zfill(6).tolist(), future)
         keep = np.flatnonzero(complete)
         if len(keep):
             add_reservoir(buffers, make_features(frame)[keep], labels[keep].astype(np.int8), rng)
@@ -88,9 +87,7 @@ def collect_eval(files, dates, start, end, model):
         if date < start or date > end or frame.empty or i + MAX_FORWARD_SESSIONS >= len(files):
             continue
         future = [read_daily(files[i + j]) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
-        labels, _, _, complete = build_targets(
-            frame["symbol"].astype(str).str.zfill(6).tolist(), future
-        )
+        labels, _, _, complete = build_targets(frame["symbol"].astype(str).str.zfill(6).tolist(), future)
         keep = np.flatnonzero(complete)
         if len(keep):
             x = make_features(frame)[keep]
@@ -107,16 +104,18 @@ def collect_eval(files, dates, start, end, model):
 def rows_for(metrics):
     if not metrics:
         return []
+    ps = np.concatenate([m[1] for m in metrics])
+    ys = np.concatenate([m[2] for m in metrics])
+    total = len(ys)
     out = []
     for threshold in THRESHOLDS:
-        ps = np.concatenate([m[1] for m in metrics])
-        ys = np.concatenate([m[2] for m in metrics])
         mask = ps >= threshold
         n = int(mask.sum())
         wins = int(ys[mask].sum())
         out.append({
             "probability_threshold": round(float(threshold), 2),
             "samples": n,
+            "sample_share_pct": float(n / total * 100.0) if total else 0.0,
             "wins": wins,
             "hit_1pct_rate_pct": float(wins / n * 100.0) if n else None,
         })
@@ -124,7 +123,11 @@ def rows_for(metrics):
 
 
 def select(rows):
-    eligible = [r for r in rows if r["samples"] >= 100]
+    eligible = [
+        r for r in rows
+        if r["samples"] >= MIN_OPERATING_SAMPLES
+        and r["sample_share_pct"] >= MIN_OPERATING_SAMPLE_SHARE_PCT
+    ]
     return max(eligible, key=lambda r: (r["hit_1pct_rate_pct"], r["samples"])) if eligible else None
 
 
@@ -152,12 +155,8 @@ def main():
     )
     model.fit(x, y)
 
-    validation, validation_days, validation_samples = collect_eval(
-        files, dates, VALIDATION_START, VALIDATION_END, model
-    )
-    final, final_days, final_samples = collect_eval(
-        files, dates, FINAL_START, FINAL_END, model
-    )
+    validation, validation_days, validation_samples = collect_eval(files, dates, VALIDATION_START, VALIDATION_END, model)
+    final, final_days, final_samples = collect_eval(files, dates, FINAL_START, FINAL_END, model)
 
     validation_rows = rows_for(validation)
     final_rows = rows_for(final)
@@ -170,7 +169,7 @@ def main():
         )
 
     result = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "research_only",
         "method": "hist_gradient_boosting_path_aware",
         "objective": "net_profit_at_least_1pct_before_3pct_stop_within_5_sessions",
@@ -184,6 +183,8 @@ def main():
             "class_weight": "balanced",
             "seed": SEED,
             "max_training_samples_per_class": MAX_PER_CLASS,
+            "min_operating_samples": MIN_OPERATING_SAMPLES,
+            "min_operating_sample_share_pct": MIN_OPERATING_SAMPLE_SHARE_PCT,
         },
         "train": {"processed_days": train_days, "raw_samples": train_samples, "samples": int(len(y)), "positive_rate_pct": float(y.mean() * 100.0)},
         "validation": {"processed_days": validation_days, "samples": validation_samples, "thresholds": validation_rows},
@@ -196,6 +197,7 @@ def main():
             "exit_starts_T_plus_2": True,
             "strict_stop_first_managed_label": True,
             "final_holdout_used_once_after_validation_selection": True,
+            "minimum_operating_sample_guard": True,
             "production_changed": False,
         },
         "elapsed_seconds": round(time.time() - started, 2),
