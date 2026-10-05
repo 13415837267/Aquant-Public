@@ -1,0 +1,64 @@
+name: "05 网页自动部署"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/**"
+      - "data/candidates.json"
+      - "data/next_trading_day_plan.json"
+      - "data/production_status.json"
+      - "data/research_trial_status.json"
+      - "data/research_status.json"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "网页部署-main"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "构建第一版系统网页"
+    runs-on: ubuntu-24.04
+    steps:
+      - name: "检出公开仓库"
+        uses: actions/checkout@v7
+
+      - name: "设置Node.js"
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: "安装网页依赖"
+        run: npm ci
+
+      - name: "构建静态网页"
+        run: npm run build
+
+      - name: "上传网页构建产物"
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  deploy:
+    name: "部署第一版系统网页"
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: "部署到GitHub Pages"
+        id: deployment
+        uses: actions/deploy-pages@v4
