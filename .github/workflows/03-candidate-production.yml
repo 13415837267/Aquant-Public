@@ -1,6 +1,14 @@
 name: "03 候选池生产"
 
 on:
+  push:
+    paths:
+      - ".github/workflows/03-candidate-production.yml"
+      - "scripts/generate_research_candidates.py"
+      - "scripts/high_precision_profit_mining.py"
+      - "scripts/train_short_term_model.py"
+      - "scripts/short_term_research.py"
+      - "data/research_trial_status.json"
   workflow_run:
     workflows: ["02 数据维护"]
     types: [completed]
@@ -11,12 +19,12 @@ permissions:
 
 concurrency:
   group: "候选生产-main"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   produce:
-    name: "生成候选池与下一交易日计划"
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    name: "按训练基准生成候选池与下一交易日计划"
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -25,7 +33,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: "检出固定Private策略"
+      - name: "检出固定Private策略用于审计"
         uses: actions/checkout@v7
         with:
           repository: 13415837267/Aquant-Private
@@ -34,7 +42,7 @@ jobs:
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
 
-      - name: "验证策略提交未漂移"
+      - name: "验证Private策略提交未漂移"
         env:
           EXPECTED_PRIVATE_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
         run: |
@@ -53,12 +61,16 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: "生成候选池"
-        env:
-          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+      - name: "归档上一版候选池"
         run: |
-          python scripts/update_candidates.py
+          python scripts/archive_candidates.py
+
+      - name: "按近期训练窗口模型重新生成候选池"
+        run: |
+          python scripts/generate_research_candidates.py \
+            --start 2019-01-02 \
+            --threshold 0.60 \
+            --output data/candidates.json
 
       - name: "生成下一交易日计划"
         env:
@@ -72,33 +84,36 @@ jobs:
         run: |
           python scripts/next_trading_day_plan.py --validate
 
-      - name: "校验候选快照"
+      - name: "校验训练基准候选快照"
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           candidates = json.loads(Path("data/candidates.json").read_text(encoding="utf-8"))
           production = json.loads(Path("data/production_status.json").read_text(encoding="utf-8"))
+          trial = json.loads(Path("data/research_trial_status.json").read_text(encoding="utf-8"))
           assert candidates["status"] == "ready"
           assert candidates["future_function"] is False
-          assert candidates["strategy_source"] == "Aquant-Private/main"
-          assert candidates["strategy_commit"] == "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+          assert candidates["strategy_version"] == trial["strategy_version"]
+          assert candidates["strategy_commit"] == trial["model_code_commit"]
+          assert candidates["model_definition"]["probability_threshold"] == trial["selected_operating_point"]["probability_threshold"]
+          assert candidates["candidate_admission_policy"] == "top_2_by_recent_window_model_probability_threshold_0.60"
           assert candidates["risk_controls"]["net_win_threshold_pct"] == 1.0
           assert candidates["risk_controls"]["stop_loss_pct"] == 3.0
           assert candidates["holding_window_sessions"] == [2, 5]
           assert production["release_gate"] is False
           assert production["system_audit"] is False
-          print("候选快照硬规则校验通过。")
+          print("训练基准候选快照硬规则校验通过。")
           PY
 
       - name: "提交候选产物"
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json data/next_trading_day_plan.json
+          git add data/candidates.json data/next_trading_day_plan.json data/candidates_history
           if git diff --cached --quiet; then
             echo "候选产物无变化，无需提交。"
           else
-            git commit -m "生成候选池与下一交易日计划"
+            git commit -m "按训练基准生成候选池与下一交易日计划"
             git push
           fi
