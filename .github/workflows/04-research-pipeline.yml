@@ -161,7 +161,7 @@ jobs:
           }
           print(json.dumps({"门禁检查": checks, "验证集": validation["managed_trade"], "最终留出": final["managed_trade"]}, ensure_ascii=False, indent=2))
           gate_path = Path("data/research_gate.json")
-          gate_path.write_text(json.dumps({"release_gate": all(checks.values()), "checks": checks}, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+          gate_path.write_text(json.dumps({"release_gate": all(checks.values()), "checks": checks}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           if not all(checks.values()):
               print("研究未通过正式发布门禁；结果保留为未发布状态，流水线继续保存审计结果。")
           PY
