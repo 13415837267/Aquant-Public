@@ -31,6 +31,17 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: "设置Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: "安装Python依赖"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
       - name: "读取研究契约"
         id: contract
         run: |
@@ -84,17 +95,6 @@ jobs:
           ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
           echo "Private策略提交: $ACTUAL_PRIVATE_COMMIT"
           test "$ACTUAL_PRIVATE_COMMIT" = "$EXPECTED_PRIVATE_COMMIT"
-
-      - name: "设置Python"
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.11"
-          cache: pip
-
-      - name: "安装Python依赖"
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
 
       - name: "建立固定公开代码研究基线"
         env:
