@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "status": "stale",
+  "status": "archived_historical",
   "as_of": "2026-10-04T08:29:18Z",
   "timezone": "Asia/Shanghai",
   "strategy_source": "Aquant-Private/main",
@@ -66,5 +66,6 @@
   "current_candidate_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
   "production_release": false,
   "production_version": null,
-  "stale_reason": "策略源已回退/更新且研究退出规则已修复；旧研究结果尚未按当前策略重新验证，禁止作为当前信号或生产依据。"
+  "stale_reason": "策略源已回退/更新且研究退出规则已修复；旧研究结果尚未按当前策略重新验证，禁止作为当前信号或生产依据。",
+  "archived_reason": "旧2.5.0研究状态已不再作为当前候选生成基准；保留仅用于历史审计与性能对照。当前第一版系统基准为 data/research_trial_status.json。"
 }
