@@ -130,6 +130,115 @@ jobs:
             --slippage-bps 2 \
             --output ../data/backtest/short_term_release_validation.json \
             --research-root ../data/research/short_term_release_validation
+      - name: "诊断正式候选链与严格交易标签"
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+        working-directory: research-baseline
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+          import numpy as np
+          import pandas as pd
+
+          sys.path.insert(0, str(Path.cwd()))
+          from scripts.short_term_research import FeatureState, history_files, managed_trade, read_daily
+
+          private_root = os.environ["AQUANT_PRIVATE_STRATEGY_PATH"]
+          sys.path.insert(0, private_root)
+          from strategy import model
+
+          files = history_files()
+          dates = [p.name[:10] for p in files]
+          windows = {
+              "development": ("2018-01-05", "2024-12-20"),
+              "validation": ("2025-01-02", "2025-12-31"),
+              "final_holdout": ("2026-01-05", "2026-09-30"),
+          }
+          index = {name: (dates.index(start), dates.index(end)) for name, (start, end) in windows.items()}
+          begin = max(0, index["development"][0] - 20)
+          end_i = index["final_holdout"][1]
+          active = files[begin:end_i + 6]
+          cache = {}
+
+          def get(i):
+              if i not in cache:
+                  cache[i] = read_daily(active[i])
+              return cache[i]
+
+          state = FeatureState()
+          summary = {
+              name: {
+                  "signal_days": 0, "candidate_days": 0, "candidates": 0,
+                  "tiers": {}, "wins": 0, "positive": 0, "stops": 0,
+                  "targets": 0, "max_hold": 0, "managed_samples": 0
+              } for name in windows
+          }
+
+          for i in range(len(active) - 5):
+              date = active[i].name[:10]
+              period = next((name for name, (start, end) in windows.items() if start <= date <= end), None)
+              frame = state.build(get(i))
+              if period is None or frame.empty:
+                  continue
+              summary[period]["signal_days"] += 1
+              scored = model.score_universe(frame)
+              safe = model.admit_candidates(scored)
+              if safe.empty:
+                  continue
+              summary[period]["candidate_days"] += 1
+              summary[period]["candidates"] += len(safe)
+              for tier, count in safe["admission_tier"].value_counts().items():
+                  summary[period]["tiers"][str(tier)] = summary[period]["tiers"].get(str(tier), 0) + int(count)
+              future = [get(i + j) for j in range(1, 6)]
+              for symbol in safe["symbol"].astype(str).str.zfill(6):
+                  trade = managed_trade(symbol, future, round_trip_cost_bps=10.0)
+                  if trade is None:
+                      continue
+                  summary[period]["managed_samples"] += 1
+                  gross = float(trade["gross_return_pct"])
+                  net = gross - 0.10
+                  summary[period]["wins"] += int(net >= 1.0)
+                  summary[period]["positive"] += int(net > 0.0)
+                  reason = trade.get("exit_reason")
+                  summary[period][{"stop":"stops","target":"targets","max_hold":"max_hold"}.get(reason, "max_hold")] += 1
+
+          out = {
+              "schema_version": 1,
+              "status": "research_only",
+              "strategy_version": "2.5.0",
+              "strategy_commit": os.environ["AQUANT_PRIVATE_STRATEGY_COMMIT"],
+              "research_code_commit": "13c93ae0cf3c34075729411e7c91e84f616d859a",
+              "objective": "定位正式候选准入层与严格交易标签之间的性能损失",
+              "windows": summary,
+              "audit": {
+                  "future_function": False,
+                  "entry": "T+1_open",
+                  "earliest_exit": "T+2",
+                  "max_holding_sessions": 5,
+                  "target_net_profit_pct": 1.0,
+                  "stop_loss_pct": 3.0,
+                  "stop_first": True
+              }
+          }
+          Path("../data/research/production_candidate_diagnostic.json").parent.mkdir(parents=True, exist_ok=True)
+          Path("../data/research/production_candidate_diagnostic.json").write_text(
+              json.dumps(out, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(out, ensure_ascii=False, indent=2))
+          PY
+
+      - name: "保存候选链诊断产物"
+        uses: actions/upload-artifact@v6
+        with:
+          name: "正式候选链严格标签诊断"
+          path: data/research/production_candidate_diagnostic.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: "执行研究契约最终门禁"
         run: |
           python - <<'PY'
