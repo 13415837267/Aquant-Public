@@ -7,7 +7,7 @@
   "strategy_source": "04历史研究流水线",
   "training_window": {
     "start": "2019-01-02",
-    "end": "2022-12-30"
+    "end": "2026-09-30"
   },
   "objective": "单笔净利润达到+1%才计为胜，最长5个交易日",
   "selected_operating_point": {
