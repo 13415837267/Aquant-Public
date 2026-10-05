@@ -49,6 +49,29 @@ def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-np.clip(x, -30.0, 30.0)))
 
 
+class ProductionCompatibleLogisticModel:
+    """与正式策略相同特征空间的严格标签逻辑模型，仅用于研究。"""
+
+    def __init__(self, n_features, learning_rate=0.08, l2=0.02, epochs=2):
+        self.w = np.zeros(n_features, dtype=np.float64)
+        self.b = 0.0
+        self.learning_rate = learning_rate
+        self.l2 = l2
+        self.epochs = epochs
+
+    def update(self, x, y):
+        if len(y) == 0:
+            return
+        for _ in range(self.epochs):
+            p = sigmoid(x @ self.w + self.b)
+            err = p - y
+            self.w -= self.learning_rate * ((x.T @ err) / len(y) + self.l2 * self.w)
+            self.b -= self.learning_rate * float(err.mean())
+
+    def predict(self, x):
+        return sigmoid(x @ self.w + self.b)
+
+
 class NonlinearModel:
     """轻量两层神经网络，仅用于研究，不进入正式生产策略。"""
 
@@ -277,6 +300,7 @@ def main():
         raise ValueError("训练区间必须落在历史数据文件范围内")
 
     model = NonlinearModel(len(FEATURES))
+    compatible_model = ProductionCompatibleLogisticModel(len(FEATURES))
     train_state = FeatureState()
     train_dates = dates
     train_start_i, train_end_i = train_dates.index(args.start), train_dates.index(TRAIN_END)
@@ -307,6 +331,7 @@ def main():
         x = x_all[keep]
         y = labels[keep].astype(np.float64)
         model.update(x, y)
+        compatible_model.update(x, y)
         train_samples += len(y)
         train_days += 1
         if train_days % 50 == 0:
@@ -316,9 +341,17 @@ def main():
     validation_metrics, validation_days, validation_samples = collect_scored(
         files, VALIDATION_START, VALIDATION_END, validation_state, model
     )
+    compatible_validation_state = FeatureState()
+    compatible_validation_metrics, _, _ = collect_scored(
+        files, VALIDATION_START, VALIDATION_END, compatible_validation_state, compatible_model
+    )
     final_state = FeatureState()
     final_metrics, final_days, final_samples = collect_scored(
         files, FINAL_START, args.final_end, final_state, model
+    )
+    compatible_final_state = FeatureState()
+    compatible_final_metrics, _, _ = collect_scored(
+        files, FINAL_START, args.final_end, compatible_final_state, compatible_model
     )
 
     validation_thresholds = threshold_rows(validation_metrics)
@@ -368,6 +401,24 @@ def main():
         "train": {
             "processed_days": train_days,
             "samples": train_samples,
+        },
+        "production_compatible_logistic": {
+            "parameters": {
+                "learning_rate": compatible_model.learning_rate,
+                "l2": compatible_model.l2,
+                "epochs": compatible_model.epochs,
+            },
+            "features": FEATURES,
+            "intercept": float(compatible_model.b),
+            "coefficients": {name: float(value) for name, value in zip(FEATURES, compatible_model.w)},
+            "validation": {
+                "thresholds": threshold_rows(compatible_validation_metrics),
+                "daily_topk": daily_topk_rows(compatible_validation_metrics),
+            },
+            "final": {
+                "thresholds": threshold_rows(compatible_final_metrics),
+                "daily_topk": daily_topk_rows(compatible_final_metrics),
+            },
         },
         "validation": {
             "processed_days": validation_days,
