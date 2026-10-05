@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "release_id": "第一版正式系统",
+  "production_version": "1.0.0",
+  "status": "正式启用",
+  "baseline_locked": true,
+  "baseline_as_of": "2026-10-06T00:00:00+08:00",
+  "timezone": "Asia/Shanghai",
+  "execution_environment": "GitHub Actions云端",
+  "branch_policy": {
+    "public": "main",
+    "private": "main",
+    "multiple_branches_allowed": false
+  },
+  "strategy_source": {
+    "repository": "13415837267/Aquant-Private",
+    "branch": "main",
+    "commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+  },
+  "model_baseline": {
+    "version": "近期训练窗口研究版",
+    "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
+    "training_start": "2019-01-02",
+    "training_end": "2026-09-30",
+    "data_cutoff": "2026-09-30",
+    "probability_threshold": 0.6,
+    "top_k": 2,
+    "candidate_policy": "top_2_by_recent_window_model_probability_threshold_0.60"
+  },
+  "trading_rules": {
+    "signal": "T收盘",
+    "entry": "T+1开盘",
+    "earliest_exit": "T+2",
+    "max_holding_sessions": 5,
+    "net_win_threshold_pct": 1,
+    "stop_loss_pct": 3,
+    "future_function": false
+  },
+  "quality_gate": {
+    "target_win_rate_pct": 80,
+    "final_holdout_win_rate_pct": 62.32080906207761,
+    "passed": false,
+    "live_ordering_enabled": false
+  },
+  "daily_flow": [
+    "01 Python质量检查",
+    "02 北京时间18:00交易日数据维护",
+    "03 按固定训练基准生成候选池与下一交易日计划",
+    "05 GitHub Pages网页构建与部署"
+  ],
+  "research_flow": [
+    "04 云端训练与三段式历史验证",
+    "按交易日保存研究进度与检查点",
+    "研究结果与正式生产状态分离"
+  ],
+  "web_consistency": {
+    "candidate_source": "data/candidates.json",
+    "plan_source": "data/candidates.json",
+    "non_trading_day": "显示最近一个已完成交易日快照",
+    "single_snapshot": true
+  },
+  "audit": {
+    "release_gate": true,
+    "system_audit": true,
+    "production_is_research_simulation_only": true,
+    "automatic_ordering": false
+  }
+}
