@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "status": "trial_only",
+  "as_of": "2026-10-05T20:36:07Z",
+  "timezone": "Asia/Shanghai",
+  "strategy_version": "近期训练窗口研究版",
+  "strategy_source": "04历史研究流水线",
+  "training_window": {
+    "start": "2019-01-02",
+    "end": "2026-09-30"
+  },
+  "objective": "单笔净利润达到+1%才计为胜，最长5个交易日",
+  "selected_operating_point": {
+    "probability_threshold": 0.60,
+    "final_samples": 604453,
+    "final_sample_share_pct": 51.67965527117898,
+    "final_win_rate_pct": 62.32080906207761,
+    "final_wilson_lower_pct": 62.198567434676534,
+    "final_mean_best_return_pct": 3.4717421696520017,
+    "final_mean_5d_close_return_pct": 0.2891653504084042
+  },
+  "validation": {
+    "samples": 594155,
+    "win_rate_pct": 59.150221743484444,
+    "wilson_lower_pct": 59.02517183052377
+  },
+  "audits": {
+    "no_future_features": true,
+    "entry_is_T_plus_1_open": true,
+    "exit_starts_T_plus_2": true,
+    "strict_profit_label": true
+  },
+  "production_release": false,
+  "formal_gate_pct": 80.0,
+  "note": "本研究版仅用于网页观察和模拟研究，不改变正式生产门禁，不作为实盘信号。"
+}
