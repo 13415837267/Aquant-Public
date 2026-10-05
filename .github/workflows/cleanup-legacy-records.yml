@@ -1,0 +1,66 @@
+name: 清理历史运行与部署记录
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  actions: write
+  contents: write
+  deployments: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: 清理历史工作流运行
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -Eeuo pipefail
+          gh api --paginate "repos/${REPO}/actions/runs?per_page=100" --jq '.workflow_runs[].id' |
+          while read -r run_id; do
+            [ -z "${run_id}" ] && continue
+            [ "${run_id}" = "${CURRENT_RUN_ID}" ] && continue
+            gh api --method DELETE "repos/${REPO}/actions/runs/${run_id}" >/dev/null || true
+          done
+
+      - name: 清理历史构件
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          gh api --paginate "repos/${REPO}/actions/artifacts?per_page=100" --jq '.artifacts[].id' |
+          while read -r artifact_id; do
+            [ -z "${artifact_id}" ] && continue
+            gh api --method DELETE "repos/${REPO}/actions/artifacts/${artifact_id}" >/dev/null || true
+          done
+
+      - name: 清理历史部署
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          gh api --paginate "repos/${REPO}/deployments?per_page=100" --jq '.[].id' |
+          while read -r deployment_id; do
+            [ -z "${deployment_id}" ] && continue
+            gh api --method DELETE "repos/${REPO}/deployments/${deployment_id}" >/dev/null || true
+          done
+
+      - name: 删除一次性清理文件
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          for path in             ".github/workflows/cleanup-legacy-records.yml"             ".github/workflows/清理旧运行与部署记录.yml"; do
+            if file_sha="$(gh api "repos/${REPO}/contents/${path}?ref=main" --jq '.sha' 2>/dev/null)"; then
+              gh api --method DELETE "repos/${REPO}/contents/${path}"                 -f message="清理一次性历史记录流程"                 -f sha="${file_sha}"                 -f branch="main" >/dev/null || true
+            fi
+          done
