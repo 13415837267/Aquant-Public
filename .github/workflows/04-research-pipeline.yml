@@ -5,7 +5,7 @@ on:
     - cron: "0 12 * * 6"
   workflow_dispatch:
     inputs:
-      恢复运行编号:
+      resume_run_id:
         description: "可选：填写已有研究运行编号，从最近成功检查点继续"
         required: false
         default: ""
