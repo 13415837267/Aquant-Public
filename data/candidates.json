@@ -2,9 +2,9 @@
   "as_of": "2026-09-30T18:00:00+08:00",
   "timezone": "Asia/Shanghai",
   "source": "Aquant-Public data/history",
-  "status": "ready",
+  "status": "archived_stale",
   "strategy_source": "Aquant-Private/main",
-  "strategy_version": "2.5.0",
+  "strategy_version": "第一版正式基准",
   "strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
   "market_scope": "沪深主板：000001-004999.SZ（排除001001-001199 CDR）+ 600/601/603/605.SH",
   "universe": "沪深主板；排除 ST/退市相关标的、停牌、价格≤2元、最近交易日成交额<3000万元",
@@ -15,8 +15,8 @@
     5
   ],
   "risk_controls": {
-    "net_win_threshold_pct": 1.0,
-    "stop_loss_pct": 3.0,
+    "net_win_threshold_pct": 1,
+    "stop_loss_pct": 3,
     "max_positions": 2,
     "sell_start_session": 2
   },
@@ -31,130 +31,14 @@
     "latest_basic_eligible_rows": 2644,
     "latest_basic_filter_exclusions": 408,
     "scorable_rows": 2641,
-    "candidate_count": 1,
+    "candidate_count": 0,
     "primary_candidate_count": 0,
     "coverage_fallback_used": true,
     "daily_top1_rescue_used": false,
     "risk_off_no_trade": false
   },
-  "candidates": [
-    {
-      "rank": 1,
-      "symbol": "601579",
-      "name": "会稽山",
-      "price": 37.3,
-      "change_pct": -0.956,
-      "return_3d_pct": -1.945,
-      "return_5d_pct": -0.427,
-      "return_10d_pct": 44.854,
-      "volume_ratio_5d": 1.129,
-      "turnover_pct": 11.032,
-      "amount": 2040286101.52,
-      "volatility_10d_pct": 6.678,
-      "close_strength": 0.0,
-      "overnight_1d_pct": 0.0,
-      "overnight_3d_pct": 5.319,
-      "overnight_5d_pct": 8.936,
-      "intraday_return_pct": -0.956,
-      "limit_up_5d_count": 1.0,
-      "score": 88.601,
-      "precision_probability": 0.886014,
-      "admission_tier": "coverage_fallback_088",
-      "flags": []
-    }
-  ],
-  "research_observation_candidates": [
-    {
-      "rank": 1,
-      "symbol": "601579",
-      "name": "会稽山",
-      "price": 37.3,
-      "change_pct": -0.956,
-      "score": 88.601,
-      "precision_probability": 0.886014
-    },
-    {
-      "rank": 2,
-      "symbol": "002913",
-      "name": "奥士康",
-      "price": 92.3,
-      "change_pct": 1.339,
-      "score": 88.576,
-      "precision_probability": 0.885762
-    },
-    {
-      "rank": 3,
-      "symbol": "002640",
-      "name": "跨境通",
-      "price": 3.91,
-      "change_pct": -0.761,
-      "score": 88.487,
-      "precision_probability": 0.884867
-    },
-    {
-      "rank": 4,
-      "symbol": "002342",
-      "name": "巨力索具",
-      "price": 8.25,
-      "change_pct": -2.367,
-      "score": 88.373,
-      "precision_probability": 0.883728
-    },
-    {
-      "rank": 5,
-      "symbol": "600059",
-      "name": "古越龙山",
-      "price": 12.27,
-      "change_pct": 10.045,
-      "score": 88.289,
-      "precision_probability": 0.882895
-    },
-    {
-      "rank": 6,
-      "symbol": "002303",
-      "name": "美盈森",
-      "price": 6.8,
-      "change_pct": 1.493,
-      "score": 88.255,
-      "precision_probability": 0.882546
-    },
-    {
-      "rank": 7,
-      "symbol": "000592",
-      "name": "平潭发展",
-      "price": 8.53,
-      "change_pct": -2.403,
-      "score": 88.171,
-      "precision_probability": 0.88171
-    },
-    {
-      "rank": 8,
-      "symbol": "002074",
-      "name": "国轩高科",
-      "price": 29.5,
-      "change_pct": 2.859,
-      "score": 88.133,
-      "precision_probability": 0.881326
-    },
-    {
-      "rank": 9,
-      "symbol": "001201",
-      "name": "东瑞股份",
-      "price": 15.82,
-      "change_pct": 0.636,
-      "score": 88.128,
-      "precision_probability": 0.881284
-    },
-    {
-      "rank": 10,
-      "symbol": "001317",
-      "name": "三羊马",
-      "price": 61.85,
-      "change_pct": -1.04,
-      "score": 88.121,
-      "precision_probability": 0.881205
-    }
-  ],
+  "candidates": [],
+  "research_observation_candidates": [],
   "factor_weights": {
     "momentum_short": 0.25,
     "overnight_structure": 0.15,
@@ -173,5 +57,11 @@
   },
   "history_files_used": 21,
   "history_window_start": "2026-09-01",
-  "history_window_end": "2026-09-30"
+  "history_window_end": "2026-09-30",
+  "production_release": false,
+  "archive_reason": "旧策略版本候选快照清理：2.5.0不再作为第一版正式系统运行输入。",
+  "replaced_by": "config/production_release_v1.json",
+  "active_baseline_version": "1.0.0",
+  "candidate_count": 0,
+  "primary_candidate_count": 0
 }
