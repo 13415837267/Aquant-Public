@@ -363,6 +363,8 @@ def main():
         "status": result["status"],
         "selected_validation_operating_point": selected,
         "selected_final_operating_point": selected_final,
+        "validation_daily_topk": result["validation"]["daily_topk"],
+        "final_daily_topk": result["final"]["daily_topk"],
         "elapsed_seconds": result["elapsed_seconds"],
     }, ensure_ascii=False))
 
