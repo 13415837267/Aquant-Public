@@ -1,6 +1,12 @@
 name: "04 历史研究流水线"
 
 on:
+  push:
+    paths:
+      - ".github/workflows/04-research-pipeline.yml"
+      - "config/research_run_contract.json"
+      - "scripts/train_short_term_model.py"
+      - "scripts/high_precision_profit_mining.py"
   workflow_dispatch:
   workflow_run:
     workflows: ["03 候选池生产"]
@@ -16,9 +22,9 @@ concurrency:
 jobs:
   research:
     name: "固定研究基线并完成三段式验证"
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 360
     steps:
       - name: "检出公开仓库"
         uses: actions/checkout@v7
@@ -34,7 +40,7 @@ jobs:
           p = Path("config/research_run_contract.json")
           c = json.loads(p.read_text(encoding="utf-8"))
           assert c["status"] == "locked_for_research"
-          assert c["public_code_commit"] == "7f12c7ddd0e79f11642d229b81c0314c417b10da"
+          assert c["public_code_commit"] == "13c93ae0cf3c34075729411e7c91e84f616d859a"
           assert c["private_commit"] == "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
           assert c["data_cutoff"] == "2026-09-30"
           assert c["execution"]["signal"] == "T_close"
@@ -54,6 +60,13 @@ jobs:
           assert c["progress_logging"]["persist_by_research_day"] is True
           print("研究契约校验通过。")
           PY
+
+      - name: "执行云端短线模型训练"
+        run: |
+          python scripts/high_precision_profit_mining.py \
+            --start 2015-01-05 \
+            --final-end 2026-09-30 \
+            --output data/backtest/high_precision_profit_mining_retrained.json
 
       - name: "检出固定Private策略"
         uses: actions/checkout@v7
@@ -85,7 +98,7 @@ jobs:
 
       - name: "建立固定公开代码研究基线"
         env:
-          PUBLIC_CODE_COMMIT: "7f12c7ddd0e79f11642d229b81c0314c417b10da"
+          PUBLIC_CODE_COMMIT: "13c93ae0cf3c34075729411e7c91e84f616d859a"
         run: |
           git fetch --no-tags origin "$PUBLIC_CODE_COMMIT" --depth=1
           git worktree add --detach research-baseline "$PUBLIC_CODE_COMMIT"
