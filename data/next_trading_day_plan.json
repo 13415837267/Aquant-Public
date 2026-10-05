@@ -5,7 +5,7 @@
   "next_trading_day": "2026-10-08",
   "signal_date": "2026-09-30",
   "data_cutoff": "2026-09-30",
-  "status": "research_plan",
+  "status": "archived_stale",
   "production_release": false,
   "title": "2026年10月8日下一交易日计划",
   "summary": "2026-09-30 收盘候选快照直接作为 2026-10-08 开盘执行计划。候选身份、排序、分数与精度概率全部逐项继承 data/candidates.json，不重新选股、不重新打分，不读取执行日或之后的行情数据，因此不存在未来函数。",
@@ -17,53 +17,18 @@
     "median_return_pct": 0.245,
     "regime": "neutral"
   },
-  "candidate_count": 1,
-  "candidates": [
-    {
-      "rank": 1,
-      "symbol": "601579",
-      "name": "会稽山",
-      "price": 37.3,
-      "score": 88.601,
-      "precision_probability": 0.886014,
-      "admission_tier": "coverage_fallback_088",
-      "signal_date": "2026-09-30",
-      "execution_date": "2026-10-08",
-      "earliest_exit_date": "2026-10-09",
-      "net_win_threshold_pct": 1.0,
-      "stop_loss_pct": 3.0,
-      "flags": []
-    }
-  ],
-  "steps": [
-    {
-      "time": "2026-10-08 盘前",
-      "action": "仅核对计划候选与开盘前可执行性及统一硬风控；不使用 2026-10-08 收盘以后产生的行情数据。"
-    },
-    {
-      "time": "2026-10-08 开盘",
-      "action": "若仅作为研究/模拟执行，按 2026-09-30 收盘形成的信号对应 T+1 开盘执行；正式生产门禁未通过时禁止实盘。"
-    },
-    {
-      "time": "2026-10-08 收盘后",
-      "action": "把 2026-10-08 作为新的 T 日，以该日收盘及此前数据重新生成下一交易日计划。"
-    },
-    {
-      "time": "2026-10-09 起",
-      "action": "对 2026-10-08 新信号严格执行 T+2 最早卖出规则；最长持有 5 个完整交易日。"
-    }
-  ],
+  "candidate_count": 0,
+  "candidates": [],
+  "steps": [],
   "hard_rules": [
-    "下一交易日计划的候选唯一来源为 data/candidates.json，网页不得维护第二套候选列表。",
-    "只使用信号日收盘及之前已经存在的数据；不得使用未来交易日的价格、最高、最低、成交量或结果标签参与选股。",
-    "T 日收盘产生信号，T+1 开盘执行，T+2 起最早卖出，最长持有 5 个完整交易日。",
-    "风险规避状态或全部候选未通过统一硬风控时允许空池。",
-    "production_release 为 false 时，计划只能用于研究/模拟，不得视为正式生产信号。"
+    "本文件仅保留旧版本审计占位，不得作为当前生产或研究执行计划。",
+    "当前正式基准以 config/production_release_v1.json 为唯一入口。"
   ],
   "source_snapshot": {
-    "path": "data/candidates.json",
-    "as_of": "2026-09-30T18:00:00+08:00",
-    "strategy_version": "2.5.0",
-    "strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
-  }
+    "path": "config/production_release_v1.json",
+    "production_version": "1.0.0"
+  },
+  "archive_reason": "旧策略版本下一交易日计划清理：2.5.0不再作为第一版正式系统运行输入。",
+  "replaced_by": "config/production_release_v1.json",
+  "active_baseline_version": "1.0.0"
 }
