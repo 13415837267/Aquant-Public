@@ -1,0 +1,98 @@
+name: "02 数据维护"
+
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "数据维护-main"
+  cancel-in-progress: false
+
+jobs:
+  maintain:
+    name: "北京时间交易日数据维护"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: "检出代码"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "设置Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: "安装Python依赖"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: "检查北京时间交易日"
+        id: trading_day
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: |
+          set -euo pipefail
+          python scripts/check_trading_day.py | tee trading_day_check.txt
+          if grep -q "IS_TRADING_DAY=true" trading_day_check.txt; then
+            echo "is_trading_day=true" >> "$GITHUB_OUTPUT"
+            status=true
+          else
+            echo "is_trading_day=false" >> "$GITHUB_OUTPUT"
+            status=false
+          fi
+          python - <<PY
+          import json
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          from pathlib import Path
+          now = datetime.now(ZoneInfo("Asia/Shanghai"))
+          payload = {
+              "schema_version": 1,
+              "status": "trading_day" if $status else "non_trading_day",
+              "is_trading_day": $status,
+              "checked_at": now.isoformat(),
+              "timezone": "Asia/Shanghai",
+              "workflow": "02 数据维护",
+          }
+          Path("data/trading_day_status.json").parent.mkdir(parents=True, exist_ok=True)
+          Path("data/trading_day_status.json").write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, ensure_ascii=False))
+
+      - name: "跳过非交易日市场更新"
+        if: steps.trading_day.outputs.is_trading_day != 'true'
+        run: echo "当前北京时间不是A股交易日，本次只保存交易日状态，不生成交易数据。"
+
+      - name: "增量更新日线历史数据"
+        if: steps.trading_day.outputs.is_trading_day == 'true'
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/backfill_history.py --mode backfill
+
+      - name: "验证最新日线数据"
+        if: steps.trading_day.outputs.is_trading_day == 'true'
+        env:
+          ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
+        run: python scripts/backfill_history.py --mode validate --days 3
+
+      - name: "提交交易日状态与数据检查点"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/trading_day_status.json data/history data/universe.json
+          if git diff --cached --quiet; then
+            echo "本次没有需要提交的变化。"
+          else
+            git commit -m "数据：更新交易日状态与增量数据检查点"
+            git push
+          fi
