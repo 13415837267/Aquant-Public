@@ -3,7 +3,7 @@
   "status": "locked_for_research",
   "timezone": "Asia/Shanghai",
   "public_repository": "13415837267/Aquant-Public",
-  "public_commit": "9e0419753d4f203d8ee2d13a45202329eca9ff96",
+  "public_commit": "13c93ae0cf3c34075729411e7c91e84f616d859a",
   "private_repository": "13415837267/Aquant-Private",
   "private_branch": "main",
   "private_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
@@ -48,7 +48,7 @@
     "最终留出不得参与参数、阈值或策略选择。",
     "研究失败不得写入正式生产状态。"
   ],
-  "public_code_commit": "7f12c7ddd0e79f11642d229b81c0314c417b10da",
+  "public_code_commit": "13c93ae0cf3c34075729411e7c91e84f616d859a",
   "checkpoint_resume": true,
   "progress_logging": {
     "enabled": true,
