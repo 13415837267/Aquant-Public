@@ -94,6 +94,21 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+      - name: "执行近期训练窗口单变量研究"
+        run: |
+          python scripts/high_precision_profit_mining.py \
+            --start 2019-01-02 \
+            --final-end 2026-09-30 \
+            --output data/backtest/high_precision_profit_mining_recent_window.json
+
+      - name: "保存近期训练窗口实验产物"
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: "近期训练窗口严格标签模型研究"
+          path: data/backtest/high_precision_profit_mining_recent_window.json
+          if-no-files-found: warn
+          retention-days: 30
       - name: "保存研究模型实验产物"
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
