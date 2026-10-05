@@ -75,32 +75,45 @@ def make_features(frame):
 
 
 def build_targets(symbols, future_days):
+    """按正式管理交易规则生成标签：T+1开盘入场，T+2起退出，先止损则失败。"""
     if len(future_days) < MAX_FORWARD_SESSIONS:
         n = len(symbols)
         return np.zeros(n, dtype=bool), np.full(n, np.nan), np.full(n, np.nan), np.zeros(n, dtype=bool)
     keys = pd.Index(pd.Series(symbols, dtype="string").astype(str).str.zfill(6))
     first = future_days[0].set_index("symbol")
     entry = pd.to_numeric(first["open"], errors="coerce").reindex(keys).to_numpy(dtype=float)
-    high_matrix = []
-    close_matrix = []
+    highs, lows, closes = [], [], []
     for day in future_days[:MAX_FORWARD_SESSIONS]:
         indexed = day.set_index("symbol")
-        high_matrix.append(pd.to_numeric(indexed["high"], errors="coerce").reindex(keys).to_numpy(dtype=float))
-        close_matrix.append(pd.to_numeric(indexed["close"], errors="coerce").reindex(keys).to_numpy(dtype=float))
-    highs = np.column_stack(high_matrix)
-    closes = np.column_stack(close_matrix)
-    complete = (
-        np.isfinite(entry) & (entry > 0)
-        & np.isfinite(highs).all(axis=1)
-        & np.isfinite(closes).all(axis=1)
-    )
-    best = np.full(len(keys), np.nan)
-    close5 = np.full(len(keys), np.nan)
-    best[complete] = np.max(highs[complete], axis=1) / entry[complete] * 100.0 - 100.0
-    close5[complete] = closes[complete, -1] / entry[complete] * 100.0 - 100.0
-    best_net = best - ROUND_TRIP_COST_BPS / 100.0
-    close_net = close5 - ROUND_TRIP_COST_BPS / 100.0
-    labels = complete & (best_net >= NET_WIN_THRESHOLD_PCT)
+        highs.append(pd.to_numeric(indexed["high"], errors="coerce").reindex(keys).to_numpy(dtype=float))
+        lows.append(pd.to_numeric(indexed["low"], errors="coerce").reindex(keys).to_numpy(dtype=float))
+        closes.append(pd.to_numeric(indexed["close"], errors="coerce").reindex(keys).to_numpy(dtype=float))
+    highs = np.column_stack(highs); lows = np.column_stack(lows); closes = np.column_stack(closes)
+    complete = (np.isfinite(entry) & (entry > 0) & np.isfinite(highs).all(axis=1)
+                & np.isfinite(lows).all(axis=1) & np.isfinite(closes).all(axis=1))
+    target_gross = NET_WIN_THRESHOLD_PCT + ROUND_TRIP_COST_BPS / 100.0
+    stop_gross = -3.0
+    target_price = entry * (1.0 + target_gross / 100.0)
+    stop_price = entry * (1.0 + stop_gross / 100.0)
+    labels = np.zeros(len(keys), dtype=bool)
+    best_net = np.full(len(keys), np.nan)
+    close_net = np.full(len(keys), np.nan)
+    for j in np.flatnonzero(complete):
+        outcome = False
+        for day_no in range(2, MAX_FORWARD_SESSIONS + 1):
+            k = day_no - 1
+            hit_stop = lows[j, k] <= stop_price[j]
+            hit_target = highs[j, k] >= target_price[j]
+            if hit_stop:
+                outcome = False
+                break
+            if hit_target:
+                outcome = True
+                break
+        labels[j] = outcome
+        # 研究指标仍记录5日收盘收益，但标签严格服从止盈/止损路径。
+        best_net[j] = np.nanmax(np.minimum(highs[j, 1:] / entry[j] - 1.0, 0.0) + 0.0) if False else (np.nanmax(highs[j, 1:]) / entry[j] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0)
+        close_net[j] = closes[j, -1] / entry[j] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
     return labels, best_net, close_net, complete
 
 
