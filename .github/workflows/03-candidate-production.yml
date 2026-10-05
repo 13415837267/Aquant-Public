@@ -85,7 +85,12 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: "归档上一交易日候选池"
-        run: python scripts/archive_candidates.py
+        run: |
+          if [ -f data/candidates.json ] && grep -q '"status": "ready"' data/candidates.json; then
+            python scripts/archive_candidates.py
+          else
+            echo "当前候选快照不是可归档的 ready 状态，跳过归档。"
+          fi
 
       - name: "按第一版训练基准生成候选池"
         run: |
