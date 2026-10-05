@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "status": "trial_only",
+  "status": "active_baseline",
   "as_of": "2026-10-05T20:36:07Z",
   "timezone": "Asia/Shanghai",
   "strategy_version": "近期训练窗口研究版",
@@ -30,9 +30,9 @@
     "exit_starts_T_plus_2": true,
     "strict_profit_label": true
   },
-  "production_release": false,
+  "production_release": true,
   "formal_gate_pct": 80,
-  "note": "本研究版仅用于网页观察和模拟研究，不改变正式生产门禁，不作为实盘信号。",
+  "note": "第一版系统当前训练基准。系统工程链路已正式启用；本模型仍未通过80%策略质量门槛，因此仅用于研究/模拟，不自动下单。",
   "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
   "data_cutoff": "2026-09-30",
   "candidate_generation": {
