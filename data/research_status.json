@@ -4,8 +4,8 @@
   "as_of": "2026-10-04T08:29:18Z",
   "timezone": "Asia/Shanghai",
   "strategy_source": "Aquant-Private/main",
-  "strategy_version": "2.5.0",
-  "strategy_commit": "41118d2ea019df87f67b240f418beafb31d4897a",
+  "strategy_version": "第一版正式基准",
+  "strategy_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
   "objective": "net_profit_at_least_1pct_within_5_sessions",
   "preferred_operating_point": {
     "name": "precision_089",
@@ -63,9 +63,9 @@
     "research_snapshot_as_of": "2026-10-04T08:29:18Z",
     "note": "2.5.0 is the current strategy admission layer. Displayed research metrics are carried forward from the latest validated high-precision research snapshot; this sync does not claim new model training."
   },
-  "current_candidate_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
+  "current_candidate_policy": "top_2_by_recent_window_model_probability_threshold_0.60",
   "production_release": false,
-  "production_version": null,
-  "stale_reason": "策略源已回退/更新且研究退出规则已修复；旧研究结果尚未按当前策略重新验证，禁止作为当前信号或生产依据。",
+  "production_version": "1.0.0",
+  "stale_reason": "旧研究状态仅保留历史审计信息，不作为当前运行输入。当前第一版正式基准由 config/production_release_v1.json 与 data/research_trial_status.json 定义。",
   "archived_reason": "旧2.5.0研究状态已不再作为当前候选生成基准；保留仅用于历史审计与性能对照。当前第一版系统基准为 data/research_trial_status.json。"
 }
