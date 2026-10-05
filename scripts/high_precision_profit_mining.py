@@ -1,8 +1,9 @@
 """High-precision short-term profit mining under the user's +1% win definition.
 
 Research only. Train on 2015-2022, select an operating point on 2023-2024,
-then evaluate once on 2025-2026-09-30. A win means net best return reaches
-at least +1% within five sessions after T+1 open.
+then evaluate once on 2025-2026-09-30. A win means the managed trade reaches
+at least +1% net profit within five sessions after T+1 open without first
+hitting the -3% stop.
 """
 from __future__ import annotations
 
@@ -20,12 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.short_term_research import FeatureState, history_files, read_daily
-from scripts.train_short_term_model import (
-    FEATURES,
-    LogisticModel,
-    build_targets,
-    make_features,
-)
+from scripts.train_short_term_model import FEATURES, build_targets, make_features
 
 OUT_DIR = ROOT / "data" / "backtest"
 
@@ -47,6 +43,56 @@ HIGH_PRECISION_THRESHOLDS = (
 MIN_SELECTION_SAMPLES = 100
 TOP_K_PER_DAY = (1, 2, 3, 5, 10)
 MIN_DAILY_TOPK_DAYS = 50
+
+
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-np.clip(x, -30.0, 30.0)))
+
+
+class NonlinearModel:
+    """轻量两层神经网络，仅用于研究，不进入正式生产策略。"""
+
+    def __init__(self, n_features, hidden=32, learning_rate=0.03, l2=0.001, seed=42):
+        rng = np.random.default_rng(seed)
+        self.hidden = hidden
+        self.learning_rate = learning_rate
+        self.l2 = l2
+        self.w1 = rng.normal(0.0, np.sqrt(2.0 / n_features), (n_features, hidden))
+        self.b1 = np.zeros(hidden, dtype=np.float64)
+        self.w2 = rng.normal(0.0, np.sqrt(2.0 / hidden), hidden)
+        self.b2 = 0.0
+
+    def update(self, x, y):
+        if len(y) == 0:
+            return
+        z1 = x @ self.w1 + self.b1
+        h = np.tanh(np.clip(z1, -8.0, 8.0))
+        p = sigmoid(h @ self.w2 + self.b2)
+        err = p - y
+
+        dw2 = (h.T @ err) / len(y) + self.l2 * self.w2
+        db2 = float(err.mean())
+        dh = err[:, None] * self.w2[None, :]
+        dz1 = dh * (1.0 - h * h)
+        dw1 = (x.T @ dz1) / len(y) + self.l2 * self.w1
+        db1 = dz1.mean(axis=0)
+
+        grad_norm = np.sqrt(np.sum(dw1 * dw1) + np.sum(dw2 * dw2))
+        if grad_norm > 5.0:
+            scale = 5.0 / grad_norm
+            dw1 *= scale
+            dw2 *= scale
+            db1 *= scale
+            db2 *= scale
+
+        self.w1 -= self.learning_rate * dw1
+        self.b1 -= self.learning_rate * db1
+        self.w2 -= self.learning_rate * dw2
+        self.b2 -= self.learning_rate * db2
+
+    def predict(self, x):
+        h = np.tanh(np.clip(x @ self.w1 + self.b1, -8.0, 8.0))
+        return sigmoid(h @ self.w2 + self.b2)
 
 
 def wilson_lower_bound(wins: int, samples: int, z: float = 1.96) -> float:
@@ -92,7 +138,7 @@ def collect_scored(files, start, end, state, model):
             continue
 
         x = x_all[keep]
-        y = labels[keep].astype(np.uint8)
+        y = labels[keep].astype(np.float64)
         best = best_net[keep]
         close = close_net[keep]
         symbols = frame["symbol"].astype(str).str.zfill(6).to_numpy()[keep]
@@ -110,12 +156,13 @@ def collect_scored(files, start, end, state, model):
 
 def flatten(metrics):
     if not metrics:
-        return tuple(np.empty(0) for _ in range(5))
-    probs = np.concatenate([x[1] for x in metrics])
-    y = np.concatenate([x[2] for x in metrics])
-    best = np.concatenate([x[3] for x in metrics])
-    close = np.concatenate([x[4] for x in metrics])
-    return probs, y, best, close
+        return tuple(np.empty(0) for _ in range(4))
+    return (
+        np.concatenate([x[1] for x in metrics]),
+        np.concatenate([x[2] for x in metrics]),
+        np.concatenate([x[3] for x in metrics]),
+        np.concatenate([x[4] for x in metrics]),
+    )
 
 
 def threshold_rows(metrics):
@@ -175,8 +222,7 @@ def daily_topk_rows(metrics):
 def yearly_threshold_rows(metrics, threshold):
     by_year = {}
     for date, probs, y, best, close, symbols in metrics:
-        year = date[:4]
-        item = by_year.setdefault(year, [[], [], [], []])
+        item = by_year.setdefault(date[:4], [[], [], [], []])
         item[0].append(probs)
         item[1].append(y)
         item[2].append(best)
@@ -204,14 +250,9 @@ def yearly_threshold_rows(metrics, threshold):
 
 
 def select_threshold(validation_rows):
-    eligible = [
-        row for row in validation_rows
-        if row["samples"] >= MIN_SELECTION_SAMPLES
-    ]
+    eligible = [r for r in validation_rows if r["samples"] >= MIN_SELECTION_SAMPLES]
     if not eligible:
         return None
-
-    # Highest validation precision first; Wilson lower bound breaks ties.
     return max(
         eligible,
         key=lambda r: (
@@ -235,10 +276,9 @@ def main():
     if args.start not in dates or args.final_end not in dates:
         raise ValueError("训练区间必须落在历史数据文件范围内")
 
-    model = LogisticModel(len(FEATURES))
+    model = NonlinearModel(len(FEATURES))
     train_state = FeatureState()
-    # Match the existing full-market model training semantics exactly.
-    train_dates = [p.name[:10] for p in files]
+    train_dates = dates
     train_start_i, train_end_i = train_dates.index(args.start), train_dates.index(TRAIN_END)
     train_cache = {}
 
@@ -270,7 +310,7 @@ def main():
         train_samples += len(y)
         train_days += 1
         if train_days % 50 == 0:
-            print(f"[高精度挖掘] 训练已处理{train_days}日，样本{train_samples}", flush=True)
+            print(f"[非线性研究] 训练已处理{train_days}日，样本{train_samples}", flush=True)
 
     validation_state = FeatureState()
     validation_metrics, validation_days, validation_samples = collect_scored(
@@ -289,16 +329,13 @@ def main():
     selected_final = None
     selected_final_yearly = []
     if selected_threshold is not None:
-        selected_final = next(
-            row for row in final_thresholds
-            if row["probability_threshold"] == selected_threshold
-        )
+        selected_final = next(row for row in final_thresholds if row["probability_threshold"] == selected_threshold)
         selected_final_yearly = yearly_threshold_rows(final_metrics, selected_threshold)
 
     result = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "research_only",
-        "method": "high_precision_profit_mining",
+        "method": "nonlinear_mlp_profit_mining",
         "objective": "net_profit_at_least_1pct_within_5_sessions",
         "data_start": args.start,
         "data_end": args.final_end,
@@ -315,12 +352,18 @@ def main():
             "min_selection_samples": MIN_SELECTION_SAMPLES,
             "top_k_per_day": list(TOP_K_PER_DAY),
             "min_daily_topk_days": MIN_DAILY_TOPK_DAYS,
+            "hidden_units": model.hidden,
+            "learning_rate": model.learning_rate,
+            "l2": model.l2,
         },
         "model": {
-            "type": "same_as_full_market_feature_training",
+            "type": "numpy_two_layer_mlp",
             "features": FEATURES,
-            "intercept": float(model.b),
-            "coefficients": {name: float(value) for name, value in zip(FEATURES, model.w)},
+            "hidden_units": model.hidden,
+            "intercept": float(model.b2),
+            "hidden_bias": model.b1.tolist(),
+            "output_weights": model.w2.tolist(),
+            "input_weights": model.w1.tolist(),
         },
         "train": {
             "processed_days": train_days,
@@ -346,6 +389,7 @@ def main():
             "entry_is_T_plus_1_open": True,
             "label_is_net_profit_at_least_1pct": True,
             "future_window_is_five_sessions": True,
+            "strict_stop_first_managed_label": True,
             "threshold_selected_only_on_validation": True,
             "final_holdout_used_once_after_selection": True,
             "formal_production_changed": False,
