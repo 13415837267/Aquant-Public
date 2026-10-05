@@ -102,8 +102,10 @@ jobs:
           assert candidates["risk_controls"]["net_win_threshold_pct"] == 1.0
           assert candidates["risk_controls"]["stop_loss_pct"] == 3.0
           assert candidates["holding_window_sessions"] == [2, 5]
-          assert production["release_gate"] is False
-          assert production["system_audit"] is False
+          assert production["status"] == "released"
+          assert production["release_gate"] is True
+          assert production["system_audit"] is True
+          assert production["strategy_quality_gate_passed"] is False
           print("训练基准候选快照硬规则校验通过。")
           PY
 
