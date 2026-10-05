@@ -1,0 +1,119 @@
+name: "04 历史研究流水线"
+
+on:
+  schedule:
+    - cron: "0 12 * * 6"
+  workflow_dispatch:
+    inputs:
+      恢复运行编号:
+        description: "可选：填写已有研究运行编号，从最近成功检查点继续"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "历史研究-main"
+  cancel-in-progress: false
+
+jobs:
+  research:
+    name: "云端训练与三段式历史验证"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - name: "检出公开仓库"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "检出固定Private策略"
+        uses: actions/checkout@v7
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          path: private-strategy
+          token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
+          fetch-depth: 1
+
+      - name: "验证策略源提交"
+        run: |
+          set -euo pipefail
+          ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
+          echo "Private/main 当前提交: $ACTUAL_PRIVATE_COMMIT"
+          test "$ACTUAL_PRIVATE_COMMIT" = "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+
+      - name: "设置Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: "安装Python依赖"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: "记录研究启动状态"
+        run: |
+          mkdir -p data/research/short_term_release_validation
+          printf '%s\n' "研究启动：$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee data/research/short_term_release_validation/运行日志.txt
+
+      - name: "执行云端训练与三段式验证"
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
+          AQUANT_PRIVATE_STRATEGY_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+          AQUANT_CHECKPOINT_REPO_ROOT: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python scripts/short_term_release_validation.py             --development-start 2018-01-05             --development-end 2024-12-20             --validation-start 2025-01-02             --validation-end 2025-12-31             --final-start 2026-01-05             --final-end 2026-09-30             --cost-bps 3             --slippage-bps 2             --output data/backtest/short_term_release_validation.json             --research-root data/research/short_term_release_validation
+
+      - name: "保存研究检查点与日志"
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: "第一版历史研究检查点"
+          path: |
+            data/research/short_term_release_validation
+            data/backtest/short_term_release_validation.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: "执行研究契约门禁"
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          contract = json.loads(Path("config/research_run_contract.json").read_text(encoding="utf-8"))
+          result = json.loads(Path("data/backtest/short_term_release_validation.json").read_text(encoding="utf-8"))
+          assert result["future_function"] is False
+          assert result["entry"] == "T+1_open"
+          assert result["max_holding_sessions"] == 5
+          assert result["strategy_source"] == "Aquant-Private/main"
+          assert result["strategy_commit"] == contract["private_commit"]
+          validation = result["validation"]["managed_trade"]
+          final = result["final_holdout"]["managed_trade"]
+          checks = {
+              "validation_win_rate": validation["threshold_win_rate_pct"] is not None and validation["threshold_win_rate_pct"] >= 80,
+              "validation_samples": validation["samples"] >= 100,
+              "final_win_rate": final["threshold_win_rate_pct"] is not None and final["threshold_win_rate_pct"] >= 80,
+              "final_samples": final["samples"] >= 100,
+              "future_function": result["future_function"] is False,
+          }
+          payload = {"release_gate": all(checks.values()), "checks": checks}
+          Path("data/research_gate.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          PY
+
+      - name: "提交研究结果与门禁审计"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/backtest/short_term_release_validation.json data/research_gate.json data/research/short_term_release_validation
+          if git diff --cached --quiet; then
+            echo "研究结果无变化，无需提交。"
+          else
+            git commit -m "研究：完成第一版历史验证与门禁审计"
+            git push
+          fi
