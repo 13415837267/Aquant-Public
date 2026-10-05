@@ -3,8 +3,8 @@
   "status": "ready",
   "method": "short_term_release_validation",
   "strategy_source": "Aquant-Private/main",
-  "strategy_version": "2.1.0",
-  "strategy_commit": "dc6bf53b44f8e3ec26f4fa2063be6454d2964788",
+  "strategy_version": "2.5.0",
+  "strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
   "future_function": false,
   "entry": "T+1_open",
   "max_holding_sessions": 5,
@@ -15,31 +15,37 @@
     "forward_5d_mean_return_pct": 0.1,
     "forward_5d_positive_rate_pct": 50.0,
     "managed_trade_mean_return_pct": 0.1,
-    "managed_trade_win_rate_pct": 45.0,
-    "max_managed_trade_drawdown_pct": -40.0
+    "managed_trade_threshold_win_rate_pct": 80.0,
+    "max_managed_trade_drawdown_pct": -40.0,
+    "minimum_managed_trade_samples": 100
   },
   "selection_rule": "strategy version and admission parameters are fixed before final_holdout evaluation",
+  "win_definition": "net_profit_at_least_1pct_before_3pct_stop_within_5_sessions",
+  "fallback_policy": "below_80_pct_use_highest_stable_research_operating_point; do_not_force_production_gate",
   "development": {
     "signal_days": 1684,
-    "candidate_days": 1001,
-    "candidate_day_rate_pct": 59.44180522565321,
+    "candidate_days": 1000,
+    "candidate_day_rate_pct": 59.38242280285036,
     "forward_3d": {
-      "samples": 3002,
-      "mean_return_pct": 0.1869328384484833,
-      "positive_rate_pct": 45.90273151232512
+      "samples": 1009,
+      "mean_return_pct": 0.5696275604924448,
+      "positive_rate_pct": 45.986124876114964
     },
     "forward_5d": {
-      "samples": 3002,
-      "mean_return_pct": -0.09521229873124487,
-      "positive_rate_pct": 44.63690872751499
+      "samples": 1009,
+      "mean_return_pct": 0.3683933355952098,
+      "positive_rate_pct": 44.5986124876115
     },
     "managed_trade": {
-      "samples": 2278,
-      "win_rate_pct": 31.826163301141353,
-      "mean_return_pct": -0.2356453028972784,
-      "median_return_pct": -3.1000000000000028,
-      "max_drawdown_pct": -99.97988812008447,
-      "mean_holding_days": 2.6553994732221247
+      "samples": 1008,
+      "win_rate_pct": 0.0,
+      "positive_rate_pct": 47.023809523809526,
+      "threshold_win_rate_pct": 0.0,
+      "win_threshold_pct": 1.0,
+      "mean_return_pct": -1.172023809523816,
+      "median_return_pct": -3.0999999999999917,
+      "max_drawdown_pct": -99.99947079827743,
+      "mean_holding_days": 2.0218253968253967
     },
     "production_gate_passed": false
   },
@@ -48,46 +54,52 @@
     "candidate_days": 160,
     "candidate_day_rate_pct": 67.22689075630252,
     "forward_3d": {
-      "samples": 480,
-      "mean_return_pct": 0.13872594410649253,
-      "positive_rate_pct": 46.666666666666664
+      "samples": 164,
+      "mean_return_pct": -1.5204224083600149,
+      "positive_rate_pct": 39.63414634146341
     },
     "forward_5d": {
-      "samples": 480,
-      "mean_return_pct": 0.4658969440568093,
-      "positive_rate_pct": 46.458333333333336
+      "samples": 164,
+      "mean_return_pct": -2.744864749056875,
+      "positive_rate_pct": 35.97560975609756
     },
     "managed_trade": {
-      "samples": 338,
-      "win_rate_pct": 36.3905325443787,
-      "mean_return_pct": 0.1751479289940832,
-      "median_return_pct": -3.1000000000000028,
-      "max_drawdown_pct": -64.2564958411662,
-      "mean_holding_days": 2.6863905325443787
+      "samples": 163,
+      "win_rate_pct": 0.0,
+      "positive_rate_pct": 43.558282208588956,
+      "threshold_win_rate_pct": 0.0,
+      "win_threshold_pct": 1.0,
+      "mean_return_pct": -1.2957055214723987,
+      "median_return_pct": -3.0999999999999917,
+      "max_drawdown_pct": -88.58370021319392,
+      "mean_holding_days": 2.03680981595092
     },
     "production_gate_passed": false
   },
   "final_holdout": {
-    "signal_days": 170,
-    "candidate_days": 95,
-    "candidate_day_rate_pct": 55.88235294117647,
+    "signal_days": 176,
+    "candidate_days": 99,
+    "candidate_day_rate_pct": 56.25,
     "forward_3d": {
-      "samples": 285,
-      "mean_return_pct": 0.6619682859942727,
-      "positive_rate_pct": 50.526315789473685
+      "samples": 101,
+      "mean_return_pct": -0.39099813639149567,
+      "positive_rate_pct": 48.51485148514851
     },
     "forward_5d": {
-      "samples": 285,
-      "mean_return_pct": 0.8203762893883076,
-      "positive_rate_pct": 52.28070175438596
+      "samples": 101,
+      "mean_return_pct": -1.6401438956330698,
+      "positive_rate_pct": 41.584158415841586
     },
     "managed_trade": {
-      "samples": 235,
-      "win_rate_pct": 41.702127659574465,
-      "mean_return_pct": 0.6531914893617027,
+      "samples": 101,
+      "win_rate_pct": 0.0,
+      "positive_rate_pct": 37.62376237623762,
+      "threshold_win_rate_pct": 0.0,
+      "win_threshold_pct": 1.0,
+      "mean_return_pct": -1.5574257425742626,
       "median_return_pct": -3.1000000000000028,
-      "max_drawdown_pct": -41.78328121270939,
-      "mean_holding_days": 2.497872340425532
+      "max_drawdown_pct": -79.49003085099515,
+      "mean_holding_days": 2.00990099009901
     },
     "production_gate_passed": false
   },
