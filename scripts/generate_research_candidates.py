@@ -16,7 +16,7 @@ from scripts.short_term_research import FeatureState, history_files, read_daily
 from scripts.train_short_term_model import FEATURES, build_targets, make_features
 
 ROOT = Path(__file__).resolve().parents[1]
-TRAIN_END = "2022-12-30"
+TRAIN_END = "2026-09-30"
 MODEL_CODE_COMMIT = "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592"
 MODEL_VERSION = "近期训练窗口研究版"
 MAX_FORWARD_SESSIONS = 5
