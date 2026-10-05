@@ -3,6 +3,7 @@ import auditData from "@/data/system_audit.json";
 import productionStatusData from "@/data/production_status.json";
 import researchStatusData from "@/data/research_status.json";
 import nextTradingPlanData from "@/data/next_trading_day_plan.json";
+import researchTrialData from "@/data/research_trial_status.json";
 
 type Candidate = {
   rank:number; symbol:string; name:string; price:number; change_pct:number; overnight_1d_pct?:number; intraday_return_pct?:number;
@@ -26,6 +27,8 @@ type NextTradingPlan = {
   steps:Array<{time:string;action:string}>; hard_rules:string[]; production_release:boolean;
 };
 
+type ResearchTrial = { status:string; as_of:string; strategy_version:string; training_window:{start:string;end:string}; selected_operating_point:{probability_threshold:number;final_samples:number;final_sample_share_pct:number;final_win_rate_pct:number;final_wilson_lower_pct:number;final_mean_best_return_pct:number;final_mean_5d_close_return_pct:number}; validation:{samples:number;win_rate_pct:number;wilson_lower_pct:number}; audits:{no_future_features:boolean;entry_is_T_plus_1_open:boolean;exit_starts_T_plus_2:boolean;strict_profit_label:boolean}; production_release:boolean; formal_gate_pct:number; note:string; };
+
 type ResearchStatus = {
   status:string;
   as_of:string;
@@ -44,6 +47,7 @@ const provenanceMatches=audit.strategy_version===snapshot.strategy_version && au
 const productionStatus=productionStatusData as {status:string;production_version:string|null;release_gate:boolean;system_audit:boolean};
 const researchStatus=researchStatusData as ResearchStatus;
 const nextTradingPlan=nextTradingPlanData as NextTradingPlan;
+const researchTrial=researchTrialData as ResearchTrial;
 const productionReady=productionStatus.status==="released" && productionStatus.release_gate===true && productionStatus.system_audit===true;
 const fmt=(n:number,d=2)=>n.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct=(n:number)=>(n>=0?"+":"")+fmt(n)+"%";
@@ -92,6 +96,7 @@ export default function Home(){
       <div className="next-plan-warning">当前生产门禁：<strong>{nextTradingPlan.production_release?"允许生产":"禁止实盘"}</strong>。本计划候选必须与 data/candidates.json 候选快照逐项一致；只使用 {nextTradingPlan.signal_date} 收盘及此前已知数据，不使用执行日或之后的行情结果参与选股。</div>
     </section>
 
+    <section className="card research-card"><div className="table-head"><div><div className="table-title">60%+研究试运行版</div><div className="table-subtitle">近期训练窗口：2019-01-02 起；仅用于网页观察与模拟研究，不改变正式生产门禁。</div></div><div className="badge">仅研究</div></div><div className="research-grid"><div><div className="metric-label">最终留出胜率</div><div className="metric-value">{fmt(researchTrial.selected_operating_point.final_win_rate_pct,2)}%</div><div className="metric-note">{researchTrial.selected_operating_point.final_samples.toLocaleString("zh-CN")} 个样本 · 威尔逊下界 {fmt(researchTrial.selected_operating_point.final_wilson_lower_pct,2)}%</div></div><div><div className="metric-label">验证集胜率</div><div className="metric-value">{fmt(researchTrial.validation.win_rate_pct,2)}%</div><div className="metric-note">{researchTrial.validation.samples.toLocaleString("zh-CN")} 个样本 · 威尔逊下界 {fmt(researchTrial.validation.wilson_lower_pct,2)}%</div></div><div><div className="metric-label">样本覆盖率</div><div className="metric-value">{fmt(researchTrial.selected_operating_point.final_sample_share_pct,2)}%</div><div className="metric-note">阈值 {fmt(researchTrial.selected_operating_point.probability_threshold,2)}</div></div></div><div className="research-warning"><strong>研究试运行，不是正式生产策略。</strong> 当前最终留出 {fmt(researchTrial.selected_operating_point.final_win_rate_pct,2)}%，仍低于正式 {fmt(researchTrial.formal_gate_pct,0)}% 门槛；网页不会因此解除生产门禁。T+1 开盘执行、T+2 起退出、严格标签和无未来函数审计均保持有效。</div></section>
     <section className="card research-card">
       <div className="table-head">
         <div><div className="table-title">高精度研究结果</div><div className="table-subtitle">定义：单笔净利润达到 +1% 才计为胜；以下均为留出集研究结果，不等同于正式生产胜率。</div></div>
