@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "status": "trial_only",
   "as_of": "2026-10-05T20:36:07Z",
   "timezone": "Asia/Shanghai",
@@ -7,11 +7,11 @@
   "strategy_source": "04历史研究流水线",
   "training_window": {
     "start": "2019-01-02",
-    "end": "2026-09-30"
+    "end": "2022-12-30"
   },
   "objective": "单笔净利润达到+1%才计为胜，最长5个交易日",
   "selected_operating_point": {
-    "probability_threshold": 0.60,
+    "probability_threshold": 0.6,
     "final_samples": 604453,
     "final_sample_share_pct": 51.67965527117898,
     "final_win_rate_pct": 62.32080906207761,
@@ -31,6 +31,13 @@
     "strict_profit_label": true
   },
   "production_release": false,
-  "formal_gate_pct": 80.0,
-  "note": "本研究版仅用于网页观察和模拟研究，不改变正式生产门禁，不作为实盘信号。"
+  "formal_gate_pct": 80,
+  "note": "本研究版仅用于网页观察和模拟研究，不改变正式生产门禁，不作为实盘信号。",
+  "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
+  "data_cutoff": "2026-09-30",
+  "candidate_generation": {
+    "probability_threshold": 0.6,
+    "top_k": 2,
+    "policy": "top_2_by_recent_window_model_probability_threshold_0.60"
+  }
 }
