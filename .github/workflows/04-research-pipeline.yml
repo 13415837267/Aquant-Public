@@ -160,8 +160,10 @@ jobs:
             "future_function": result["future_function"] is False,
           }
           print(json.dumps({"门禁检查": checks, "验证集": validation["managed_trade"], "最终留出": final["managed_trade"]}, ensure_ascii=False, indent=2))
+          gate_path = Path("data/research_gate.json")
+          gate_path.write_text(json.dumps({"release_gate": all(checks.values()), "checks": checks}, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
           if not all(checks.values()):
-              raise SystemExit("研究未通过正式发布门禁；禁止写入ready生产状态。")
+              print("研究未通过正式发布门禁；结果保留为未发布状态，流水线继续保存审计结果。")
           PY
 
       - name: "生成当前研究状态"
@@ -173,6 +175,7 @@ jobs:
 
           result = json.loads(Path("data/backtest/short_term_release_validation.json").read_text(encoding="utf-8"))
           contract = json.loads(Path("config/research_run_contract.json").read_text(encoding="utf-8"))
+          gate = json.loads(Path("data/research_gate.json").read_text(encoding="utf-8"))
 
           def wilson_lower(samples, wins, z=1.959963984540054):
               if samples <= 0:
@@ -185,7 +188,7 @@ jobs:
 
           payload = {
             "schema_version": 3,
-            "status": "validated_for_audit",
+            "status": "validated_for_audit" if gate["release_gate"] else "rejected_by_release_gate",
             "as_of": datetime.now(timezone.utc).isoformat(),
             "timezone": "Asia/Shanghai",
             "strategy_source": "Aquant-Private/main",
@@ -200,11 +203,12 @@ jobs:
             "development": result["development"],
             "validation": result["validation"],
             "final_holdout": result["final_holdout"],
-            "release_gate": True,
-            "release_gate_scope": "final_holdout_only",
+            "release_gate": gate["release_gate"],
+            "release_gate_checks": gate["checks"],
+            "release_gate_scope": "validation_and_final_holdout",
             "production_release": False,
             "production_version": None,
-            "note": "研究已通过验证集与最终留出门禁，等待系统审计；正式生产发布仍未开启。",
+            "note": ("研究已通过正式门禁，等待系统审计；正式生产发布仍未开启。" if gate["release_gate"] else "研究未通过正式发布门禁；结果仅用于研究与审计，禁止写入ready生产状态。"),
           }
           # 研究结果没有独立wins字段时不反推Wilson下界，避免虚构胜场数。\n          Path("data/research_status.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           Path("data/backtest/short_term_release_validation.json").write_text(
