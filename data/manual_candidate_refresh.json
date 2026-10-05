@@ -1,0 +1,12 @@
+{
+  "request": "最近一个已完成交易日候选池云端刷新",
+  "requested_at": "2026-10-06",
+  "timezone": "Asia/Shanghai",
+  "production_version": "1.0.0",
+  "reason": "非交易日期间按项目规则使用最近一个已完成交易日数据生成并展示候选快照，不读取未来行情。",
+  "data_cutoff": "2026-09-30",
+  "strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
+  "model_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
+  "probability_threshold": 0.6,
+  "top_k": 2
+}
