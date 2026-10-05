@@ -1,0 +1,65 @@
+name: 清理旧运行与部署记录
+
+on:
+  push:
+    paths:
+      - ".github/workflows/清理旧运行与部署记录.yml"
+
+permissions:
+  actions: write
+  contents: write
+  deployments: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: 清理旧工作流运行记录
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -Eeuo pipefail
+          gh api --paginate "repos/${REPO}/actions/runs?per_page=100" --jq '.workflow_runs[].id' |
+          while read -r run_id; do
+            [ -z "${run_id}" ] && continue
+            if [ "${run_id}" != "${CURRENT_RUN_ID}" ]; then
+              gh api --method DELETE "repos/${REPO}/actions/runs/${run_id}" >/dev/null || true
+            fi
+          done
+
+      - name: 清理旧构件
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          gh api --paginate "repos/${REPO}/actions/artifacts?per_page=100" --jq '.artifacts[].id' |
+          while read -r artifact_id; do
+            [ -z "${artifact_id}" ] && continue
+            gh api --method DELETE "repos/${REPO}/actions/artifacts/${artifact_id}" >/dev/null || true
+          done
+
+      - name: 清理旧部署记录
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -Eeuo pipefail
+          gh api --paginate "repos/${REPO}/deployments?per_page=100" --jq '.[].id' |
+          while read -r deployment_id; do
+            [ -z "${deployment_id}" ] && continue
+            gh api --method DELETE "repos/${REPO}/deployments/${deployment_id}" >/dev/null || true
+          done
+
+      - name: 删除一次性清理流程
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          FILE_SHA: ${{ github.sha }}
+        run: |
+          set -Eeuo pipefail
+          file_sha="$(gh api "repos/${REPO}/contents/.github/workflows/清理旧运行与部署记录.yml?ref=main" --jq '.sha')"
+          gh api --method DELETE "repos/${REPO}/contents/.github/workflows/清理旧运行与部署记录.yml"             -f message="清理旧运行与部署记录"             -f sha="${file_sha}"             -f branch="main" >/dev/null
