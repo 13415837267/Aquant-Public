@@ -3,11 +3,11 @@
   "requested_at": "2026-10-06T00:00:00+08:00",
   "timezone": "Asia/Shanghai",
   "production_version": "1.0.0",
-  "reason": "修复候选快照归档门禁后重新执行云端刷新；非交易日期间只使用最近一个已完成交易日数据，不读取未来行情。",
+  "reason": "修复候选池股票名称字段后重新执行云端刷新。",
   "data_cutoff": "2026-09-30",
   "strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
   "model_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
   "probability_threshold": 0.6,
   "top_k": 2,
-  "retry": 2
+  "retry": 3
 }
