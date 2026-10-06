@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-10-06T06:44:06.277415+08:00",
+  "generated_at": "2026-10-06T22:06:38.056733+08:00",
   "timezone": "Asia/Shanghai",
   "next_trading_day": "2026-10-08",
   "signal_date": "2026-09-30",
@@ -22,7 +22,7 @@
     {
       "rank": 1,
       "symbol": "603057",
-      "name": "603057",
+      "name": "紫燕食品",
       "price": 17.84,
       "score": 66.801,
       "precision_probability": 0.668012,
@@ -37,7 +37,7 @@
     {
       "rank": 2,
       "symbol": "601966",
-      "name": "601966",
+      "name": "玲珑轮胎",
       "price": 10.49,
       "score": 65.818,
       "precision_probability": 0.658178,
