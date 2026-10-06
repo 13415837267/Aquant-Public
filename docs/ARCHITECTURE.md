@@ -13,11 +13,18 @@ Shanghai/Shenzhen main-board historical database
    +--> historical/fundamental research data
    |
    v
-scripts/update_candidates.py
+02 数据维护
    |
-   +--> hard eligibility filters
-   +--> cross-sectional factor scoring from Aquant-Private/main
-   +--> candidate admission policy
+   +--> 仅增量更新最新交易日数据
+   +--> 数据完整性与交易日校验
+   |
+   v
+03 候选池生产
+   |
+   +--> 校验第一版固定模型资产
+   +--> 仅读取信号日及此前必要历史窗口
+   +--> 固定模型推理（不重新训练）
+   +--> 概率阈值与候选准入
    |
    v
 data/candidates.json
