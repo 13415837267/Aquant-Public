@@ -108,9 +108,6 @@ def build_candidates(history,strategy_model,strategy_version,strategy_commit):
     frame=frame.rename(columns={"pct_chg":"change_pct"})
     if frame.empty: raise RuntimeError("No usable rows after short-term eligibility/features")
     scored=strategy_model.score_universe(frame)
-    # 股票名称以公开股票主数据为准；模型评分不得覆盖或丢失名称。
-    name_map=frame.set_index("symbol")["name"].to_dict()
-    scored["name"]=scored["symbol"].astype(str).str.zfill(6).map(name_map).fillna(scored["symbol"].astype(str).str.zfill(6))
     admission=getattr(strategy_model,"admit_candidates",None)
     if not callable(admission): raise RuntimeError("Private strategy must expose admit_candidates")
     selected=admission(scored)
