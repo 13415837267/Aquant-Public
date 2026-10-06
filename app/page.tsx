@@ -14,9 +14,9 @@ type Candidate = {
 type Snapshot = {
   as_of:string; status:string; strategy_version:string; strategy_commit:string; signal_horizon:string;
   candidate_admission_policy:string; candidates:Candidate[];
-  factor_weights?:Record<string,number>;
+  factor_weights?:Record<string,number> | null;
   market?:{breadth_pct:number;median_return_pct:number;regime:string};
-  diagnostics?:{scorable_rows?:number;candidate_count?:number;risk_off_no_trade?:boolean};
+  diagnostics?:{scorable_rows?:number;candidate_count?:number;risk_off_no_trade?:boolean};\n  future_function?:boolean;
 };
 type NextTradingPlan = {
   next_trading_day:string; signal_date:string; data_cutoff:string; status:string; title:string; summary:string;
