@@ -23,10 +23,10 @@ MAX_FORWARD_SESSIONS = 5
 TOP_K = 2
 
 
-def train_model(files, start):
+def train_model(files, start, train_end):
     dates = [p.name[:10] for p in files]
     start_i = dates.index(start)
-    end_i = dates.index(TRAIN_END)
+    end_i = dates.index(train_end)
     model = NonlinearModel(len(FEATURES))
     state = FeatureState()
     cache = {}
@@ -40,7 +40,7 @@ def train_model(files, start):
     for i in range(max(0, start_i - 20), end_i + 1):
         date = dates[i]
         frame = state.build(get(i))
-        if date < start or date > TRAIN_END or frame.empty:
+        if date < start or date > train_end or frame.empty:
             continue
         if i + MAX_FORWARD_SESSIONS >= len(files):
             continue
@@ -63,14 +63,16 @@ def train_model(files, start):
     return model
 
 
-def build_latest_frame(files):
+def build_latest_frame(files, signal_date):
     state = FeatureState()
     frame = None
     for path in files:
+        if path.name[:10] > signal_date:
+            break
         frame = state.build(read_daily(path))
     if frame is None or frame.empty:
         raise RuntimeError("最新交易日没有可评分股票")
-    return frame, files[-1].name[:10]
+    return frame, signal_date
 
 
 def payload_row(row, rank):
@@ -112,17 +114,20 @@ def main():
     parser.add_argument("--start", default="2019-01-02")
     parser.add_argument("--threshold", type=float, default=0.60)
     parser.add_argument("--output", default="data/candidates.json")
+    parser.add_argument("--train-end", default=TRAIN_END)
+    parser.add_argument("--signal-date", default=None)
     args = parser.parse_args()
 
     files = history_files()
     dates = [p.name[:10] for p in files]
-    if args.start not in dates or TRAIN_END not in dates:
+    signal_date = args.signal_date or args.train_end
+    if args.start not in dates or args.train_end not in dates or signal_date not in dates:
         raise ValueError("训练区间不在历史数据范围内")
     if not 0 < args.threshold < 1:
         raise ValueError("概率阈值必须在0和1之间")
 
-    model = train_model(files, args.start)
-    frame, signal_date = build_latest_frame(files)
+    model = train_model(files, args.start, args.train_end)
+    frame, signal_date = build_latest_frame(files, signal_date)
     probabilities = model.predict(make_features(frame))
     scored = frame.copy()
     scored["precision_probability"] = probabilities
@@ -153,8 +158,8 @@ def main():
         "model_definition": {
             "type": "numpy_two_layer_mlp",
             "training_start": args.start,
-            "training_end": TRAIN_END,
-            "data_cutoff": "2026-09-30",
+            "training_end": args.train_end,
+            "data_cutoff": signal_date,
             "probability_threshold": args.threshold,
             "top_k": TOP_K,
             "objective": "单笔净利润达到+1%才计为胜，最长5个交易日",
