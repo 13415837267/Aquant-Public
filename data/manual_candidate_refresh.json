@@ -1,13 +1,13 @@
 {
   "request": "最近一个已完成交易日候选池云端刷新",
-  "requested_at": "2026-10-06T00:00:00+08:00",
+  "requested_at": "2026-10-06T22:00:00+08:00",
   "timezone": "Asia/Shanghai",
   "production_version": "1.0.0",
-  "reason": "修复候选池股票名称字段后重新执行云端刷新。",
+  "reason": "候选快照仍保留股票代码名称，触发固定模型重新生成并校验股票主数据名称。",
   "data_cutoff": "2026-09-30",
   "strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
   "model_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
   "probability_threshold": 0.6,
   "top_k": 2,
-  "retry": 3
+  "retry": 4
 }
