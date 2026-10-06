@@ -1,18 +1,19 @@
 {
-  "schema_version": 1,
-  "record_type": "deployment_audit_reset",
-  "recorded_at": "2026-10-04T12:24:09Z",
+  "schema_version": 2,
+  "record_type": "current_baseline_audit",
+  "recorded_at": "2026-10-06T22:20:00+08:00",
   "actions_history_reset": true,
-  "actions_scope": [
-    "13415837267/Aquant-Public",
-    "13415837267/Aquant-Private"
-  ],
   "deployment_objects_found": 0,
-  "production_status": "not_released",
-  "production_release_gate": false,
-  "system_audit": false,
-  "research_strategy_version": "2.5.0",
-  "research_strategy_commit": "41118d2ea019df87f67b240f418beafb31d4897a",
-  "public_head_before_record": "846a3e75d7029e76d8c1ec62f1185d0592a0ac31",
-  "purpose": "清理历史 Actions 运行记录并重新建立可审计的部署状态基线；不虚构生产部署、不改变 T+1/T+2 执行约束。"
+  "production_version": "1.0.0",
+  "production_release": true,
+  "system_audit": true,
+  "automatic_ordering": false,
+  "public_repository": "13415837267/Aquant-Public",
+  "private_repository": "13415837267/Aquant-Private",
+  "public_branch": "main",
+  "private_branch": "main",
+  "model_artifact": "data/models/production_v1.json",
+  "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
+  "private_strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
+  "purpose": "建立第一版正式系统当前基线；历史Actions运行记录不作为当前部署状态。"
 }
