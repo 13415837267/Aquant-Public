@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-10-06T22:06:38.056733+08:00",
+  "generated_at": "2026-10-07T00:00:18.191636+08:00",
   "timezone": "Asia/Shanghai",
   "next_trading_day": "2026-10-08",
   "signal_date": "2026-09-30",
@@ -8,7 +8,7 @@
   "status": "research_plan",
   "production_release": false,
   "title": "2026年10月8日下一交易日计划",
-  "summary": "2026-09-30 收盘候选快照直接作为 2026-10-08 开盘研究/模拟执行计划。候选身份、排序、分数与精度概率全部逐项继承 data/candidates.json，不重新选股、不重新打分，不读取执行日或之后的行情数据；当前策略质量门槛未通过，因此禁止实盘。",
+  "summary": "2026-09-30 收盘候选快照直接作为 2026-10-08 开盘执行计划。候选身份、排序、分数与精度概率全部逐项继承 data/candidates.json，不重新选股、不重新打分，不读取执行日或之后的行情数据，因此不存在未来函数。",
   "strategy_version": "近期训练窗口研究版",
   "strategy_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
   "candidate_policy": "top_2_by_recent_window_model_probability_threshold_0.60",
@@ -30,8 +30,8 @@
       "signal_date": "2026-09-30",
       "execution_date": "2026-10-08",
       "earliest_exit_date": "2026-10-09",
-      "net_win_threshold_pct": 1,
-      "stop_loss_pct": 3,
+      "net_win_threshold_pct": 1.0,
+      "stop_loss_pct": 3.0,
       "flags": []
     },
     {
@@ -45,8 +45,8 @@
       "signal_date": "2026-09-30",
       "execution_date": "2026-10-08",
       "earliest_exit_date": "2026-10-09",
-      "net_win_threshold_pct": 1,
-      "stop_loss_pct": 3,
+      "net_win_threshold_pct": 1.0,
+      "stop_loss_pct": 3.0,
       "flags": []
     }
   ],
