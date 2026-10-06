@@ -56,7 +56,7 @@ const pct=(n:number)=>(n>=0?"+":"")+fmt(n)+"%";
 const dirClass=(n:number)=>n>0?"rise":n<0?"fall":"flat";
 const amount=(n:number)=>n>=1e8?fmt(n/1e8,1)+"亿":fmt(n/1e4,0)+"万";
 const weight=(n:number)=>fmt(n*100,0)+"%";
-const maxCandidates=Number((snapshot.candidate_admission_policy.match(/precision_top_(\\d+)/)||snapshot.candidate_admission_policy.match(/dynamic_top_score_(\\d+)/)||snapshot.candidate_admission_policy.match(/top_(\\d+)/)||[])[1]||0);
+const maxCandidates=Number((snapshot.candidate_admission_policy.match(/precision_top_(\d+)/)||snapshot.candidate_admission_policy.match(/dynamic_top_score_(\d+)/)||snapshot.candidate_admission_policy.match(/top_(\d+)/)||[])[1]||0);
 
 export default function Home(){
   const strategyMetadataReady=!!snapshot.strategy_version && !!snapshot.strategy_commit && !!researchTrial.strategy_version && !!researchTrial.model_code_commit;
