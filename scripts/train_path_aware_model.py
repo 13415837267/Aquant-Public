@@ -388,8 +388,7 @@ def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "
-", encoding="utf-8")
+    output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({
         "status": result["status"],
         "train_samples": train_samples,
