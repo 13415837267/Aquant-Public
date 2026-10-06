@@ -131,9 +131,21 @@ class FeatureState:
         frame = pd.DataFrame(rows)
         if frame.empty: return frame
         names = {}
+        universe_path = ROOT / "data" / "universe.json"
+        if universe_path.exists():
+            try:
+                universe = json.loads(universe_path.read_text(encoding="utf-8"))
+                names.update({
+                    str(row.get("symbol", "")).zfill(6): str(row.get("name", "")).strip()
+                    for row in universe
+                    if row.get("symbol") and str(row.get("name", "")).strip()
+                })
+            except (OSError, json.JSONDecodeError):
+                pass
         if "name" in day.columns:
-            names = dict(zip(day["symbol"].astype(str).str.zfill(6), day["name"].astype(str)))
+            names.update(dict(zip(day["symbol"].astype(str).str.zfill(6), day["name"].astype(str))))
         frame["name"] = frame["symbol"].map(names).fillna(frame["symbol"])
+        frame.loc[frame["name"].eq(frame["symbol"]), "name"] = frame["symbol"]
         eligible = (
             ~frame["name"].str.contains(r"ST|退", case=False, na=False)
             & frame["is_st"].eq(0) & frame["is_paused"].eq(0)
