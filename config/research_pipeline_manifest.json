@@ -13,8 +13,8 @@
     "entry": "T+1开盘",
     "earliest_exit": "T+2",
     "max_holding_sessions": 5,
-    "net_win_threshold_pct": 1.0,
-    "stop_loss_pct": 3.0,
+    "net_win_threshold_pct": 1,
+    "stop_loss_pct": 3,
     "future_function": false,
     "timezone": "Asia/Shanghai"
   },
@@ -42,8 +42,10 @@
       ],
       "outputs": [
         "data/backtest/feature_training_latest.json",
-        "data/backtest/path_aware_feature_training_latest.json"
-      ]
+        "data/backtest/path_aware_feature_training_latest.json",
+        "data/backtest/path_aware_profit_3pct_training_latest.json"
+      ],
+      "rule": "研究模型使用2015-01至2026-09历史数据；当前实验以T+1开盘为入场，+3%止盈机会与T+2起-3%止损路径共同定义训练标签，T+1达到+3%计为成功机会；研究结果不得直接改写正式生产模型。"
     },
     {
       "stage": 3,
