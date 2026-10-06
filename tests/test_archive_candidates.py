@@ -49,17 +49,24 @@ def test_archive_candidates_accepts_existing_equivalent_json_with_different_form
     destination.parent.mkdir(parents=True)
     destination.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     assert archive_candidates(payload, tmp_path) == destination
-def test_archive_candidates_uses_content_hash_when_same_version_changes(tmp_path):
+def test_archive_candidates_uses_content_hash_on_repeated_version_conflict(tmp_path):
     first = _payload()
     first["strategy_version"] = "固定基准"
     first["strategy_commit"] = "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592"
     archive_candidates(first, tmp_path)
-    changed = _payload()
-    changed["strategy_version"] = "固定基准"
-    changed["strategy_commit"] = "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592"
-    changed["candidates"][0]["symbol"] = "600001"
-    path = archive_candidates(changed, tmp_path)
-    assert path.name != "2026-09-30__固定基准__3df9ef34ee.json"
+
+    second = _payload()
+    second["strategy_version"] = "固定基准"
+    second["strategy_commit"] = "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592"
+    second["candidates"][0]["symbol"] = "600001"
+    versioned = archive_candidates(second, tmp_path)
+    assert versioned.name == "2026-09-30__固定基准__3df9ef34ee.json"
+
+    third = _payload()
+    third["strategy_version"] = "固定基准"
+    third["strategy_commit"] = "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592"
+    third["candidates"][0]["symbol"] = "600002"
+    path = archive_candidates(third, tmp_path)
     assert path.name.startswith("2026-09-30__固定基准__3df9ef34ee__")
     assert path.name.endswith(".json")
     assert path.exists()
