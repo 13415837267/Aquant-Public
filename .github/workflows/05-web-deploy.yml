@@ -22,7 +22,7 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      调试说明:
+      debug_note:
         description: "手动部署时填写本次调试目的"
         required: false
         default: "手动验证网页部署链路"
