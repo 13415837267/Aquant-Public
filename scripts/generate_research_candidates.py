@@ -193,7 +193,7 @@ def main():
             for r in candidates
         ],
         "strategy_version": model_payload["strategy_version"],
-        "strategy_commit": MODEL_CODE_COMMIT,
+        "strategy_commit": model_payload["model_code_commit"],
     }, ensure_ascii=False))
 
 
