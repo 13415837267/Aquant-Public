@@ -111,12 +111,13 @@ def path_targets(symbols, future_days):
         best_net[row] = np.max(highs[row]) / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         close_net[row] = closes[row, -1] / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         for d in range(MAX_FORWARD_SESSIONS):
-            # T+1 允许观察是否达到 +3%，但禁止卖出；止损从 T+2 才可执行。
-            if highs[row, d] >= target[row]:
-                target_hit[row] = True
-                break
+            # T+1 只允许观察目标机会，禁止退出；T+2 起若同一日同时触发止损与目标，
+            # 无法仅凭日线判断盘中先后，因此采用保守的“止损优先”规则，避免高估胜率。
             if d >= 1 and lows[row, d] <= stop[row]:
                 stopped_before_target[row] = True
+                break
+            if highs[row, d] >= target[row]:
+                target_hit[row] = True
                 break
 
     # +3% 机会优先：一旦 T+1~T+5 触达目标即为正样本；若先触发 T+2~T+5 止损则为负样本。
@@ -380,6 +381,7 @@ def main():
             "t_plus_1_target_counts_as_win": True,
             "stop_loss_applies_from_t_plus_2": True,
             "same_day_stop_first": True,
+            "same_day_target_stop_ambiguity": "daily_bar_conservative_stop_first",
             "formal_production_changed": False,
         },
         "elapsed_seconds": round(time.time() - started, 2),
