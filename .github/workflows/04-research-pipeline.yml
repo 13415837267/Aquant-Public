@@ -9,6 +9,10 @@ on:
         description: "可选：填写已有研究运行编号，从最近成功检查点继续"
         required: false
         default: ""
+      training_only:
+        description: "仅执行百分之三止盈止损模型训练实验，不运行旧历史验证"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -60,12 +64,33 @@ jobs:
           set -euo pipefail
           python scripts/train_path_aware_model.py --start 2015-01-05 --final-end 2026-09-30 --output data/backtest/path_aware_profit_3pct_training_latest.json
 
+      - name: "输出百分之三训练结果摘要"
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("data/backtest/path_aware_profit_3pct_training_latest.json")
+          r = json.loads(p.read_text(encoding="utf-8"))
+          print(json.dumps({
+              "训练区间": r["data_start"] + " 至 " + r["data_end"],
+              "训练样本": r["train"]["samples"],
+              "验证样本": r["validation"]["samples"],
+              "最终留出样本": r["final"]["samples"],
+              "验证集最佳运行点": r["selected_validation_operating_point"],
+              "最终留出集": r["final"]["thresholds"],
+              "目标": r["objective"],
+              "止盈": r["take_profit_pct"],
+              "止损": r["stop_loss_pct"],
+          }, ensure_ascii=False, indent=2))
+          PY
+
       - name: "记录研究启动状态"
         run: |
           mkdir -p data/research/short_term_release_validation
           printf '%s\n' "研究启动：$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee data/research/short_term_release_validation/运行日志.txt
 
       - name: "执行云端训练与三段式验证"
+        if: ${{ inputs.training_only != 'true' }}
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
           AQUANT_PRIVATE_STRATEGY_COMMIT: "bd395f5577b4247ac621293dfb3a248a7b1d1e00"
@@ -86,6 +111,7 @@ jobs:
           retention-days: 30
 
       - name: "执行研究契约门禁"
+        if: ${{ inputs.training_only != 'true' }}
         run: |
           python - <<'PY'
           import json
@@ -112,6 +138,7 @@ jobs:
           PY
 
       - name: "提交研究结果与门禁审计"
+        if: ${{ inputs.training_only != 'true' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
