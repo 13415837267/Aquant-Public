@@ -42,7 +42,7 @@ jobs:
           set -euo pipefail
           ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
           echo "Private/main 当前提交: $ACTUAL_PRIVATE_COMMIT"
-          test "$ACTUAL_PRIVATE_COMMIT" = "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+          test "$ACTUAL_PRIVATE_COMMIT" = "bd395f5577b4247ac621293dfb3a248a7b1d1e00"
 
       - name: "设置Python"
         uses: actions/setup-python@v7
@@ -63,7 +63,7 @@ jobs:
       - name: "执行云端训练与三段式验证"
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+          AQUANT_PRIVATE_STRATEGY_COMMIT: "bd395f5577b4247ac621293dfb3a248a7b1d1e00"
           AQUANT_CHECKPOINT_REPO_ROOT: ${{ github.workspace }}
         run: |
           set -euo pipefail
