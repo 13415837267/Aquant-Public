@@ -25,7 +25,14 @@
     "data_cutoff": "2026-09-30",
     "probability_threshold": 0.6,
     "top_k": 2,
-    "candidate_policy": "top_2_by_recent_window_model_probability_threshold_0.60"
+    "candidate_policy": "top_2_by_recent_window_model_probability_threshold_0.60",
+    "model_artifact": "data/models/production_v1.json",
+    "model_lifecycle": {
+      "daily_inference": "使用已发布固定模型权重，不重新训练",
+      "new_trading_day": "02增量数据维护完成后，读取当前固定模型，仅使用该交易日及历史可见数据进行推理",
+      "historical_replay": "读取固定模型，并将特征数据截断到目标历史日期，不读取目标日期之后的市场数据",
+      "retraining": "仅在新的研究/正式模型版本发布时执行，发布后替换模型资产并更新版本锁定"
+    }
   },
   "trading_rules": {
     "signal": "T收盘",
@@ -43,9 +50,9 @@
     "live_ordering_enabled": false
   },
   "daily_flow": [
-    "01 Python质量检查",
-    "02 北京时间18:00交易日数据维护",
-    "03 按固定训练基准生成候选池与下一交易日计划",
+    "01 北京时间交易日数据与代码质量检查",
+    "02 北京时间18:00增量数据维护",
+    "03 使用固定第一版模型推理并生成候选池与下一交易日计划",
     "05 GitHub Pages网页构建与部署"
   ],
   "research_flow": [
