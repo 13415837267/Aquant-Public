@@ -70,7 +70,7 @@ export default function Home(){
   return <main className="container">
     <header className="header">
       <div><div className="eyebrow">Aquant / 短线运行系统</div><h1>短线候选池</h1><div className="color-legend"><span className="legend-rise">红涨</span><span className="legend-fall">绿跌</span><span className="legend-flat">平盘中性</span></div>
-      <p className="subtitle">T 日收盘生成信号，T+1 开盘执行，最长持有 5 个交易日；弱市场允许空仓。</p></div>
+      <p className="subtitle">T 日收盘生成信号，T+1 开盘执行，T+2 起最早退出；当前仅研究/模拟，不自动下单。</p></div>
       <div className="pill">第一版系统 {productionReady?"正式启用":"未启用"} · {researchTrial.strategy_version}</div>
     </header>
 
