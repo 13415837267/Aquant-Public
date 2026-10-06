@@ -48,7 +48,7 @@ MIN_SELECTION_SAMPLES = 5000
 LEARNING_RATE = 0.08
 L2 = 0.02
 EPOCHS_PER_DAY = 2
-THRESHOLDS = [0.70, 0.75, 0.80, 0.82, 0.85, 0.88, 0.90]
+THRESHOLDS = [0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]\nPOSITIVE_CLASS_WEIGHT = 2.0\nTOP_K_VALUES = (2, 5, 10)
 
 
 def percentile_rank(series):
@@ -133,9 +133,11 @@ class LogisticModel:
             return
         z = np.clip(x @ self.w + self.b, -30.0, 30.0)
         p = 1.0 / (1.0 + np.exp(-z))
-        err = p - y
-        self.w -= LEARNING_RATE * ((x.T @ err) / len(y) + L2 * self.w)
-        self.b -= LEARNING_RATE * float(err.mean())
+        sample_weight = np.where(y > 0.5, POSITIVE_CLASS_WEIGHT, 1.0)
+        err = (p - y) * sample_weight
+        weight_mean = float(sample_weight.mean())
+        self.w -= LEARNING_RATE * ((x.T @ err) / len(y) / weight_mean + L2 * self.w)
+        self.b -= LEARNING_RATE * float(err.mean() / weight_mean)
 
     def predict(self, x):
         z = np.clip(x @ self.w + self.b, -30.0, 30.0)
@@ -214,6 +216,29 @@ def summarize(metrics):
             "mean_5d_close_return_pct": float(close5[mask].mean()) if n else None,
         })
 
+    top_k = []
+    for k in TOP_K_VALUES:
+        selected_y, selected_best, selected_close, selected_probs = [], [], [], []
+        for _, p, yy, bb, cc in metrics:
+            order = np.argsort(-p)[:min(k, len(p))]
+            selected_probs.append(p[order])
+            selected_y.append(yy[order])
+            selected_best.append(bb[order])
+            selected_close.append(cc[order])
+        if selected_y:
+            pp = np.concatenate(selected_probs)
+            yy = np.concatenate(selected_y)
+            bb = np.concatenate(selected_best)
+            cc = np.concatenate(selected_close)
+            top_k.append({
+                "top_k": k,
+                "samples": int(len(yy)),
+                "path_win_3pct_rate_pct": float(yy.mean() * 100.0),
+                "mean_model_probability_pct": float(pp.mean() * 100.0),
+                "mean_best_return_pct": float(bb.mean()),
+                "mean_5d_close_return_pct": float(cc.mean()),
+            })
+
     yearly_map = {}
     for date, p, yy, bb, cc in metrics:
         year = date[:4]
@@ -248,6 +273,7 @@ def summarize(metrics):
         "base_mean_best_return_pct": float(best.mean()),
         "base_mean_5d_close_return_pct": float(close5.mean()),
         "thresholds": thresholds,
+        "daily_top_k": top_k,
         "yearly": yearly,
     }
 
@@ -322,7 +348,8 @@ def main():
         "stop_loss_pct": STOP_LOSS_PCT,
         "round_trip_cost_bps": ROUND_TRIP_COST_BPS,
         "model": {
-            "type": "logistic_regression_sgd",
+            "type": "logistic_regression_sgd_weighted",
+            "positive_class_weight": POSITIVE_CLASS_WEIGHT,
             "learning_rate": LEARNING_RATE,
             "l2": L2,
             "epochs_per_day": EPOCHS_PER_DAY,
