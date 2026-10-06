@@ -52,7 +52,7 @@ jobs:
           node-version: 20
 
       - name: "安装网页依赖"
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: "构建静态网页"
         run: npm run build
