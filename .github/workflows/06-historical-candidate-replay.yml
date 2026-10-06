@@ -24,6 +24,9 @@ jobs:
     name: "云端历史候选回放"
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    strategy:
+      matrix:
+        signal_date: ["2026-09-28", "2026-09-29"]
     steps:
       - name: "检出公开仓库"
         uses: actions/checkout@v7
@@ -59,7 +62,7 @@ jobs:
       - name: "执行历史回放"
         run: |
           set -euo pipefail
-          DATE="${{ inputs.signal_date || '2026-09-28' }}"
+          DATE="${{ matrix.signal_date }}"
           mkdir -p data/research/historical_candidates
           python scripts/generate_research_candidates.py \\
             --start 2019-01-02 \\
@@ -85,7 +88,7 @@ jobs:
           print(json.dumps({"signal_date": date, "candidates": [{"rank": x["rank"], "symbol": x["symbol"], "name": x["name"], "probability": x["precision_probability"]} for x in r["candidates"]]}, ensure_ascii=False, indent=2))
           PY
         env:
-          SIGNAL_DATE: ${{ inputs.signal_date || '2026-09-28' }}
+          SIGNAL_DATE: ${{ matrix.signal_date }}
 
       - name: "提交历史回放结果"
         run: |
