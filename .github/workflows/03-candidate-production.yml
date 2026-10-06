@@ -6,10 +6,6 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
-  push:
-    paths:
-      - data/manual_candidate_refresh.json
-
 permissions:
   contents: write
 
