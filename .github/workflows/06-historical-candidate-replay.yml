@@ -1,0 +1,94 @@
+name: "06 历史候选回放"
+
+on:
+  workflow_dispatch:
+    inputs:
+      signal_date:
+        description: "信号日期（北京时间，必须是已有交易日）"
+        required: true
+        default: "2026-09-28"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "历史候选回放-main"
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    name: "云端历史候选回放"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: "检出公开仓库"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "检出固定Private策略"
+        uses: actions/checkout@v7
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          path: private-strategy
+          token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
+          fetch-depth: 1
+
+      - name: "验证策略源提交"
+        run: |
+          set -euo pipefail
+          ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
+          test "$ACTUAL_PRIVATE_COMMIT" = "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+
+      - name: "设置Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: "安装依赖"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: "执行历史回放"
+        run: |
+          set -euo pipefail
+          DATE="${{ inputs.signal_date }}"
+          mkdir -p data/research/historical_candidates
+          python scripts/generate_research_candidates.py \\
+            --start 2019-01-02 \\
+            --train-end "$DATE" \\
+            --signal-date "$DATE" \\
+            --threshold 0.60 \\
+            --output "data/research/historical_candidates/${DATE}.json"
+
+      - name: "验证无未来数据"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import os
+          date = os.environ["SIGNAL_DATE"]
+          p = Path("data/research/historical_candidates") / f"{date}.json"
+          r = json.loads(p.read_text(encoding="utf-8"))
+          assert r["future_function"] is False
+          assert r["model_definition"]["training_end"] == date
+          assert r["model_definition"]["data_cutoff"] == date
+          assert r["history_window_end"] == date
+          print(json.dumps({"signal_date": date, "candidates": [{"rank": x["rank"], "symbol": x["symbol"], "name": x["name"], "probability": x["precision_probability"]} for x in r["candidates"]]}, ensure_ascii=False, indent=2))
+          PY
+        env:
+          SIGNAL_DATE: ${{ inputs.signal_date }}
+
+      - name: "提交历史回放结果"
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "data/research/historical_candidates/${{ inputs.signal_date }}.json"
+          git commit -m "研究：完成${{ inputs.signal_date }}历史候选回放"
+          git push
