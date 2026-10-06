@@ -92,12 +92,27 @@ jobs:
             echo "当前候选快照不是可归档的 ready 状态，跳过归档。"
           fi
 
-      - name: "按第一版训练基准生成候选池"
+      - name: "验证第一版固定模型资产"
         run: |
-          python scripts/generate_research_candidates.py \
-            --start 2019-01-02 \
-            --threshold 0.60 \
-            --output data/candidates.json
+          set -euo pipefail
+          test -f data/models/production_v1.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          release = json.loads(Path("config/production_release_v1.json").read_text(encoding="utf-8"))
+          model = json.loads(Path("data/models/production_v1.json").read_text(encoding="utf-8"))
+          baseline = release["model_baseline"]
+          assert model["status"] == "active_baseline"
+          assert model["strategy_version"] == baseline["version"]
+          assert model["model_code_commit"] == baseline["model_code_commit"]
+          assert model["training_start"] == baseline["training_start"]
+          assert model["training_end"] == baseline["training_end"]
+          print("固定模型资产校验通过；本次运行禁止重新训练。")
+          PY
+
+      - name: "使用固定模型生成候选池"
+        run: |
+          python scripts/generate_research_candidates.py             --threshold 0.60             --model data/models/production_v1.json             --output data/candidates.json
 
       - name: "生成下一交易日计划"
         env:
