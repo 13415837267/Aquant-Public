@@ -6,6 +6,12 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      signal_date:
+        description: "可选：指定本次候选信号日期（北京时间18:00截面）"
+        required: false
+        default: ""
+        type: string
 permissions:
   contents: write
 
@@ -28,8 +34,8 @@ jobs:
         id: check
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "手动刷新请求：使用最近一个已完成交易日数据生成候选池。"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "手动生产请求：按指定信号日期或最近一个已完成交易日数据生成候选池。"
             echo "is_trading_day=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -108,7 +114,18 @@ jobs:
 
       - name: "使用固定模型生成候选池"
         run: |
-          python scripts/generate_research_candidates.py             --threshold 0.60             --model data/models/production_v1.json             --output data/candidates.json
+          if [ -n "${{ inputs.signal_date }}" ]; then
+            python scripts/generate_research_candidates.py \
+              --threshold 0.60 \
+              --model data/models/production_v1.json \
+              --signal-date "${{ inputs.signal_date }}" \
+              --output data/candidates.json
+          else
+            python scripts/generate_research_candidates.py \
+              --threshold 0.60 \
+              --model data/models/production_v1.json \
+              --output data/candidates.json
+          fi
 
       - name: "生成下一交易日计划"
         env:
