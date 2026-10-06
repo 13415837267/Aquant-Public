@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from datetime import date
 from pathlib import Path
@@ -40,9 +41,15 @@ def archive_candidates(payload: dict, root: Path = HISTORY_ROOT) -> Path:
         versioned = root / f"{day.year:04d}" / f"{day.isoformat()}__{version}__{commit}.json"
         if versioned.exists():
             existing_versioned = json.loads(versioned.read_text(encoding="utf-8"))
-            if existing_versioned != payload:
-                raise RuntimeError(f"candidate history version collision: {versioned}")
-            return versioned
+            if existing_versioned == payload:
+                return versioned
+            digest = hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:10]
+            versioned = root / f"{day.year:04d}" / f"{day.isoformat()}__{version}__{commit}__{digest}.json"
+            if versioned.exists():
+                existing_hashed = json.loads(versioned.read_text(encoding="utf-8"))
+                if existing_hashed != payload:
+                    raise RuntimeError(f"candidate history content collision: {versioned}")
+                return versioned
         versioned.write_text(serialized, encoding="utf-8")
         return versioned
 
