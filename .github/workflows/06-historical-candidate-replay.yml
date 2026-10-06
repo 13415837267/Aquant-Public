@@ -1,10 +1,6 @@
 name: "06 历史候选回放"
 
-on:
-  push:
-    paths:
-      - "data/research/historical_replay_trigger.json"
-  workflow_dispatch:
+on:  workflow_dispatch:
     inputs:
       signal_date:
         description: "信号日期（北京时间，必须是已有交易日）"
@@ -76,11 +72,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p data/research/historical_candidates
-          for DATE in 2026-09-28 2026-09-29; do
-            echo "开始固定模型回放：$DATE"
-            python scripts/generate_research_candidates.py --signal-date "$DATE" --threshold 0.60 --model data/models/production_v1.json --output "data/research/historical_candidates/$DATE.json"
-            echo "完成固定模型回放：$DATE"
-          done
+          DATE="${{ inputs.signal_date }}"
+          python scripts/generate_research_candidates.py --signal-date "$DATE" --threshold 0.60 --model data/models/production_v1.json --output "data/research/historical_candidates/$DATE.json"
       - name: "验证无未来数据与正式条件"
         run: |
           set -euo pipefail
