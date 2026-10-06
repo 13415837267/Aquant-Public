@@ -54,10 +54,12 @@ jobs:
           from zoneinfo import ZoneInfo
           from pathlib import Path
           now = datetime.now(ZoneInfo("Asia/Shanghai"))
+          status_text = "$status"
+          is_trading_day = status_text == "true"
           payload = {
               "schema_version": 1,
-              "status": "trading_day" if $status else "non_trading_day",
-              "is_trading_day": $status,
+              "status": "trading_day" if is_trading_day else "non_trading_day",
+              "is_trading_day": is_trading_day,
               "checked_at": now.isoformat(),
               "timezone": "Asia/Shanghai",
               "workflow": "02 数据维护",
