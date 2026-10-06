@@ -1,10 +1,6 @@
 name: "07 第一版模型资产物化"
 
-on:
-  push:
-    paths:
-      - "data/research/model_bootstrap_trigger.json"
-  workflow_dispatch:
+on:  workflow_dispatch:
 
 permissions:
   contents: write
