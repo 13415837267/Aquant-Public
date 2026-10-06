@@ -11,6 +11,7 @@ on:
       - "data/research_trial_status.json"
       - "data/research_status.json"
       - "data/trading_day_status.json"
+      - "data/web_deploy_trigger.json"
       - "public/**"
       - "package.json"
       - "package-lock.json"
@@ -20,6 +21,12 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      调试说明:
+        description: "手动部署时填写本次调试目的"
+        required: false
+        default: "手动验证网页部署链路"
+        type: string
 
 permissions:
   contents: read
