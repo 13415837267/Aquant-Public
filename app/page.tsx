@@ -45,11 +45,11 @@ type ResearchStatus = {
 const snapshot=candidatesData as Snapshot;
 const audit=auditData as {production_gate?:string; strategy_version?:string; strategy_commit?:string; audit?:{production_gate_passed?:boolean}};
 const provenanceMatches=audit.strategy_version===snapshot.strategy_version && audit.strategy_commit===snapshot.strategy_commit;
-const productionStatus=productionStatusData as {status:string;production_version:string|null;release_gate:boolean;system_audit:boolean};
+const productionStatus=productionStatusData as {status:string;production_version:string|null;release_gate:boolean;system_audit:boolean;strategy_quality_gate_passed:boolean};
 const researchStatus=researchStatusData as ResearchStatus;
 const nextTradingPlan=nextTradingPlanData as NextTradingPlan;
 const researchTrial=researchTrialData as ResearchTrial;
-const productionReady=productionStatus.status==="released" && productionStatus.release_gate===true && productionStatus.system_audit===true;
+const productionReady=productionStatus.status==="released" && productionStatus.release_gate===true && productionStatus.system_audit===true;\nconst liveOrderingEnabled=productionReady && productionStatus.strategy_quality_gate_passed===true;
 const fmt=(n:number,d=2)=>n.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct=(n:number)=>(n>=0?"+":"")+fmt(n)+"%";
 const dirClass=(n:number)=>n>0?"rise":n<0?"fall":"flat";
@@ -94,7 +94,7 @@ export default function Home(){
       <div className="plan-grid">
         {nextTradingPlan.steps.map((step)=><div className="plan-item" key={step.time}><div className="plan-time">{step.time}</div><div className="plan-action">{step.action}</div></div>)}
       </div>
-      <div className="next-plan-warning">当前生产门禁：<strong>{nextTradingPlan.production_release?"允许生产":"禁止实盘"}</strong>。本计划候选必须与 data/candidates.json 候选快照逐项一致；只使用 {nextTradingPlan.signal_date} 收盘及此前已知数据，不使用执行日或之后的行情结果参与选股。</div>
+      <div className="next-plan-warning">当前生产门禁：<strong>{liveOrderingEnabled?"允许生产":"禁止实盘"}</strong>。本计划候选必须与 data/candidates.json 候选快照逐项一致；只使用 {nextTradingPlan.signal_date} 收盘及此前已知数据，不使用执行日或之后的行情结果参与选股。</div>
     </section>
 
     <section className="card research-card"><div className="table-head"><div><div className="table-title">第一版训练基准表现</div><div className="table-subtitle">近期训练窗口：{researchTrial.training_window.start} 至 {researchTrial.training_window.end}；当前系统正式采用，策略质量门槛仍为80%。</div></div><div className="badge">正式基线</div></div><div className="research-grid"><div><div className="metric-label">最终留出胜率</div><div className="metric-value">{fmt(researchTrial.selected_operating_point.final_win_rate_pct,2)}%</div><div className="metric-note">{researchTrial.selected_operating_point.final_samples.toLocaleString("zh-CN")} 个样本 · 威尔逊下界 {fmt(researchTrial.selected_operating_point.final_wilson_lower_pct,2)}%</div></div><div><div className="metric-label">验证集胜率</div><div className="metric-value">{fmt(researchTrial.validation.win_rate_pct,2)}%</div><div className="metric-note">{researchTrial.validation.samples.toLocaleString("zh-CN")} 个样本 · 威尔逊下界 {fmt(researchTrial.validation.wilson_lower_pct,2)}%</div></div><div><div className="metric-label">样本覆盖率</div><div className="metric-value">{fmt(researchTrial.selected_operating_point.final_sample_share_pct,2)}%</div><div className="metric-note">阈值 {fmt(researchTrial.selected_operating_point.probability_threshold,2)}</div></div></div><div className="research-warning"><strong>系统已正式启用，但策略质量门槛尚未通过。</strong> 当前最终留出 {fmt(researchTrial.selected_operating_point.final_win_rate_pct,2)}%，仍低于正式 {fmt(researchTrial.formal_gate_pct,0)}% 门槛；网页不会因此解除生产门禁。T+1 开盘执行、T+2 起退出、严格标签和无未来函数审计均保持有效。</div></section>
@@ -118,7 +118,7 @@ export default function Home(){
 
     <div className="main">
       <section className="card table-card">
-        <div className="table-head"><div><div className="table-title">{productionReady?"生产候选":"研究候选快照"}</div><div className="table-subtitle">{productionReady?"短线综合分 + 市场门控":"候选快照；生产门控未通过，不作为实盘信号"}</div></div><div className="badge">数据时点 {snapshot.as_of.replace("T"," ")}</div></div>
+        <div className="table-head"><div><div className="table-title">{liveOrderingEnabled?"生产候选":"研究候选快照"}</div><div className="table-subtitle">{liveOrderingEnabled?"短线综合分 + 市场门控":"候选快照；策略质量门槛未通过，不作为实盘信号"}</div></div><div className="badge">数据时点 {snapshot.as_of.replace("T"," ")}</div></div>
         {!candidatesAreCurrent?<div className="empty">当前网页不展示旧策略候选。训练基准 {researchTrial.strategy_version} 尚未生成与当前版本完全一致的候选快照；系统宁可暂不展示，也不混用旧信号。</div>:rows.length===0?<div className="empty">当前市场门控未产生候选。系统允许空仓，而不是为了凑够候选数量强行入选。</div>:
         <div className="table-wrap"><table><thead><tr><th>#</th><th>股票</th><th>价格</th><th>隔夜</th><th>今日</th><th>3日</th><th>5日</th><th>10日</th><th>量比</th><th>成交额</th><th>10日波动</th><th>收盘强度</th><th>综合分</th></tr></thead>
         <tbody>{rows.map(r=><tr key={r.symbol}><td className="rank">{r.rank}</td><td><span className="symbol">{r.symbol}</span><span className="name">{r.name}</span></td><td>{fmt(r.price)}</td><td className={r.overnight_1d_pct==null?"":dirClass(r.overnight_1d_pct)}>{r.overnight_1d_pct==null?"—":pct(r.overnight_1d_pct)}</td><td className={dirClass(r.change_pct)}>{pct(r.change_pct)}</td><td className={dirClass(r.return_3d_pct)}>{pct(r.return_3d_pct)}</td><td className={dirClass(r.return_5d_pct)}>{pct(r.return_5d_pct)}</td><td className={dirClass(r.return_10d_pct)}>{pct(r.return_10d_pct)}</td><td>{fmt(r.volume_ratio_5d,2)}倍</td><td>{amount(r.amount)}</td><td>{fmt(r.volatility_10d_pct,2)}%</td><td>{fmt(r.close_strength*100,1)}%</td><td className="score">{fmt(r.score)}</td></tr>)}</tbody></table></div>}
@@ -131,6 +131,6 @@ export default function Home(){
       </aside>
     </div>
 
-    <footer className="footer"><span>研究 / 模拟交易系统 · 不连接券商执行。</span><span>{productionReady?(snapshot.diagnostics?.risk_off_no_trade?"弱市：允许无候选":"第一版系统候选可用"):"系统未启用"}</span></footer>
+    <footer className="footer"><span>研究 / 模拟交易系统 · 不连接券商执行。</span><span>{liveOrderingEnabled?(snapshot.diagnostics?.risk_off_no_trade?"弱市：允许无候选":"第一版系统候选可用"):"研究/模拟模式，禁止实盘"}</span></footer>
   </main>;
 }
