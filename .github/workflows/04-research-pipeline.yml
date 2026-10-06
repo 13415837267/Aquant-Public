@@ -55,6 +55,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      - name: "执行百分之三止盈止损路径训练"
+        run: |
+          set -euo pipefail
+          python scripts/train_path_aware_model.py --start 2015-01-05 --final-end 2026-09-30 --output data/backtest/path_aware_profit_3pct_training_latest.json
+
       - name: "记录研究启动状态"
         run: |
           mkdir -p data/research/short_term_release_validation
@@ -76,7 +81,7 @@ jobs:
           name: "第一版历史研究检查点"
           path: |
             data/research/short_term_release_validation
-            data/backtest/short_term_release_validation.json
+            data/backtest/short_term_release_validation.json\n            data/backtest/path_aware_profit_3pct_training_latest.json
           if-no-files-found: warn
           retention-days: 30
 
