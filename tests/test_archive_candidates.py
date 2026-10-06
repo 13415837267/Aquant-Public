@@ -59,6 +59,7 @@ def test_archive_candidates_uses_content_hash_when_same_version_changes(tmp_path
     changed["strategy_commit"] = "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592"
     changed["candidates"][0]["symbol"] = "600001"
     path = archive_candidates(changed, tmp_path)
-    assert "__3df9ef34ee.json" not in path.name
-    assert "__" in path.name
+    assert path.name != "2026-09-30__固定基准__3df9ef34ee.json"
+    assert path.name.startswith("2026-09-30__固定基准__3df9ef34ee__")
+    assert path.name.endswith(".json")
     assert path.exists()
