@@ -11,57 +11,28 @@ sys.path.insert(0, str(ROOT))
 
 import numpy as np
 
-from scripts.high_precision_profit_mining import NonlinearModel
+from scripts.production_model import load_model, DEFAULT_MODEL_PATH
 from scripts.short_term_research import FeatureState, history_files, read_daily
-from scripts.train_short_term_model import FEATURES, build_targets, make_features
+from scripts.train_short_term_model import make_features
 
 ROOT = Path(__file__).resolve().parents[1]
-TRAIN_END = "2026-09-30"
-MODEL_CODE_COMMIT = "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592"
-MODEL_VERSION = "近期训练窗口研究版"
-MAX_FORWARD_SESSIONS = 5
 TOP_K = 2
+MODEL_VERSION = "近期训练窗口研究版"
 
 
-def train_model(files, start, train_end):
-    dates = [p.name[:10] for p in files]
-    start_i = dates.index(start)
-    end_i = dates.index(train_end)
-    model = NonlinearModel(len(FEATURES))
-    state = FeatureState()
-    cache = {}
-
-    def get(i):
-        if i not in cache:
-            cache[i] = read_daily(files[i])
-        return cache[i]
-
-    days = samples = 0
-    for i in range(max(0, start_i - 20), end_i + 1):
-        date = dates[i]
-        frame = state.build(get(i))
-        if date < start or date > train_end or frame.empty:
-            continue
-        if i + MAX_FORWARD_SESSIONS >= len(files):
-            continue
-        futures = [get(i + j) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
-        x = make_features(frame)
-        labels, _, _, complete = build_targets(
-            frame["symbol"].astype(str).str.zfill(6).tolist(), futures
-        )
-        keep = np.flatnonzero(complete)
-        if len(keep) == 0:
-            continue
-        model.update(x[keep], labels[keep].astype(np.float64))
-        days += 1
-        samples += len(keep)
-        if days % 50 == 0:
-            print(f"[候选基准训练] 已处理{days}日，样本{samples}", flush=True)
-    if samples < 5000:
-        raise RuntimeError(f"训练样本不足: {samples}")
-    print(f"[候选基准训练] 完成：{days}日，样本{samples}", flush=True)
-    return model
-
+def load_fixed_model(model_path: Path):
+    release = json.loads((ROOT / "config" / "production_release_v1.json").read_text(encoding="utf-8"))
+    baseline = release["model_baseline"]
+    model, payload = load_model(
+        model_path,
+        expected_version=baseline["version"],
+        expected_commit=baseline["model_code_commit"],
+    )
+    if payload["training_start"] != baseline["training_start"] or payload["training_end"] != baseline["training_end"]:
+        raise RuntimeError("正式模型训练窗口与生产基准不一致")
+    if float(baseline["probability_threshold"]) != 0.60 or int(baseline["top_k"]) != 2:
+        raise RuntimeError("生产候选参数不是第一版正式基准")
+    return model, payload
 
 def build_latest_frame(files, signal_date):
     state = FeatureState()
@@ -114,19 +85,19 @@ def main():
     parser.add_argument("--start", default="2019-01-02")
     parser.add_argument("--threshold", type=float, default=0.60)
     parser.add_argument("--output", default="data/candidates.json")
-    parser.add_argument("--train-end", default=TRAIN_END)
+    parser.add_argument("--model", default=str(ROOT / DEFAULT_MODEL_PATH))
     parser.add_argument("--signal-date", default=None)
     args = parser.parse_args()
 
     files = history_files()
     dates = [p.name[:10] for p in files]
-    signal_date = args.signal_date or args.train_end
-    if args.start not in dates or args.train_end not in dates or signal_date not in dates:
+    signal_date = args.signal_date or dates[-1]
+    if signal_date not in dates:
         raise ValueError("训练区间不在历史数据范围内")
     if not 0 < args.threshold < 1:
         raise ValueError("概率阈值必须在0和1之间")
 
-    model = train_model(files, args.start, args.train_end)
+    model, model_payload = load_fixed_model(Path(args.model))
     frame, signal_date = build_latest_frame(files, signal_date)
     probabilities = model.predict(make_features(frame))
     scored = frame.copy()
@@ -154,12 +125,13 @@ def main():
         "status": "ready",
         "strategy_source": "04历史研究流水线/近期训练窗口模型",
         "strategy_version": MODEL_VERSION,
-        "strategy_commit": MODEL_CODE_COMMIT,
+        "strategy_commit": model_payload["model_code_commit"],
         "model_definition": {
             "type": "numpy_two_layer_mlp",
-            "training_start": args.start,
-            "training_end": args.train_end,
-            "data_cutoff": signal_date,
+            "training_start": model_payload["training_start"],
+            "training_end": model_payload["training_end"],
+            "model_data_cutoff": model_payload["data_cutoff"],
+            "signal_data_cutoff": signal_date,
             "probability_threshold": args.threshold,
             "top_k": TOP_K,
             "objective": "单笔净利润达到+1%才计为胜，最长5个交易日",
@@ -196,6 +168,8 @@ def main():
         "audit": {
             "hard_eligibility_applied_before_model_scoring": True,
             "model_source_locked_to_recent_window_research": True,
+            "fixed_model_weights_used": True,
+            "daily_retraining": False,
             "short_term_features_only": True,
             "no_future_features": True,
             "entry_is_T_plus_1_open": True,
@@ -206,6 +180,8 @@ def main():
         "history_files_used": len(files),
         "history_window_start": dates[0],
         "history_window_end": signal_date,
+        "inference_data_only_to_signal_date": True,
+        "model_artifact": str(Path(args.model).as_posix()),
     }
 
     Path(args.output).write_text(
