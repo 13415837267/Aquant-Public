@@ -1,6 +1,7 @@
 name: "06 历史候选回放"
 
-on:  workflow_dispatch:
+on:
+  workflow_dispatch:
     inputs:
       signal_date:
         description: "信号日期（北京时间，必须是已有交易日）"
