@@ -8,7 +8,8 @@
 ## 1. 当前唯一有效生产基准
 
 - Private 策略源：Aquant-Private/main
-- Private 提交：f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd
+- Private 当前提交：bd395f5577b4247ac621293dfb3a248a7b1d1e00（仅 README 文档变更）
+- 固定模型对应策略代码提交：f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd
 - 固定模型代码提交：3df9ef34ee23a86d6f844ceb9e96bf4b4f387592
 - 固定模型：data/models/production_v1.json
 - 训练窗口：2019-01-02 至 2026-09-30
