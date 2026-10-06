@@ -1,45 +1,23 @@
-## 2026-10-04 — Candidate coverage optimization 2.5.0
+# 更新记录
 
-- Synced the public validator with the 2.5.0 researched 0.85 rescue floor.
-- Candidate snapshots now record and validate the daily Top-1 rescue tier under the 0.85 floor.
-- No change to A-share T+1 execution or production-release gating.
+## 2026-10-06 — 第一版正式系统基线整理
 
-## 2026-10-04 — Candidate coverage optimization 2.4.0
+- 锁定生产版本为 1.0.0。
+- 锁定固定模型资产 data/models/production_v1.json。
+- 日常候选生产改为读取固定模型，不再每日重新训练。
+- 历史日期回放使用同一固定模型，并将输入数据截断到信号日，禁止读取未来行情。
+- 候选池、下一交易日计划和网页统一使用同一候选快照。
+- 清理旧 2.5.0 候选准入、旧候选生成脚本、一次性模型物化触发文件和过期部署状态。
+- 保留历史研究结果、失败/恢复记录和历史数据作为审计资料，但不允许旧研究结果作为当前生产输入。
+- 当前策略质量门槛仍为 80%，第一版最终留出胜率 62.32%，因此系统只提供研究/模拟信号，不自动下单。
 
-- Added a researched daily Top-1 rescue tier after the 0.89 primary and 0.88 fallback tiers fail.
-- The rescue selects one highest-ranked candidate in non-risk-off regimes and still applies hard short-term risk controls.
-- The objective is to avoid mechanical empty candidate days caused only by probability calibration; the primary 0.89 quality gate remains unchanged.
-- Kept A-share T_close -> T+1_open -> T+2 earliest-exit semantics unchanged.
-- Research remains separate from production release; no execution-constrained 80%+ production claim is made.
+## 2026-10-05 — 固定模型生产链路
 
-## 2026-10-04 — Candidate coverage optimization 2.3.0
+- 完成第一版固定模型云端物化。
+- 03 候选池生产取消日常训练，改为固定模型推理。
+- 06 历史候选回放统一使用固定模型。
+- 严格验证 T 日可见数据、T+1 开盘执行、T+2 起最早退出和最长 5 个完整交易日。
 
-- Retained the primary 0.89 precision gate and added a 0.88 research-backed daily Top-1 fallback when no primary candidate is available in a non-risk-off regime.
-- Added explicit admission-tier fields and validation for fallback provenance.
-- Kept hard short-term risk controls and A-share T_close -> T+1_open -> T+2 earliest-exit semantics unchanged.
-- Candidate coverage is improved without lowering the primary quality gate; research metrics still do not equal an execution-constrained 80%+ production guarantee.
+## 历史版本说明
 
-# Changelog
-
-## 2026-10-03 — Runtime cleanup and A-share UI normalization
-
-- Consolidated the repository around the `main` branch only.
-- Removed obsolete admission/variant/next-generation research workflows, scripts and stale research artifacts.
-- Kept historical data, PIT fundamentals, candidate generation, short-term research, audit and Pages as the core runtime.
-- Restored the A-share color convention to red-up and green-down across directional return metrics.
-- Added stale-result protection so an old cloud research run cannot write results after the source strategy changes.
-- Standardized Aquant-Private/main as the sole strategy source; current baseline strategy is 2.1.0.
-
-## 2026-10-03 — Short-term system pivot 2.0.0
-
-- Re-scoped the production system to a 1–5 trading-session short-term signal horizon.
-- Replaced the medium-term 126-session/value-led candidate model with short-horizon momentum, volume activity, price strength, liquidity and safety.
-- Added a market breadth no-trade gate and dynamic Top-3 admission.
-- Added T_close -> T+1_open -> max five-session research with explicit +6% target and -3% stop reference.
-- Updated GitHub Pages to show short-term signal features.
-- Replaced production readiness checks so old medium-term backtests are no longer the release gate.
-
-## 2026-10-03 — Candidate pool focus cleanup
-
-- Kept historical data and PIT fundamentals as research infrastructure.
-- Removed obsolete portfolio/execution outputs from the current candidate-pool production target.
+旧版本研究、策略实验和候选准入规则仍可从 Git 历史追溯，但不属于当前 1.0.0 生产基准。
