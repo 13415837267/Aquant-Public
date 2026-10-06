@@ -1,12 +1,12 @@
 {
-  "schema_version": 1,
-  "status": "research_architecture_rebuilt",
+  "schema_version": 2,
+  "status": "current_research_architecture",
   "timezone": "Asia/Shanghai",
   "formal_cloud_runtime": "GitHub Actions",
   "strategy_source": {
     "repository": "13415837267/Aquant-Private",
     "branch": "main",
-    "rule": "研究结果不得直接改写策略源；只有通过独立验证、最终留出、系统审计和发布门禁后才允许进入正式生产。"
+    "rule": "研究结果不得直接改写策略源；只有通过独立验证、最终留出、系统审计和正式发布后才允许进入生产模型资产。"
   },
   "hard_rules": {
     "signal": "T日收盘",
@@ -18,19 +18,24 @@
     "future_function": false,
     "timezone": "Asia/Shanghai"
   },
-  "pipeline": [
+  "research_pipeline": [
     {
       "stage": 1,
       "name": "数据层",
-      "workflow": "数据更新",
-      "inputs": ["行情数据源", "中国A股交易日历"],
-      "outputs": ["data/history", "data/universe", "data/fundamentals"],
-      "writes_strategy_source": false
+      "modules": [
+        "scripts/backfill_history.py",
+        "scripts/refresh_universe.py",
+        "scripts/pit_fundamentals.py"
+      ],
+      "outputs": [
+        "data/history",
+        "data/universe.json",
+        "data/fundamentals"
+      ]
     },
     {
       "stage": 2,
-      "name": "特征研究",
-      "workflow": "研究流水线",
+      "name": "特征与模型研究",
       "modules": [
         "scripts/train_short_term_model.py",
         "scripts/train_path_aware_model.py"
@@ -38,13 +43,11 @@
       "outputs": [
         "data/backtest/feature_training_latest.json",
         "data/backtest/path_aware_feature_training_latest.json"
-      ],
-      "writes_strategy_source": false
+      ]
     },
     {
       "stage": 3,
-      "name": "规则挖掘",
-      "workflow": "研究流水线",
+      "name": "规则与高精度研究",
       "modules": [
         "scripts/path_rule_mining.py",
         "scripts/path_regime_rule_mining.py",
@@ -54,15 +57,12 @@
       "outputs": [
         "data/backtest/path_rule_mining_latest.json",
         "data/backtest/path_regime_rule_mining_latest.json",
-        "data/backtest/high_precision_profit_mining_latest.json",
-        "data/backtest/strict_path_strategy_score_mining_latest.json"
-      ],
-      "writes_strategy_source": false
+        "data/backtest/high_precision_profit_mining_latest.json"
+      ]
     },
     {
       "stage": 4,
-      "name": "综合历史研究与最终留出",
-      "workflow": "研究流水线",
+      "name": "正式历史验证",
       "modules": [
         "scripts/short_term_research.py",
         "scripts/short_term_release_validation.py"
@@ -73,52 +73,51 @@
         "data/backtest/short_term_exit_diagnostics.json",
         "data/backtest/short_term_release_validation.json"
       ],
-      "gate": "最终留出集必须独立于开发与参数选择"
+      "gate": "最终留出集、执行约束、未来函数和最小样本门槛必须全部通过；当前第一版质量门槛未通过。"
     },
     {
       "stage": 5,
-      "name": "候选层",
-      "workflow": "行情与候选更新",
+      "name": "正式模型物化与候选生产",
       "modules": [
-        "scripts/update_candidates.py",
-        "scripts/validate_candidates.py",
+        "scripts/materialize_production_model.py",
+        "scripts/production_model.py",
+        "scripts/generate_research_candidates.py",
         "scripts/next_trading_day_plan.py"
       ],
       "outputs": [
+        "data/models/production_v1.json",
         "data/candidates.json",
         "data/next_trading_day_plan.json"
       ],
-      "source_of_truth": "data/candidates.json"
+      "rule": "生产日常只读取已发布固定模型，不每日重新训练。"
     },
     {
       "stage": 6,
-      "name": "系统审计",
-      "workflow": "系统审计",
-      "module": "scripts/system_audit.py",
-      "outputs": ["data/system_audit.json"],
-      "production_release": false
+      "name": "历史候选回放",
+      "modules": [
+        "scripts/generate_research_candidates.py"
+      ],
+      "outputs": [
+        "data/research/historical_candidates"
+      ],
+      "rule": "固定模型加信号日数据截断，不读取未来行情。"
     },
     {
       "stage": 7,
-      "name": "发布门禁",
-      "workflow": "正式发布门禁",
-      "condition": "仅人工明确触发；必须同时满足最终留出、系统审计、策略来源一致性和全部硬规则。",
-      "outputs": ["data/production_status.json"],
-      "production_release": true
-    },
-    {
-      "stage": 8,
       "name": "网页层",
-      "workflow": "网页质量与部署",
-      "rule": "只展示数据与状态，不自动下单。"
+      "modules": [
+        "app/page.tsx"
+      ],
+      "rule": "只展示正式快照和状态，不自动下单。"
     }
   ],
   "isolation_rules": [
-    "研究工作流不使用push触发，避免研究结果提交后递归触发研究。",
-    "研究阶段只在同一云端运行中顺序执行，最终统一固化结果，避免多个研究工作流互相覆盖。",
-    "生产发布必须与研究运行解耦，正式发布使用独立人工门禁。",
-    "候选池与下一交易日计划只允许有一个权威来源，不维护第二套候选列表。",
-    "所有研究运行必须锁定Public与Private提交版本；运行期间发现版本变化必须拒绝固化结果。",
-    "研究结果失败不应写入生产状态为已发布。"
+    "研究工作流不得把研究结果直接写入正式候选快照。",
+    "生产候选不得每日重新训练模型。",
+    "历史回放不得使用目标信号日之后的行情特征。",
+    "候选池和下一交易日计划只允许一个权威候选快照。",
+    "研究运行必须锁定Public与Private提交版本。",
+    "研究失败不得把生产状态改写为已通过。",
+    "旧研究结果只能作为历史审计资料，不得成为当前生产输入。"
   ]
 }
