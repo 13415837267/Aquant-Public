@@ -1,6 +1,9 @@
 name: "06 历史候选回放"
 
 on:
+  push:
+    paths:
+      - "data/research/historical_replay_trigger.json"
   workflow_dispatch:
     inputs:
       signal_date:
@@ -56,7 +59,7 @@ jobs:
       - name: "执行历史回放"
         run: |
           set -euo pipefail
-          DATE="${{ inputs.signal_date }}"
+          DATE="${{ inputs.signal_date || '2026-09-28' }}"
           mkdir -p data/research/historical_candidates
           python scripts/generate_research_candidates.py \\
             --start 2019-01-02 \\
@@ -82,13 +85,13 @@ jobs:
           print(json.dumps({"signal_date": date, "candidates": [{"rank": x["rank"], "symbol": x["symbol"], "name": x["name"], "probability": x["precision_probability"]} for x in r["candidates"]]}, ensure_ascii=False, indent=2))
           PY
         env:
-          SIGNAL_DATE: ${{ inputs.signal_date }}
+          SIGNAL_DATE: ${{ inputs.signal_date || '2026-09-28' }}
 
       - name: "提交历史回放结果"
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "data/research/historical_candidates/${{ inputs.signal_date }}.json"
-          git commit -m "研究：完成${{ inputs.signal_date }}历史候选回放"
+          git add data/research/historical_candidates
+          git commit -m "研究：完成历史候选回放"
           git push
