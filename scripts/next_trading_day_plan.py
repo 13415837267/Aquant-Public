@@ -64,6 +64,7 @@ def _production_release(production: dict) -> bool:
         production.get("status") == "released"
         and production.get("release_gate") is True
         and production.get("system_audit") is True
+        and production.get("strategy_quality_gate_passed") is True
     )
 
 
