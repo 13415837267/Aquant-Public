@@ -38,6 +38,13 @@
   "candidate_generation": {
     "probability_threshold": 0.6,
     "top_k": 2,
-    "policy": "top_2_by_recent_window_model_probability_threshold_0.60"
+    "policy": "top_2_by_recent_window_model_probability_threshold_0.60",
+    "data_mode": "新交易日增量数据；历史日期按目标日期截断可见数据"
+  },
+  "model_artifact": "data/models/production_v1.json",
+  "model_lifecycle": {
+    "daily_retraining": false,
+    "daily_process": "增量数据维护完成后使用固定模型推理",
+    "new_model_release": "仅新研究/正式模型版本通过验证后更新模型资产"
   }
 }
