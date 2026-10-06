@@ -1,98 +1,209 @@
-# Architecture
+# 系统架构
 
-## Production flow
+## 一、当前正式生产链路
 
 ```text
-zzshare
-   |
-   v
-Shanghai/Shenzhen main-board historical database
-   |
-   +--> daily incremental data
-   |
-   +--> historical/fundamental research data
-   |
-   v
+北京时间 18:00 数据检查
+        │
+        ▼
+01 Python 质量检查
+        │
+        ▼
 02 数据维护
-   |
-   +--> 仅增量更新最新交易日数据
-   +--> 数据完整性与交易日校验
-   |
-   v
+        │
+        ├── A股交易日判断
+        ├── 增量行情更新
+        ├── 数据完整性校验
+        └── 更新交易日状态
+        │
+        ▼
 03 候选池生产
-   |
-   +--> 校验第一版固定模型资产
-   +--> 仅读取信号日及此前必要历史窗口
-   +--> 固定模型推理（不重新训练）
-   +--> 概率阈值与候选准入
-   |
-   v
-data/candidates.json
-   |
-   v
-scripts/portfolio.py
-   |
-   +--> deterministic inverse-volatility allocation
-   +--> 5% single-name cap / 5% cash buffer
-   |
-   v
-data/portfolio.json
-   |
-   v
-scripts/execution_plan.py
-   |
-   +--> lot/T+1/cash/turnover checks
-   +--> next-open recheck gate
-   |
-   v
-data/execution_plan.json
-   |
-   +--> historical backtest / constrained execution research
-   |
-   v
-Next.js / GitHub Pages
+        │
+        ├── 校验 Aquant-Private/main 来源
+        ├── 校验第一版固定模型资产
+        ├── 读取信号日及此前可见数据
+        ├── 固定模型推理（不重新训练）
+        ├── 概率阈值 0.60
+        └── 最多保留 2 个候选
+        │
+        ├───────────────┐
+        ▼               ▼
+候选快照              下一交易日计划
+data/candidates.json   data/next_trading_day_plan.json
+        │               │
+        └───────┬───────┘
+                ▼
+05 GitHub Pages
+                │
+                ▼
+          网页展示
 ```
 
-## Repository responsibilities
+## 二、两个仓库职责
 
-- **Aquant-Private**: the single source of truth for production strategy code, factors, parameters, and strategy version.
-- **Aquant-Public**: production data, database collection, quality checks, candidate generation, backtesting infrastructure, Actions, and Pages.
-- Public does **not** maintain an independent strategy implementation.
+### Aquant-Private
 
-## Database
+- 唯一策略源和策略研究仓库。
+- 保存策略版本、因子、候选政策、参数和研究实验。
+- 当前 main 提交作为生产链路的策略来源审计对象。
+- 不负责生产运行、网页构建或自动下单。
 
-Daily market and valuation data are persisted as:
+### Aquant-Public
 
-`data/history/YYYY/YYYY-MM-DD.csv.gz`
+- 数据库和数据维护。
+- 固定模型资产。
+- 候选池生产。
+- 下一交易日计划。
+- 历史研究与历史候选回放。
+- GitHub Actions 云端运行。
+- GitHub Pages 网页展示。
+- 不连接券商，不自动下单。
 
-Quarterly financial data are persisted under:
+两个仓库均只使用 main 分支。
 
-`data/fundamentals/{indicator,income,balance,cash_flow}/`
+## 三、模型生命周期
 
-`scripts/pit_fundamentals.py` provides the canonical point-in-time read path: only publications with `pub_date <= trade_date` can enter a historical information set, and the latest available publication is selected per security.
+正式第一版模型资产：
 
-Candidate generation reads the persisted database rather than rebuilding five years of history from the provider on every run.
+data/models/production_v1.json
 
-## Model lifecycle and daily inference
+生产锁定文件：
 
-第一版正式模型权重固定保存于：
+config/production_release_v1.json
 
-`data/models/production_v1.json`
+当前固定模型：
 
-模型资产包含模型版本、模型代码提交号、训练窗口、特征空间和完整权重。生产候选生成必须先校验模型资产与 `config/production_release_v1.json` 一致；日常运行**禁止重新训练**。
+- 模型类型：两层神经网络。
+- 训练窗口：2019-01-02 至 2026-09-30。
+- 数据截止：2026-09-30。
+- 概率阈值：0.60。
+- 每日最多候选：2。
+- 模型权重已经物化并提交到仓库。
 
-日常交易日流程为：
+### 日常运行
 
-1. `02` 仅增量维护最新市场数据并完成数据校验。
-2. `03` 读取当前固定模型，不重新训练。
-3. 为最新交易日建立特征时，只使用该交易日及此前可见的数据；滚动特征只读取所需历史窗口。
-4. 固定概率阈值和候选数量规则后生成候选池。
-5. 只有新的研究版本完成验证并被正式发布时，才允许替换固定模型权重。
+**禁止每日重新训练。**
 
-历史日期回放也读取同一个固定模型，但输入数据截断到目标信号日；因此不会读取目标日期之后的行情数据。需要区分：这种回放用于回答“当前固定模型在历史截面上的评分”，并不等同于“站在历史日期重新训练模型后的完全无未来模型回测”。
+交易日流程：
 
-Private 仓库仍作为策略源和版本审计来源；Public 不日常重新实现或训练一套独立策略。
+1. 02 增量获取当天最新可用行情。
+2. 读取已经发布的固定模型。
+3. 只使用信号日及此前可见的数据建立特征。
+4. 使用固定模型推理。
+5. 生成候选池。
+6. 从同一候选快照生成下一交易日计划。
+7. 触发网页部署。
 
-## Runtime boundary
+### 新模型发布
 
-Production computation covers data collection, candidate generation, portfolio construction, execution-plan preparation, and historical execution-constrained research. Broker/OMS submission remains a separate external service; `data/execution_plan.json` is an auditable plan and not a broker fill.
+只有新的研究模型完成独立验证、最终留出、系统审计和正式发布后，才允许替换固定模型资产。替换模型时必须同步更新正式基准锁定文件和模型资产审计字段。
+
+## 四、历史日期回放
+
+历史回放不是“每个历史日期重新训练一次”。
+
+当前规则：
+
+- 使用当前正式固定模型。
+- 将市场输入截断到目标信号日期。
+- 不读取目标日期之后的行情作为特征。
+- 保留模型原始训练截止日期和模型版本信息。
+- future_function 必须为 false。
+
+历史回放回答的是：
+
+> 当前固定生产模型站在某个历史截面时，会选出什么候选？
+
+它不等同于“在每个历史日期重新训练一个只使用当时数据的模型”。
+
+## 五、交易时序
+
+```text
+T日收盘产生信号
+        ↓
+T+1开盘最早买入
+        ↓
+T+2起最早卖出
+        ↓
+最长持有5个完整交易日
+```
+
+严格胜利定义：单笔净利润达到 1%。
+
+止损：3%。
+
+同日买入后卖出禁止。
+
+## 六、数据层
+
+历史行情：
+
+data/history/YYYY/YYYY-MM-DD.csv.gz
+
+基本面：
+
+data/fundamentals/{indicator,income,balance,cash_flow}/
+
+股票主数据：
+
+data/universe.json
+
+历史数据必须增量维护、去重和持久化；生产候选不重新从数据源重建完整历史。
+
+点时基本面读取必须满足：
+
+pub_date <= trade_date
+
+禁止把未来公布的信息带入历史信息集。
+
+## 七、研究层
+
+主要研究入口：
+
+- scripts/short_term_research.py
+- scripts/short_term_release_validation.py
+- scripts/train_short_term_model.py
+- scripts/train_path_aware_model.py
+- scripts/path_rule_mining.py
+- scripts/path_regime_rule_mining.py
+- scripts/high_precision_profit_mining.py
+- scripts/strict_path_strategy_score_mining.py
+
+研究脚本只用于研究和验证，不得直接改变正式生产候选政策。
+
+研究结果可以保留用于性能分析，但必须与正式生产状态分离。
+
+## 八、工作流
+
+- 01 Python质量检查：语法和测试。
+- 02 数据维护：交易日判断、增量行情、数据检查点。
+- 03 候选池生产：固定模型推理、候选快照、下一交易日计划。
+- 04 历史研究流水线：云端训练、验证、最终留出和研究检查点。
+- 05 网页自动部署：GitHub Pages 构建与部署。
+- 06 历史候选回放：固定模型历史截面回放。
+- 07 第一版模型资产物化：一次性完成；日常不运行。
+
+## 九、网页一致性
+
+网页只允许读取正式候选快照和正式状态文件。
+
+候选池与下一交易日计划必须来自同一个：
+
+data/candidates.json
+
+非交易日显示最近一个已经完成交易日的快照，不伪造当天行情。
+
+网页不自动下单。
+
+## 十、审计与残留原则
+
+当前运行输入只能来自第一版正式基准。
+
+旧研究结果、旧策略版本、失败运行和恢复记录可以保留在 Git 历史或明确标记为历史审计资料，但：
+
+- 不得参与候选生成。
+- 不得成为网页当前信号来源。
+- 不得作为正式生产状态覆盖当前基准。
+- 不得作为当前模型资产。
+
+任何代码修改必须使用中文提交说明，并在云端 GitHub Actions 完成验证。
