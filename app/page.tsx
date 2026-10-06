@@ -49,7 +49,8 @@ const productionStatus=productionStatusData as {status:string;production_version
 const researchStatus=researchStatusData as ResearchStatus;
 const nextTradingPlan=nextTradingPlanData as NextTradingPlan;
 const researchTrial=researchTrialData as ResearchTrial;
-const productionReady=productionStatus.status==="released" && productionStatus.release_gate===true && productionStatus.system_audit===true;\nconst liveOrderingEnabled=productionReady && productionStatus.strategy_quality_gate_passed===true;
+const productionReady=productionStatus.status==="released" && productionStatus.release_gate===true && productionStatus.system_audit===true;
+const liveOrderingEnabled=productionReady && productionStatus.strategy_quality_gate_passed===true;
 const fmt=(n:number,d=2)=>n.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
 const pct=(n:number)=>(n>=0?"+":"")+fmt(n)+"%";
 const dirClass=(n:number)=>n>0?"rise":n<0?"fall":"flat";
