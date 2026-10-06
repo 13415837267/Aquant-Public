@@ -9,15 +9,12 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import numpy as np
-
 from scripts.production_model import load_model, DEFAULT_MODEL_PATH
 from scripts.short_term_research import FeatureState, history_files, read_daily
 from scripts.train_short_term_model import make_features
 
 ROOT = Path(__file__).resolve().parents[1]
 TOP_K = 2
-MODEL_VERSION = "近期训练窗口研究版"
 
 
 def load_fixed_model(model_path: Path):
@@ -35,11 +32,12 @@ def load_fixed_model(model_path: Path):
     return model, payload
 
 def build_latest_frame(files, signal_date):
+    dates = [p.name[:10] for p in files]
+    end_i = dates.index(signal_date)
+    start_i = max(0, end_i - 20)
     state = FeatureState()
     frame = None
-    for path in files:
-        if path.name[:10] > signal_date:
-            break
+    for path in files[start_i:end_i + 1]:
         frame = state.build(read_daily(path))
     if frame is None or frame.empty:
         raise RuntimeError("最新交易日没有可评分股票")
@@ -82,7 +80,6 @@ def payload_row(row, rank):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start", default="2019-01-02")
     parser.add_argument("--threshold", type=float, default=0.60)
     parser.add_argument("--output", default="data/candidates.json")
     parser.add_argument("--model", default=str(ROOT / DEFAULT_MODEL_PATH))
@@ -124,7 +121,7 @@ def main():
         "source": "Aquant-Public data/history",
         "status": "ready",
         "strategy_source": "04历史研究流水线/近期训练窗口模型",
-        "strategy_version": MODEL_VERSION,
+        "strategy_version": model_payload["strategy_version"],
         "strategy_commit": model_payload["model_code_commit"],
         "model_definition": {
             "type": "numpy_two_layer_mlp",
@@ -195,7 +192,7 @@ def main():
             {"symbol": r["symbol"], "name": r["name"], "probability": r["precision_probability"]}
             for r in candidates
         ],
-        "strategy_version": MODEL_VERSION,
+        "strategy_version": model_payload["strategy_version"],
         "strategy_commit": MODEL_CODE_COMMIT,
     }, ensure_ascii=False))
 
