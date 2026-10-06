@@ -48,7 +48,9 @@ MIN_SELECTION_SAMPLES = 5000
 LEARNING_RATE = 0.08
 L2 = 0.02
 EPOCHS_PER_DAY = 2
-THRESHOLDS = [0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]\nPOSITIVE_CLASS_WEIGHT = 2.0\nTOP_K_VALUES = (2, 5, 10)
+THRESHOLDS = [0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]
+POSITIVE_CLASS_WEIGHT = 2.0
+TOP_K_VALUES = (2, 5, 10)
 
 
 def percentile_rank(series):
@@ -386,7 +388,8 @@ def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "
+", encoding="utf-8")
     print(json.dumps({
         "status": result["status"],
         "train_samples": train_samples,
