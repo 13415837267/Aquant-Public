@@ -182,7 +182,7 @@ def collect(files, start, end, state, model=None, train=False):
         samples += len(yy)
         processed += 1
 
-        breadth = frame["market_breadth_pct"].to_numpy(dtype=np.float64)[keep]
+        breadth = np.clip(frame["market_breadth_pct"].to_numpy(dtype=np.float64)[keep] / 100.0, 0.0, 1.0)
         regime_index = np.select(
             [breadth < REGIME_BREADTH_CUTOFFS[0], breadth < REGIME_BREADTH_CUTOFFS[1]],
             [0, 1],
