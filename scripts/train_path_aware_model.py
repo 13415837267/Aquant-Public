@@ -34,7 +34,7 @@ FEATURES = [
 STOCK_RANK_FEATURES = FEATURES[:16] + ["change_pct"]
 REGIME_NAMES = ("risk_off", "neutral", "risk_on")
 REGIME_BREADTH_CUTOFFS = (0.35, 0.65)
-FEATURE_NAMES = list(FEATURES) + [f"regime_{regime}__{name}" for regime in REGIME_NAMES for name in FEATURES] + [f"regime_{regime}" for regime in REGIME_NAMES]
+FEATURE_NAMES = list(FEATURES)
 
 TRAIN_END = "2024-12-31"
 VALIDATION_START = "2025-01-02"
@@ -65,27 +65,10 @@ def make_features(frame):
     if frame.empty:
         return np.empty((0, len(FEATURE_NAMES)), dtype=np.float64)
     cols = [percentile_rank(frame[name]) for name in STOCK_RANK_FEATURES]
-    breadth = np.clip(
-        pd.to_numeric(frame["market_breadth_pct"], errors="coerce").fillna(50).to_numpy(dtype=float) / 100.0,
-        0.0, 1.0
-    )
-    median_ret = np.clip(
-        pd.to_numeric(frame["market_median_return_pct"], errors="coerce").fillna(0).to_numpy(dtype=float) / 5.0,
-        -2.0, 2.0
-    )
+    breadth = np.clip(pd.to_numeric(frame["market_breadth_pct"], errors="coerce").fillna(50).to_numpy(dtype=float) / 100.0, 0.0, 1.0)
+    median_ret = np.clip(pd.to_numeric(frame["market_median_return_pct"], errors="coerce").fillna(0).to_numpy(dtype=float) / 5.0, -2.0, 2.0)
     cols.extend([breadth, median_ret])
-    base = np.column_stack(cols)
-    regime = np.select(
-        [breadth < REGIME_BREADTH_CUTOFFS[0], breadth < REGIME_BREADTH_CUTOFFS[1]],
-        [0, 1],
-        default=2,
-    ).astype(np.int64)
-    one_hot = np.eye(len(REGIME_NAMES), dtype=np.float64)[regime]
-    interactions = np.concatenate(
-        [base * one_hot[:, idx:idx + 1] for idx in range(len(REGIME_NAMES))],
-        axis=1,
-    )
-    return np.column_stack([base, interactions, one_hot])
+    return np.column_stack(cols)
 
 
 def path_targets(symbols, future_days):
@@ -387,13 +370,19 @@ def main():
         "stop_loss_pct": STOP_LOSS_PCT,
         "round_trip_cost_bps": ROUND_TRIP_COST_BPS,
         "model": {
-            "type": "logistic_regression_sgd_weighted_regime_interaction",
+            "type": "logistic_regression_sgd_weighted_regime_routed",
             "positive_class_weight": POSITIVE_CLASS_WEIGHT,
             "learning_rate": LEARNING_RATE,
             "l2": L2,
             "epochs_per_day": EPOCHS_PER_DAY,
-            "intercept": float(model.b),
-            "coefficients": {name: float(value) for name, value in zip(FEATURE_NAMES, model.w)},
+            "routing": "breadth_three_state_routed_models",
+            "regime_models": {
+                regime: {
+                    "intercept": float(model[regime].b),
+                    "coefficients": {name: float(value) for name, value in zip(FEATURE_NAMES, model[regime].w)},
+                }
+                for regime in REGIME_NAMES
+            },
         },
         "train": {
             "processed_days": train_days,
