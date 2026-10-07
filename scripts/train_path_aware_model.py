@@ -32,6 +32,9 @@ FEATURES = [
     "change_pct", "market_breadth_pct", "market_median_return_pct",
 ]
 STOCK_RANK_FEATURES = FEATURES[:16] + ["change_pct"]
+REGIME_NAMES = ("risk_off", "neutral", "risk_on")
+REGIME_BREADTH_CUTOFFS = (0.35, 0.65)
+FEATURE_NAMES = list(FEATURES) + [f"regime_{regime}__{name}" for regime in REGIME_NAMES for name in FEATURES] + [f"regime_{regime}" for regime in REGIME_NAMES]
 
 TRAIN_END = "2024-12-31"
 VALIDATION_START = "2025-01-02"
@@ -60,7 +63,7 @@ def percentile_rank(series):
 
 def make_features(frame):
     if frame.empty:
-        return np.empty((0, len(FEATURES)), dtype=np.float64)
+        return np.empty((0, len(FEATURE_NAMES)), dtype=np.float64)
     cols = [percentile_rank(frame[name]) for name in STOCK_RANK_FEATURES]
     breadth = np.clip(
         pd.to_numeric(frame["market_breadth_pct"], errors="coerce").fillna(50).to_numpy(dtype=float) / 100.0,
@@ -71,7 +74,18 @@ def make_features(frame):
         -2.0, 2.0
     )
     cols.extend([breadth, median_ret])
-    return np.column_stack(cols)
+    base = np.column_stack(cols)
+    regime = np.select(
+        [breadth < REGIME_BREADTH_CUTOFFS[0], breadth < REGIME_BREADTH_CUTOFFS[1]],
+        [0, 1],
+        default=2,
+    ).astype(np.int64)
+    one_hot = np.eye(len(REGIME_NAMES), dtype=np.float64)[regime]
+    interactions = np.concatenate(
+        [base * one_hot[:, idx:idx + 1] for idx in range(len(REGIME_NAMES))],
+        axis=1,
+    )
+    return np.column_stack([base, interactions, one_hot]
 
 
 def path_targets(symbols, future_days):
@@ -294,7 +308,7 @@ def main():
     if args.start not in dates or args.final_end not in dates:
         raise ValueError("训练区间必须落在历史数据文件范围内")
 
-    model = LogisticModel(len(FEATURES))
+    model = LogisticModel(len(FEATURE_NAMES))
 
     train_state = FeatureState()
     _, train_days, train_samples = collect(
@@ -333,7 +347,7 @@ def main():
         )
 
     result = {
-        "schema_version": 2,
+        "schema_version": 3,
         "status": "research_only",
         "method": "full_market_path_aware_short_term_training",
         "objective": "net_profit_at_least_3pct_opportunity_before_3pct_stop_within_5_sessions",
@@ -344,20 +358,27 @@ def main():
             "validation": [VALIDATION_START, VALIDATION_END],
             "final": [FINAL_START, args.final_end],
         },
-        "features": FEATURES,
+        "features": FEATURE_NAMES,
+        "base_features": FEATURES,
+        "market_regime_routing": {
+            "type": "breadth_three_state_interaction",
+            "states": list(REGIME_NAMES),
+            "cutoffs": list(REGIME_BREADTH_CUTOFFS),
+            "rule": "market_breadth_pct < 35% risk_off; 35%-65% neutral; >=65% risk_on"
+        },
         "stock_features_are_cross_sectional_percentile_ranked": True,
         "net_win_threshold_pct": NET_WIN_THRESHOLD_PCT,
         "take_profit_pct": NET_WIN_THRESHOLD_PCT,
         "stop_loss_pct": STOP_LOSS_PCT,
         "round_trip_cost_bps": ROUND_TRIP_COST_BPS,
         "model": {
-            "type": "logistic_regression_sgd_weighted",
+            "type": "logistic_regression_sgd_weighted_regime_interaction",
             "positive_class_weight": POSITIVE_CLASS_WEIGHT,
             "learning_rate": LEARNING_RATE,
             "l2": L2,
             "epochs_per_day": EPOCHS_PER_DAY,
             "intercept": float(model.b),
-            "coefficients": {name: float(value) for name, value in zip(FEATURES, model.w)},
+            "coefficients": {name: float(value) for name, value in zip(FEATURE_NAMES, model.w)},
         },
         "train": {
             "processed_days": train_days,
@@ -383,6 +404,7 @@ def main():
             "same_day_stop_first": True,
             "same_day_target_stop_ambiguity": "daily_bar_conservative_stop_first",
             "formal_production_changed": False,
+            "market_regime_routing_research_only": True,
         },
         "elapsed_seconds": round(time.time() - started, 2),
     }
