@@ -199,11 +199,26 @@ def collect(files, start, end, state, model=None, train=False):
         samples += len(yy)
         processed += 1
 
+        breadth = frame["market_breadth_pct"].to_numpy(dtype=np.float64)[keep]
+        regime_index = np.select(
+            [breadth < REGIME_BREADTH_CUTOFFS[0], breadth < REGIME_BREADTH_CUTOFFS[1]],
+            [0, 1],
+            default=2,
+        ).astype(np.int64)
         if train:
-            for _ in range(EPOCHS_PER_DAY):
-                model.update(x, yy)
+            for regime_idx, regime in enumerate(REGIME_NAMES):
+                mask = regime_index == regime_idx
+                if not mask.any():
+                    continue
+                for _ in range(EPOCHS_PER_DAY):
+                    model[regime].update(x[mask], yy[mask])
         else:
-            metrics.append((date, model.predict(x), yy, bb, cc))
+            probs = np.zeros(len(yy), dtype=np.float64)
+            for regime_idx, regime in enumerate(REGIME_NAMES):
+                mask = regime_index == regime_idx
+                if mask.any():
+                    probs[mask] = model[regime].predict(x[mask])
+            metrics.append((date, probs, yy, bb, cc))
 
         if processed % 50 == 0:
             print(f"[路径模型] {start}-{end} 已处理{processed}日，样本{samples}", flush=True)
@@ -308,7 +323,7 @@ def main():
     if args.start not in dates or args.final_end not in dates:
         raise ValueError("训练区间必须落在历史数据文件范围内")
 
-    model = LogisticModel(len(FEATURE_NAMES))
+    model = {regime: LogisticModel(len(FEATURE_NAMES)) for regime in REGIME_NAMES}
 
     train_state = FeatureState()
     _, train_days, train_samples = collect(
@@ -361,7 +376,7 @@ def main():
         "features": FEATURE_NAMES,
         "base_features": FEATURES,
         "market_regime_routing": {
-            "type": "breadth_three_state_interaction",
+            "type": "breadth_three_state_routed_models",
             "states": list(REGIME_NAMES),
             "cutoffs": list(REGIME_BREADTH_CUTOFFS),
             "rule": "market_breadth_pct < 35% risk_off; 35%-65% neutral; >=65% risk_on"
