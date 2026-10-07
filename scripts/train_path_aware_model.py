@@ -54,6 +54,8 @@ EPOCHS_PER_DAY = 2
 THRESHOLDS = [0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]
 POSITIVE_CLASS_WEIGHT = 3.0
 TOP_K_VALUES = (2, 5, 10)
+ABSTAIN_TOP_PROBABILITY_VALUES = (0.55, 0.60, 0.65)
+MAX_ABSTAIN_SHARE_PCT = 15.0
 
 
 def percentile_rank(series):
@@ -254,6 +256,36 @@ def summarize(metrics):
                 "mean_5d_close_return_pct": float(cc.mean()),
             })
 
+    abstain_days = []
+    for threshold in ABSTAIN_TOP_PROBABILITY_VALUES:
+        selected_y, selected_best, selected_close = [], [], []
+        eligible_days = 0
+        skipped_days = 0
+        for _, p, yy, bb, cc in metrics:
+            eligible_days += 1
+            if len(p) == 0 or float(np.max(p)) < threshold:
+                skipped_days += 1
+                continue
+            order = np.argsort(-p)[:min(TOP_K_VALUES[0], len(p))]
+            selected_y.append(yy[order])
+            selected_best.append(bb[order])
+            selected_close.append(cc[order])
+        if selected_y:
+            yy = np.concatenate(selected_y)
+            bb = np.concatenate(selected_best)
+            cc = np.concatenate(selected_close)
+            share = skipped_days / eligible_days * 100.0 if eligible_days else 0.0
+            abstain_days.append({
+                "top_probability_floor": threshold,
+                "eligible_days": int(eligible_days),
+                "abstained_days": int(skipped_days),
+                "abstain_share_pct": float(share),
+                "selected_samples": int(len(yy)),
+                "path_win_3pct_rate_pct": float(yy.mean() * 100.0),
+                "mean_best_return_pct": float(bb.mean()),
+                "mean_5d_close_return_pct": float(cc.mean()),
+            })
+
     yearly_map = {}
     for date, p, yy, bb, cc in metrics:
         year = date[:4]
@@ -289,6 +321,7 @@ def summarize(metrics):
         "base_mean_5d_close_return_pct": float(close5.mean()),
         "thresholds": thresholds,
         "daily_top_k": top_k,
+        "daily_top_k_with_abstention": abstain_days,
         "yearly": yearly,
     }
 
@@ -344,6 +377,12 @@ def main():
             if eligible else None
         )
 
+    abstention_candidates = [row for row in validation["daily_top_k_with_abstention"] if row["abstain_share_pct"] <= MAX_ABSTAIN_SHARE_PCT]
+    selected_abstention = (
+        max(abstention_candidates, key=lambda r: (r["path_win_3pct_rate_pct"], -r["abstain_share_pct"], r["selected_samples"]))
+        if abstention_candidates else None
+    )
+
     result = {
         "schema_version": 3,
         "status": "research_only",
@@ -397,6 +436,7 @@ def main():
             **final,
         },
         "selected_validation_operating_point": selected,
+        "selected_validation_abstention_point": selected_abstention,
         "audit": {
             "no_future_features": True,
             "entry_is_T_plus_1_open": True,
