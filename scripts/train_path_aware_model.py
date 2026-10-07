@@ -85,7 +85,7 @@ def make_features(frame):
         [base * one_hot[:, idx:idx + 1] for idx in range(len(REGIME_NAMES))],
         axis=1,
     )
-    return np.column_stack([base, interactions, one_hot]
+    return np.column_stack([base, interactions, one_hot])
 
 
 def path_targets(symbols, future_days):
