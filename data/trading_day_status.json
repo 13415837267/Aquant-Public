@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "status": "non_trading_day",
+  "is_trading_day": false,
+  "checked_at": "2026-10-08T01:19:08.529277+08:00",
+  "timezone": "Asia/Shanghai",
+  "workflow": "02 数据维护"
+}
