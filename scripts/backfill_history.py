@@ -545,12 +545,31 @@ def backfill_daily(end_date: date | None = None) -> None:
     requested_end = end_date or datetime.now(TZ).date()
     today = requested_end
     try:
-        target_start = today.replace(year=today.year - TARGET_YEARS)
+        full_history_start = today.replace(year=today.year - TARGET_YEARS)
     except ValueError:
-        target_start = today.replace(
+        full_history_start = today.replace(
             year=today.year - TARGET_YEARS,
             day=28,
         )
+
+    # 正常增量维护只从现有历史的最新完整日期之后开始，不重新扫描历史全量数据。
+    latest_existing: date | None = None
+    for path in sorted(HISTORY.glob("*/*.csv.gz"), reverse=True):
+        if path.name.startswith("_"):
+            continue
+        try:
+            file_date = date.fromisoformat(path.stem)
+        except ValueError:
+            continue
+        ok, _ = daily_file_has_full_schema(path)
+        if ok:
+            latest_existing = file_date
+            break
+
+    if latest_existing is None:
+        target_start = full_history_start
+    else:
+        target_start = latest_existing + timedelta(days=1)
 
     trade_days = load_trade_days(
         api,
@@ -558,17 +577,22 @@ def backfill_daily(end_date: date | None = None) -> None:
         end=today.strftime("%Y%m%d"),
     )
     if not trade_days:
-        raise RuntimeError("no trading days in target range")
+        raise RuntimeError(
+            f"没有需要增量更新的交易日：已有最新完整数据={latest_existing}, 目标结束日期={today}"
+        )
     if end_date is None:
         today = date.fromisoformat(trade_days[-1])
         if today != requested_end:
             print(f"恢复模式：当前日期 {requested_end} 非交易日，自动使用最近完成交易日 {today}")
-        target_start = today.replace(year=today.year - TARGET_YEARS)
         trade_days = load_trade_days(
             api,
             start=target_start.strftime("%Y%m%d"),
             end=today.strftime("%Y%m%d"),
         )
+    print(
+        f"增量范围：已有最新完整数据={latest_existing or '无'}，"
+        f"本次只处理 {target_start} -> {today}"
+    )
 
     state = load_state()
     if state is None:
