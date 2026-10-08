@@ -1,4 +1,4 @@
-name: "06 模型研究"
+name: "06 模型研究" # 云端训练触发：2026-10-08
 
 on:
   workflow_dispatch:
