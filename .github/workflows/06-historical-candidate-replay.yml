@@ -69,19 +69,20 @@ jobs:
           print("固定模型校验通过；历史回放不重新训练。")
           PY
 
-      - name: "执行9月28日与9月29日固定模型历史回放"
+      - name: "执行指定日期固定模型历史回放"
         run: |
           set -euo pipefail
           mkdir -p data/research/historical_candidates
           DATE="${{ inputs.signal_date }}"
           python scripts/generate_research_candidates.py --signal-date "$DATE" --threshold 0.60 --model data/models/production_v1.json --output "data/research/historical_candidates/$DATE.json"
-      - name: "验证无未来数据与正式条件"
+      - name: "验证指定日期回放边界"
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
-          for date in ("2026-09-28", "2026-09-29"):
+          for p in sorted(Path("data/research/historical_candidates").glob("*.json")):
+              date = p.stem
               p = Path("data/research/historical_candidates") / f"{date}.json"
               r = json.loads(p.read_text(encoding="utf-8"))
               assert r["future_function"] is False
