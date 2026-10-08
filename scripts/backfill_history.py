@@ -449,13 +449,26 @@ def git_checkpoint(paths: list[str], message: str) -> None:
     subprocess.run(["git", "config", "user.name", "aquant-bot"], check=True)
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "commit", "-m", message], check=True)
-    # The checkpoint state is written separately by save_state(); include it
-    # in the next checkpoint before rebasing so the working tree stays clean.
+    # 断点状态由 save_state() 单独写入，必须纳入本次检查点提交。
     if STATE_FILE.exists():
         subprocess.run(["git", "add", "--", str(STATE_FILE.relative_to(ROOT))], check=True)
         if subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode != 0:
             subprocess.run(["git", "commit", "-m", f"{message}（断点状态）"], check=True)
-    # Other workflows or maintenance commits may advance main between the
+
+    # 检查点提交后再次收集全部剩余变更，确保回基前工作区完全干净。
+    subprocess.run(["git", "add", "-A"], check=True)
+    if subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode != 0:
+        subprocess.run(["git", "commit", "-m", f"{message}（补充状态）"], check=True)
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    if status.stdout.strip():
+        raise RuntimeError(f"检查点提交后工作区仍有未提交变更：{status.stdout.strip()}")
+
+    # 其他工作流或维护提交可能在 fetch/rebase 期间推进 main。
     # fetch/rebase and push. Retry the push window instead of failing the
     # long-running backfill on a transient ref race.
     for attempt in range(1, 4):
