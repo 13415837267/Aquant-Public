@@ -540,9 +540,9 @@ def save_state(state: dict) -> None:
     )
 
 
-def backfill_daily() -> None:
+def backfill_daily(end_date: date | None = None) -> None:
     api = api_client()
-    today = datetime.now(TZ).date()
+    today = end_date or datetime.now(TZ).date()
     try:
         target_start = today.replace(year=today.year - TARGET_YEARS)
     except ValueError:
@@ -987,12 +987,14 @@ def main() -> None:
         default="validate",
     )
     parser.add_argument("--days", type=int, default=VALIDATION_TRADING_DAYS)
+    parser.add_argument("--end-date", default="", help="可选：数据维护结束日期（YYYY-MM-DD）")
     args = parser.parse_args()
 
     if args.mode == "validate":
         validate_bulk(args.days)
     elif args.mode == "backfill":
-        backfill_daily()
+        end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date() if args.end_date else None
+        backfill_daily(end_date=end_date)
     elif args.mode == "validate_fundamentals":
         validate_fundamentals()
     elif args.mode == "fundamentals":
