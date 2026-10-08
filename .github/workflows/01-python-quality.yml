@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: "python-quality-main"
+  cancel-in-progress: true
+
 jobs:
   quality:
     name: "Python语法与测试"
