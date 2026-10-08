@@ -1,0 +1,103 @@
+name: "06 模型研究"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/06-model-research.yml"
+      - "scripts/high_precision_profit_mining.py"
+      - "scripts/train_path_aware_gbdt.py"
+      - "scripts/train_short_term_model.py"
+      - "scripts/short_term_research.py"
+      - "requirements.txt"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "模型研究-main"
+  cancel-in-progress: false
+
+jobs:
+  research:
+    name: "云端短线模型研究"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: "检出公开仓库"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "设置Python环境"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: "安装研究依赖"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: "检出当前私有策略"
+        uses: actions/checkout@v7
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          path: private-strategy
+          token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
+          fetch-depth: 1
+
+      - name: "记录研究基线"
+        run: |
+          echo "公开仓库提交: $(git rev-parse HEAD)"
+          echo "私有策略提交: $(git -C private-strategy rev-parse HEAD)"
+          grep -E '当前版本|模型训练窗口|日常生产' private-strategy/README.md || true
+
+      - name: "执行高精度严格标签研究"
+        run: |
+          python scripts/high_precision_profit_mining.py             --start 2015-01-05             --final-end 2026-09-30             --output data/backtest/high_precision_profit_mining_research_latest.json
+
+      - name: "执行路径感知梯度提升研究"
+        run: |
+          python scripts/train_path_aware_gbdt.py             --output data/backtest/path_aware_gbdt_research_latest.json
+
+      - name: "汇总研究结果"
+        if: ${{ always() }}
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths = [
+              Path("data/backtest/high_precision_profit_mining_research_latest.json"),
+              Path("data/backtest/path_aware_gbdt_research_latest.json"),
+          ]
+          for path in paths:
+              if not path.exists():
+                  print(f"未生成研究结果: {path}")
+                  continue
+              data = json.loads(path.read_text(encoding="utf-8"))
+              print(f"===== {path.name} =====")
+              for key in (
+                  "status",
+                  "selected_validation_operating_point",
+                  "selected_final_operating_point",
+                  "validation",
+                  "final",
+              ):
+                  if key in data:
+                      print(json.dumps({key: data[key]}, ensure_ascii=False, indent=2))
+          PY
+
+      - name: "保存研究产物"
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: "短线模型研究结果"
+          path: |
+            data/backtest/high_precision_profit_mining_research_latest.json
+            data/backtest/path_aware_gbdt_research_latest.json
+          if-no-files-found: warn
+          retention-days: 30
