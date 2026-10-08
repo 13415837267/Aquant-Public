@@ -16,7 +16,12 @@
     "net_win_threshold_pct": 1,
     "stop_loss_pct": 3,
     "future_function": false,
-    "timezone": "Asia/Shanghai"
+    "timezone": "Asia/Shanghai",
+    "research_data_window": [
+      "2015-01-05",
+      "2026-09-30"
+    ],
+    "training_rule": "后续模型训练、基准模型建立和训练验证统一以2015-01至2026-09历史数据为研究母集；正式生产模型仍按已锁定1.0.0资产运行，未通过新门禁不得替换。"
   },
   "research_pipeline": [
     {
@@ -131,10 +136,15 @@
     "04-research-pipeline.yml：正式历史研究与三段式验证",
     "05-web-deploy.yml：生产快照变化后的网页部署",
     "06-model-research.yml：独立模型研究实验",
-    "06-historical-candidate-replay.yml：手动历史候选回放，展示编号为07"
+    "06-historical-candidate-replay.yml：手动历史候选回放（显示名称07）"
   ],
   "removed_duplicate_workflows": [
     ".github/workflows/04-executable-path-training.yml",
     ".github/workflows/04-path-aware-training.yml"
+  ],
+  "notes": [
+    "当前生产基准资产不因研究自动替换。",
+    "研究实验工作流仅保留最新一次运行，避免重复实验长期占用云端队列。",
+    "历史回放用于固定模型可复现性，不作为无偏历史绩效证明。"
   ]
 }
