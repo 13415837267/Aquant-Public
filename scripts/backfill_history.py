@@ -542,7 +542,8 @@ def save_state(state: dict) -> None:
 
 def backfill_daily(end_date: date | None = None) -> None:
     api = api_client()
-    today = end_date or datetime.now(TZ).date()
+    requested_end = end_date or datetime.now(TZ).date()
+    today = requested_end
     try:
         target_start = today.replace(year=today.year - TARGET_YEARS)
     except ValueError:
@@ -558,6 +559,16 @@ def backfill_daily(end_date: date | None = None) -> None:
     )
     if not trade_days:
         raise RuntimeError("no trading days in target range")
+    if end_date is None:
+        today = date.fromisoformat(trade_days[-1])
+        if today != requested_end:
+            print(f"恢复模式：当前日期 {requested_end} 非交易日，自动使用最近完成交易日 {today}")
+        target_start = today.replace(year=today.year - TARGET_YEARS)
+        trade_days = load_trade_days(
+            api,
+            start=target_start.strftime("%Y%m%d"),
+            end=today.strftime("%Y%m%d"),
+        )
 
     state = load_state()
     if state is None:
