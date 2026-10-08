@@ -37,6 +37,19 @@ FINANCE_LIMIT = 40000
 FINANCE_CHUNK_DAYS = 5
 DAILY_GIT_CHECKPOINT_DAYS = 5
 FINANCIAL_START_BUFFER_YEARS = 1
+HISTORY_FILE_SUFFIX = ".csv.gz"
+BASIC_DAILY_REQUIRED = {
+    "symbol",
+    "date",
+    "open",
+    "high",
+    "low",
+    "close",
+    "pre_close",
+    "pct_chg",
+    "volume",
+    "amount",
+}
 
 DAILY_REQUIRED = {
     "symbol",
@@ -352,6 +365,34 @@ def merge_daily_valuation(market: pd.DataFrame, valuation: pd.DataFrame) -> pd.D
     )
 
 
+def history_file_date(path: Path) -> date | None:
+    """从 .csv.gz 历史文件名稳定解析交易日期。"""
+    filename = path.name
+    if not filename.endswith(HISTORY_FILE_SUFFIX):
+        return None
+    value = filename[: -len(HISTORY_FILE_SUFFIX)]
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def daily_file_has_basic_schema(path: Path) -> tuple[bool, int]:
+    """仅检查增量定位所需的基本日线字段，不受估值字段版本变化影响。"""
+    if not path.exists():
+        return False, 0
+    try:
+        header = pd.read_csv(path, compression="gzip", nrows=0)
+        if not BASIC_DAILY_REQUIRED.issubset(set(header.columns)):
+            return False, 0
+        rows = len(pd.read_csv(path, compression="gzip", usecols=["symbol"]))
+        if rows <= 0:
+            return False, rows
+        return True, rows
+    except Exception:
+        return False, 0
+
+
 def daily_file_has_full_schema(path: Path, expected_rows: int | None = None) -> tuple[bool, int]:
     """Check file integrity without tying row counts to today's universe.
 
@@ -384,11 +425,10 @@ def latest_complete_history_dates(limit: int = VALIDATION_TRADING_DAYS) -> list[
     for path in sorted(HISTORY.glob("*/*.csv.gz"), reverse=True):
         if path.name.startswith("_"):
             continue
-        try:
-            file_date = date.fromisoformat(path.name.removesuffix(".csv.gz"))
-        except ValueError:
+        file_date = history_file_date(path)
+        if file_date is None:
             continue
-        ok, _ = daily_file_has_full_schema(path)
+        ok, _ = daily_file_has_basic_schema(path)
         if ok:
             dates.append(file_date.isoformat())
             if len(dates) >= limit:
@@ -577,9 +617,8 @@ def backfill_daily(end_date: date | None = None) -> None:
     for path in sorted(HISTORY.glob("*/*.csv.gz"), reverse=True):
         if path.name.startswith("_"):
             continue
-        try:
-            file_date = date.fromisoformat(path.name.removesuffix(".csv.gz"))
-        except ValueError:
+        file_date = history_file_date(path)
+        if file_date is None:
             continue
         ok, _ = daily_file_has_full_schema(path)
         if ok:
