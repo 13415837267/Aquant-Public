@@ -9,7 +9,7 @@
   "candidate_layer": "ready",
   "fixed_model": "active_baseline",
   "strategy_source": "Aquant-Private/main",
-  "strategy_source_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
+  "strategy_source_commit": "bd395f5577b4247ac621293dfb3a248a7b1d1e00",
   "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
   "training_window": ["2019-01-02", "2026-09-30"],
   "data_cutoff": "2026-09-30",
