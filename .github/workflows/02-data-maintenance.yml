@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "0 10 * * *"
   workflow_dispatch:
+    inputs:
+      force_latest_completed:
+        description: "非交易日补齐最近一个已完成交易日的数据（用于漏跑恢复）"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -76,13 +82,13 @@ jobs:
         run: echo "当前北京时间不是A股交易日，本次只保存交易日状态，不生成交易数据。"
 
       - name: "增量更新日线历史数据"
-        if: steps.trading_day.outputs.is_trading_day == 'true'
+        if: steps.trading_day.outputs.is_trading_day == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_latest_completed == true)
         env:
           ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
         run: python scripts/backfill_history.py --mode backfill
 
       - name: "验证最新日线数据"
-        if: steps.trading_day.outputs.is_trading_day == 'true'
+        if: steps.trading_day.outputs.is_trading_day == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_latest_completed == true)
         env:
           ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
         run: python scripts/backfill_history.py --mode validate --days 3
