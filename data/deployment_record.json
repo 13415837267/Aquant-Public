@@ -14,6 +14,6 @@
   "private_branch": "main",
   "model_artifact": "data/models/production_v1.json",
   "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
-  "private_strategy_commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd",
+  "private_strategy_commit": "bd395f5577b4247ac621293dfb3a248a7b1d1e00",
   "purpose": "建立第一版正式系统当前基线；历史Actions运行记录不作为当前部署状态。"
 }
