@@ -120,6 +120,21 @@
     "候选池和下一交易日计划只允许一个权威候选快照。",
     "研究运行必须锁定Public与Private提交版本。",
     "研究失败不得把生产状态改写为已通过。",
-    "旧研究结果只能作为历史审计资料，不得成为当前生产输入。"
+    "旧研究结果只能作为历史审计资料，不得成为当前生产输入。",
+    "候选生产只有在02数据维护工作流成功完成后才允许运行。",
+    "网页部署不再同时使用03 workflow_run和候选数据push两条重复触发链。"
+  ],
+  "active_workflows": [
+    "01-python-quality.yml：代码质量",
+    "02-data-maintenance.yml：每日18:00北京交易日数据维护",
+    "03-candidate-production.yml：数据维护成功后固定模型候选生产",
+    "04-research-pipeline.yml：正式历史研究与三段式验证",
+    "05-web-deploy.yml：生产快照变化后的网页部署",
+    "06-model-research.yml：独立模型研究实验",
+    "06-historical-candidate-replay.yml：手动历史候选回放，展示编号为07"
+  ],
+  "removed_duplicate_workflows": [
+    ".github/workflows/04-executable-path-training.yml",
+    ".github/workflows/04-path-aware-training.yml"
   ]
 }
