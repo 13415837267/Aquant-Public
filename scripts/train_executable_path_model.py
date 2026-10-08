@@ -2,7 +2,7 @@
 
 Research only. A positive label means the T+1 entry price can reach at least
 +3% net profit from T+2 onward before a -3% stop, so every positive label
-represents a potentially sellable outcome under the A-share T+1 rule.
+represents a sellable outcome under the A-share T+1 rule.
 """
 from __future__ import annotations
 
@@ -53,6 +53,9 @@ THRESHOLDS = [0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]
 POSITIVE_CLASS_WEIGHT = 4.0
 TOP_K_VALUES = (2, 5, 10)
 ABSTAIN_TOP_PROBABILITY_VALUES = (0.55, 0.60, 0.65)
+# 单变量实验：按T+2起可兑现的最大净盈利空间增加正样本训练权重。
+UPSIDE_WEIGHT_SLOPE = 0.50
+UPSIDE_WEIGHT_MAX_MULTIPLIER = 2.00
 MAX_ABSTAIN_SHARE_PCT = 15.0
 
 
@@ -105,7 +108,7 @@ def path_targets(symbols, future_days):
     close_net = np.full(n, np.nan)
 
     for row in np.flatnonzero(complete):
-        best_net[row] = np.max(highs[row]) / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
+        best_net[row] = np.max(highs[row, 1:]) / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         close_net[row] = closes[row, -1] / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         for d in range(1, MAX_FORWARD_SESSIONS):
             # T+1 仅允许建仓，不能卖出；从 T+2 起才允许触发止盈或止损。
@@ -128,12 +131,18 @@ class LogisticModel:
         self.w = np.zeros(n_features, dtype=np.float64)
         self.b = 0.0
 
-    def update(self, x, y):
+    def update(self, x, y, upside_multiplier=None):
         if len(y) == 0:
             return
         z = np.clip(x @ self.w + self.b, -30.0, 30.0)
         p = 1.0 / (1.0 + np.exp(-z))
-        sample_weight = np.where(y > 0.5, POSITIVE_CLASS_WEIGHT, 1.0)
+        if upside_multiplier is None:
+            upside_multiplier = np.ones(len(y), dtype=np.float64)
+        sample_weight = np.where(
+            y > 0.5,
+            POSITIVE_CLASS_WEIGHT * upside_multiplier,
+            1.0,
+        )
         err = (p - y) * sample_weight
         weight_mean = float(sample_weight.mean())
         self.w -= LEARNING_RATE * ((x.T @ err) / len(y) / weight_mean + L2 * self.w)
@@ -194,7 +203,14 @@ def collect(files, start, end, state, model=None, train=False):
                 if not mask.any():
                     continue
                 for _ in range(EPOCHS_PER_DAY):
-                    model[regime].update(x[mask], yy[mask])
+                    upside = np.nan_to_num(bb[mask], nan=NET_WIN_THRESHOLD_PCT)
+                    upside_ratio = np.clip(
+                        (upside - NET_WIN_THRESHOLD_PCT) / NET_WIN_THRESHOLD_PCT,
+                        0.0,
+                        UPSIDE_WEIGHT_MAX_MULTIPLIER,
+                    )
+                    upside_multiplier = 1.0 + UPSIDE_WEIGHT_SLOPE * upside_ratio
+                    model[regime].update(x[mask], yy[mask], upside_multiplier)
         else:
             probs = np.zeros(len(yy), dtype=np.float64)
             for regime_idx, regime in enumerate(REGIME_NAMES):
@@ -385,7 +401,7 @@ def main():
         "schema_version": 3,
         "status": "research_only",
         "method": "full_market_path_aware_short_term_training",
-        "objective": "net_profit_at_least_3pct_opportunity_before_3pct_stop_within_5_sessions",
+        "objective": "net_profit_at_least_3pct_opportunity_before_3pct_stop_within_5_sessions_with_sellable_upside_quality_weighting",
         "data_start": args.start,
         "data_end": args.final_end,
         "splits": {
@@ -409,6 +425,8 @@ def main():
         "model": {
             "type": "logistic_regression_sgd_weighted_regime_routed",
             "positive_class_weight": POSITIVE_CLASS_WEIGHT,
+            "upside_weight_slope": UPSIDE_WEIGHT_SLOPE,
+            "upside_weight_max_multiplier": UPSIDE_WEIGHT_MAX_MULTIPLIER,
             "learning_rate": LEARNING_RATE,
             "l2": L2,
             "epochs_per_day": EPOCHS_PER_DAY,
@@ -447,6 +465,8 @@ def main():
             "same_day_target_stop_ambiguity": "daily_bar_conservative_stop_first",
             "formal_production_changed": False,
             "market_regime_routing_research_only": True,
+            "upside_quality_weighting_uses_future_training_labels_only": True,
+            "best_profit_metric_starts_t_plus_2": True,
             "t_plus_1_target_not_counted_as_win": True,
             "sellable_win_starts_t_plus_2": True,
         },
