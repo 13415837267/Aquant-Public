@@ -15,5 +15,13 @@
   "model_artifact": "data/models/production_v1.json",
   "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
   "private_strategy_commit": "bd395f5577b4247ac621293dfb3a248a7b1d1e00",
-  "purpose": "建立第一版正式系统当前基线；历史Actions运行记录不作为当前部署状态。"
+  "purpose": "建立第一版正式系统当前基线；历史Actions运行记录不作为当前部署状态。",
+  "workflow_cleanup_applied": true,
+  "active_workflow_count": 7,
+  "removed_duplicate_workflows": [
+    "04-executable-path-training.yml",
+    "04-path-aware-training.yml"
+  ],
+  "web_deploy_single_trigger": true,
+  "candidate_production_requires_data_success": true
 }
