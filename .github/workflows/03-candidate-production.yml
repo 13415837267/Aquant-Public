@@ -40,6 +40,13 @@ jobs:
             exit 0
           fi
           test -f data/trading_day_status.json
+          # 02 数据维护通过 workflow_run 成功触发时，直接进入候选生产。
+          # 不能再次用当前自然日判断，否则跨过午夜后会错误跳过刚完成的上一交易日。
+          if [ "${{ github.event.workflow_run.conclusion }}" = "success" ]; then
+            echo "02 数据维护已成功完成，进入最近已完成交易日候选生产。"
+            echo "is_trading_day=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           from pathlib import Path
