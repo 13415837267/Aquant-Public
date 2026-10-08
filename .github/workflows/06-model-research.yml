@@ -64,6 +64,10 @@ jobs:
         run: |
           python scripts/train_path_aware_gbdt.py             --output data/backtest/path_aware_gbdt_research_latest.json
 
+      - name: "扩展训练窗口实验：固定阈值"
+        run: |
+          python scripts/train_path_aware_gbdt.py             --train-end 2024-12-31             --fixed-threshold 0.78             --output data/backtest/path_aware_gbdt_train2024_fixed078.json
+
       - name: "汇总研究结果"
         if: ${{ always() }}
         run: |
@@ -100,5 +104,6 @@ jobs:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
+              data/backtest/path_aware_gbdt_train2024_fixed078.json
           if-no-files-found: warn
           retention-days: 30
