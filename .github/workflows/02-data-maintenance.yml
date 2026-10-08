@@ -85,7 +85,7 @@ jobs:
         if: steps.trading_day.outputs.is_trading_day == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_latest_completed == true)
         env:
           ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
-        run: python scripts/backfill_history.py --mode backfill
+        run: python scripts/backfill_history.py --mode backfill --end-date 2026-10-08
 
       - name: "验证最新日线数据"
         if: steps.trading_day.outputs.is_trading_day == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_latest_completed == true)
