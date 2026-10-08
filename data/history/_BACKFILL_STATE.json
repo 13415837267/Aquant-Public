@@ -22,7 +22,7 @@
   ],
   "year_count": 12,
   "trading_days": 2855,
-  "days_completed": 65,
+  "days_completed": 70,
   "files_by_year": {
     "2015": 244,
     "2016": 244,
@@ -50,6 +50,11 @@
     "2026-09-29",
     "2026-09-28",
     "2026-09-24",
+    "2026-09-23",
+    "2026-09-22",
+    "2026-09-21",
+    "2026-09-18",
+    "2026-09-17",
     "2021-10-11",
     "2021-10-08",
     "2021-09-30",
@@ -111,25 +116,25 @@
     "2021-07-12",
     "2021-07-09"
   ],
-  "rows_written": 301138,
+  "rows_written": 328968,
   "last_day": {
-    "date": "2026-09-24",
-    "rows": 5569,
-    "unique_symbols": 5569,
+    "date": "2026-09-17",
+    "rows": 5565,
+    "unique_symbols": 5565,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
       ".SH": 2320,
-      ".SZ": 2902,
-      ".BJ": 347
+      ".SZ": 2901,
+      ".BJ": 344
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.937691,
-      "circulating_cap": 0.937691,
-      "circulating_market_cap": 0.937691,
+      "capitalization": 0.938185,
+      "circulating_cap": 0.938185,
+      "circulating_market_cap": 0.938185,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -139,21 +144,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.937691,
+      "market_cap": 0.938185,
       "open": 1.0,
-      "pb_ratio": 0.937691,
-      "pcf_ratio": 0.937691,
+      "pb_ratio": 0.938185,
+      "pcf_ratio": 0.938185,
       "pct_chg": 1.0,
-      "pe_ratio": 0.937691,
-      "pe_ratio_lyr": 0.937691,
+      "pe_ratio": 0.938185,
+      "pe_ratio_lyr": 0.938185,
       "pre_close": 1.0,
-      "ps_ratio": 0.937511,
+      "ps_ratio": 0.938005,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.935536,
+      "turnover_ratio": 0.936029,
       "volume": 1.0
     },
-    "valuation_rows": 5209
+    "valuation_rows": 5208
   },
-  "last_file": "data/history/2026/2026-09-24.csv.gz"
+  "last_file": "data/history/2026/2026-09-17.csv.gz"
 }
