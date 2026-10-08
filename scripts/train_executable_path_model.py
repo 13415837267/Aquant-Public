@@ -344,7 +344,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default="2015-01-05")
     ap.add_argument("--final-end", default=FINAL_END)
-    ap.add_argument("--output", default=str(OUT_DIR / "path_aware_profit_3pct_training_latest.json"))
+    ap.add_argument("--output", default=str(OUT_DIR / "executable_path_profit_training_latest.json"))
     args = ap.parse_args()
 
     started = time.time()
