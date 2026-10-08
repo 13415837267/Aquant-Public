@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "status": "current_baseline_audit",
-  "audited_at": "2026-10-06T22:20:00+08:00",
+  "audited_at": "2026-10-08T19:27:26+08:00",
   "timezone": "Asia/Shanghai",
   "production_version": "1.0.0",
   "historical_database": "complete_incremental",
@@ -35,12 +35,15 @@
     "duplicate_research_workflows_removed": true,
     "candidate_production_data_success_gate": true,
     "web_deploy_duplicate_trigger_removed": true,
-    "quality_workflow_latest_commit_only": true
+    "quality_workflow_latest_commit_only": true,
+    "action_deployment_baseline_reset": true,
+    "server_side_action_history_deleted": false,
+    "server_side_deployment_history_deleted": false
   },
   "quality_gate": {
     "target_win_rate_pct": 80,
     "final_holdout_win_rate_pct": 62.32080906207761,
     "passed": false
   },
-  "note": "第一版系统基线已完成工作流整理：生产模型资产不变；研究训练入口收敛；候选生产要求数据维护成功；网页部署去除重复触发。"
+  "note": "当前仓库审计记录已重建为唯一基线；GitHub服务器端Action/Deployment历史保留，不作为当前生产状态。"
 }
