@@ -2,10 +2,7 @@ name: "02 数据维护"
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
-  push:
-    paths:
-      - ".github/manual/daily-trigger"
+    - cron: "0 10 * * *"
   workflow_dispatch:
 
 permissions:
