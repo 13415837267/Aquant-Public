@@ -385,7 +385,7 @@ def latest_complete_history_dates(limit: int = VALIDATION_TRADING_DAYS) -> list[
         if path.name.startswith("_"):
             continue
         try:
-            file_date = date.fromisoformat(path.stem)
+            file_date = date.fromisoformat(path.name.removesuffix(".csv.gz"))
         except ValueError:
             continue
         ok, _ = daily_file_has_full_schema(path)
@@ -578,7 +578,7 @@ def backfill_daily(end_date: date | None = None) -> None:
         if path.name.startswith("_"):
             continue
         try:
-            file_date = date.fromisoformat(path.stem)
+            file_date = date.fromisoformat(path.name.removesuffix(".csv.gz"))
         except ValueError:
             continue
         ok, _ = daily_file_has_full_schema(path)
