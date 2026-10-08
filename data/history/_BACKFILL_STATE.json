@@ -22,7 +22,7 @@
   ],
   "year_count": 12,
   "trading_days": 2855,
-  "days_completed": 60,
+  "days_completed": 65,
   "files_by_year": {
     "2015": 244,
     "2016": 244,
@@ -45,6 +45,11 @@
   "universe_scope": "DATABASE_SHSZBJ_STOCKS",
   "bulk_limit": 6000,
   "completed_dates": [
+    "2026-10-08",
+    "2026-09-30",
+    "2026-09-29",
+    "2026-09-28",
+    "2026-09-24",
     "2021-10-11",
     "2021-10-08",
     "2021-09-30",
@@ -106,25 +111,25 @@
     "2021-07-12",
     "2021-07-09"
   ],
-  "rows_written": 273285,
+  "rows_written": 301138,
   "last_day": {
-    "date": "2021-07-09",
-    "rows": 4486,
-    "unique_symbols": 4486,
+    "date": "2026-09-24",
+    "rows": 5569,
+    "unique_symbols": 5569,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 1931,
-      ".SZ": 2450,
-      ".BJ": 105
+      ".SH": 2320,
+      ".SZ": 2902,
+      ".BJ": 347
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.976594,
-      "circulating_cap": 0.976594,
-      "circulating_market_cap": 0.976594,
+      "capitalization": 0.937691,
+      "circulating_cap": 0.937691,
+      "circulating_market_cap": 0.937691,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -134,21 +139,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.976594,
+      "market_cap": 0.937691,
       "open": 1.0,
-      "pb_ratio": 0.976594,
-      "pcf_ratio": 0.976594,
+      "pb_ratio": 0.937691,
+      "pcf_ratio": 0.937691,
       "pct_chg": 1.0,
-      "pe_ratio": 0.976594,
-      "pe_ratio_lyr": 0.976594,
+      "pe_ratio": 0.937691,
+      "pe_ratio_lyr": 0.937691,
       "pre_close": 1.0,
-      "ps_ratio": 0.976594,
+      "ps_ratio": 0.937511,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.974588,
+      "turnover_ratio": 0.935536,
       "volume": 1.0
     },
-    "valuation_rows": 4372
+    "valuation_rows": 5209
   },
-  "last_file": "data/history/2021/2021-07-09.csv.gz"
+  "last_file": "data/history/2026/2026-09-24.csv.gz"
 }
