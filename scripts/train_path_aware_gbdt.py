@@ -27,32 +27,20 @@ FINAL_START = "2025-01-02"
 FINAL_END = "2026-09-30"
 MAX_FORWARD_SESSIONS = 5
 NET_WIN_THRESHOLD_PCT = 1.0
-MAX_PER_CLASS = 250_000
 SEED = 42
 THRESHOLDS = tuple(np.arange(0.50, 0.991, 0.01))
 MIN_OPERATING_SAMPLES = 1000
 MIN_OPERATING_SAMPLE_SHARE_PCT = 1.0
 
 
-def add_reservoir(buffers, x, y, rng):
+def add_training_samples(buffers, x, y):
     for cls in (0, 1):
         rows = x[y == cls]
-        if len(rows) == 0:
-            continue
-        buf = buffers[cls]
-        need = MAX_PER_CLASS - len(buf)
-        if need > 0:
-            take = rows if len(rows) <= need else rows[rng.choice(len(rows), need, replace=False)]
-            buf.extend(take)
-        if len(buf) >= MAX_PER_CLASS and len(rows) > 0:
-            replace_n = min(len(rows), max(1, len(rows) // 20))
-            idx = rng.choice(len(rows), replace_n, replace=False)
-            for j, row in zip(rng.choice(len(buf), replace_n, replace=False), rows[idx]):
-                buf[j] = row
+        if len(rows):
+            buffers[cls].extend(rows)
 
 
 def collect_training(files, dates):
-    rng = np.random.default_rng(SEED)
     buffers = {0: [], 1: []}
     state = FeatureState()
     start_i, end_i = dates.index(dates[0]), dates.index(TRAIN_END)
@@ -66,7 +54,7 @@ def collect_training(files, dates):
         labels, _, _, complete = build_targets(frame["symbol"].astype(str).str.zfill(6).tolist(), future)
         keep = np.flatnonzero(complete)
         if len(keep):
-            add_reservoir(buffers, make_features(frame)[keep], labels[keep].astype(np.int8), rng)
+            add_training_samples(buffers, make_features(frame)[keep], labels[keep].astype(np.int8))
             samples += len(keep)
         processed += 1
         if processed % 25 == 0:
@@ -182,7 +170,7 @@ def main():
             "l2_regularization": 1.0,
             "class_weight": "balanced",
             "seed": SEED,
-            "max_training_samples_per_class": MAX_PER_CLASS,
+            "full_training_samples": True,
             "min_operating_samples": MIN_OPERATING_SAMPLES,
             "min_operating_sample_share_pct": MIN_OPERATING_SAMPLE_SHARE_PCT,
         },
