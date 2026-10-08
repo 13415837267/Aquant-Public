@@ -449,6 +449,12 @@ def git_checkpoint(paths: list[str], message: str) -> None:
     subprocess.run(["git", "config", "user.name", "aquant-bot"], check=True)
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "commit", "-m", message], check=True)
+    # The checkpoint state is written separately by save_state(); include it
+    # in the next checkpoint before rebasing so the working tree stays clean.
+    if STATE_FILE.exists():
+        subprocess.run(["git", "add", "--", str(STATE_FILE.relative_to(ROOT))], check=True)
+        if subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode != 0:
+            subprocess.run(["git", "commit", "-m", f"{message}（断点状态）"], check=True)
     # Other workflows or maintenance commits may advance main between the
     # fetch/rebase and push. Retry the push window instead of failing the
     # long-running backfill on a transient ref race.
