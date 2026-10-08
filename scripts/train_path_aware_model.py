@@ -56,6 +56,9 @@ POSITIVE_CLASS_WEIGHT = 4.0
 TOP_K_VALUES = (2, 5, 10)
 ABSTAIN_TOP_PROBABILITY_VALUES = (0.55, 0.60, 0.65)
 MAX_ABSTAIN_SHARE_PCT = 15.0
+# 本轮唯一模型变量：训练目标从净+3%提高到净+5%。
+TRAINING_TARGET_NET_THRESHOLD_PCT = 5.0
+EVALUATION_TARGET_NET_THRESHOLD_PCT = 3.0
 # 单变量实验：正样本按历史最大净盈利空间增加训练权重。
 UPSIDE_WEIGHT_SLOPE = 0.50
 UPSIDE_WEIGHT_MAX_MULTIPLIER = 2.00
@@ -76,7 +79,7 @@ def make_features(frame):
     return np.column_stack(cols)
 
 
-def path_targets(symbols, future_days):
+def path_targets(symbols, future_days, target_net_threshold_pct):
     """生成 +3% 机会标签，并把 3% 止盈与 3% 止损纳入路径判断。"""
     n = len(symbols)
     if len(future_days) < MAX_FORWARD_SESSIONS:
@@ -84,7 +87,7 @@ def path_targets(symbols, future_days):
 
     keys = pd.Index(pd.Series(symbols, dtype="string").astype(str).str.zfill(6))
     entry = pd.to_numeric(future_days[0].set_index("symbol")["open"], errors="coerce").reindex(keys).to_numpy(dtype=float)
-    target_gross_pct = NET_WIN_THRESHOLD_PCT + ROUND_TRIP_COST_BPS / 100.0
+    target_gross_pct = target_net_threshold_pct + ROUND_TRIP_COST_BPS / 100.0
     target = entry * (1.0 + target_gross_pct / 100.0)
     stop = entry * (1.0 - STOP_LOSS_PCT / 100.0)
 
@@ -155,7 +158,7 @@ class LogisticModel:
         return 1.0 / (1.0 + np.exp(-z))
 
 
-def collect(files, start, end, state, model=None, train=False):
+def collect(files, start, end, state, model=None, train=False, target_net_threshold_pct=EVALUATION_TARGET_NET_THRESHOLD_PCT):
     dates = [p.name[:10] for p in files]
     start_i, end_i = dates.index(start), dates.index(end)
     cache = {}
@@ -180,7 +183,9 @@ def collect(files, start, end, state, model=None, train=False):
         futures = [get(i + j) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
         x_all = make_features(frame)
         y, best, close5, complete = path_targets(
-            frame["symbol"].astype(str).str.zfill(6).tolist(), futures
+            frame["symbol"].astype(str).str.zfill(6).tolist(),
+            futures,
+            target_net_threshold_pct,
         )
         keep = np.flatnonzero(complete)
         if len(keep) == 0:
@@ -359,19 +364,37 @@ def main():
 
     train_state = FeatureState()
     _, train_days, train_samples = collect(
-        files, args.start, TRAIN_END, train_state, model=model, train=True
+        files,
+        args.start,
+        TRAIN_END,
+        train_state,
+        model=model,
+        train=True,
+        target_net_threshold_pct=TRAINING_TARGET_NET_THRESHOLD_PCT,
     )
     if train_samples < MIN_SELECTION_SAMPLES:
         raise RuntimeError(f"训练样本不足: {train_samples}")
 
     validation_state = FeatureState()
     validation_metrics, validation_days, validation_samples = collect(
-        files, VALIDATION_START, VALIDATION_END, validation_state, model=model, train=False
+        files,
+        VALIDATION_START,
+        VALIDATION_END,
+        validation_state,
+        model=model,
+        train=False,
+        target_net_threshold_pct=EVALUATION_TARGET_NET_THRESHOLD_PCT,
     )
 
     final_state = FeatureState()
     final_metrics, final_days, final_samples = collect(
-        files, FINAL_START, args.final_end, final_state, model=model, train=False
+        files,
+        FINAL_START,
+        args.final_end,
+        final_state,
+        model=model,
+        train=False,
+        target_net_threshold_pct=EVALUATION_TARGET_NET_THRESHOLD_PCT,
     )
 
     validation = summarize(validation_metrics)
@@ -403,7 +426,7 @@ def main():
         "schema_version": 3,
         "status": "research_only",
         "method": "full_market_path_aware_short_term_training",
-        "objective": "net_profit_at_least_3pct_opportunity_before_3pct_stop_within_5_sessions_with_upside_quality_weighting",
+        "objective": "train_on_net_5pct_opportunity_and_evaluate_net_3pct_opportunity",
         "data_start": args.start,
         "data_end": args.final_end,
         "splits": {
@@ -420,7 +443,9 @@ def main():
             "rule": "market_breadth_pct < 35% risk_off; 35%-65% neutral; >=65% risk_on"
         },
         "stock_features_are_cross_sectional_percentile_ranked": True,
-        "net_win_threshold_pct": NET_WIN_THRESHOLD_PCT,
+        "net_win_threshold_pct": EVALUATION_TARGET_NET_THRESHOLD_PCT,
+        "training_target_net_threshold_pct": TRAINING_TARGET_NET_THRESHOLD_PCT,
+        "evaluation_target_net_threshold_pct": EVALUATION_TARGET_NET_THRESHOLD_PCT,
         "take_profit_pct": NET_WIN_THRESHOLD_PCT,
         "stop_loss_pct": STOP_LOSS_PCT,
         "round_trip_cost_bps": ROUND_TRIP_COST_BPS,
@@ -459,7 +484,7 @@ def main():
             "no_future_features": True,
             "entry_is_T_plus_1_open": True,
             "target_is_net_profit_at_least_3pct_opportunity": True,
-            "take_profit_pct": NET_WIN_THRESHOLD_PCT,
+            "take_profit_pct": EVALUATION_TARGET_NET_THRESHOLD_PCT,
             "stop_loss_gross_pct": STOP_LOSS_PCT,
             "t_plus_1_target_counts_as_win": True,
             "stop_loss_applies_from_t_plus_2": True,
@@ -468,6 +493,8 @@ def main():
             "formal_production_changed": False,
             "market_regime_routing_research_only": True,
             "upside_quality_weighting_uses_future_training_labels_only": True,
+            "training_target_is_net_profit_at_least_5pct": True,
+            "evaluation_target_is_net_profit_at_least_3pct": True,
         },
         "elapsed_seconds": round(time.time() - started, 2),
     }
