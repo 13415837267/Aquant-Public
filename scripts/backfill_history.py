@@ -101,8 +101,7 @@ def normalize_daily(df: pd.DataFrame) -> pd.DataFrame:
 
     out = df.copy()
 
-    # zzshare all-fields mode currently exposes both native and Tushare-compatible
-    # names. Normalize them into one stable internal schema.
+    # zzshare 全字段接口同时提供原生名称和 Tushare 兼容名称，统一转换为稳定的内部字段。
     aliases = {
         "ts_code": "symbol",
         "trade_date": "date",
@@ -175,8 +174,7 @@ def normalize_finance(df: pd.DataFrame) -> pd.DataFrame:
     else:
         out["pub_date"] = None
 
-    # Convert every non-identity column where possible. This preserves vendor
-    # column names while making the database numeric-query friendly.
+    # 尽可能把非身份字段转换为数值，同时保留数据提供方字段名称，便于数据库数值查询。
     identity = {"symbol", "report_date", "pub_date"}
     for col in out.columns:
         if col not in identity:
@@ -270,8 +268,7 @@ def load_trade_days(api: DataApi, start: str | None = None, end: str | None = No
         open_flag = pd.to_numeric(df["is_open"], errors="coerce")
         dates = dates.where(open_flag.reindex(df.index).fillna(1).astype(bool))
 
-    # Never expose future calendar dates to callers.
-    # Exchanges/providers may publish future open days ahead of time.
+    # 不向调用方暴露未来日历日期，避免数据提供方提前发布未来开市日导致误判。
     today_bj = datetime.now(TZ).date()
     dates = dates.where(dates.dt.date <= today_bj)
     return sorted(set(dates.dropna().dt.strftime("%Y-%m-%d").tolist()), reverse=True)
@@ -377,6 +374,26 @@ def daily_file_has_full_schema(path: Path, expected_rows: int | None = None) -> 
         return True, rows
     except Exception:
         return False, 0
+
+
+def latest_complete_history_dates(limit: int = VALIDATION_TRADING_DAYS) -> list[str]:
+    """返回仓库中最近若干个结构完整的历史交易日，不把当天尚未收盘的数据当作已完成日。"""
+    if limit <= 0:
+        return []
+    dates: list[str] = []
+    for path in sorted(HISTORY.glob("*/*.csv.gz"), reverse=True):
+        if path.name.startswith("_"):
+            continue
+        try:
+            file_date = date.fromisoformat(path.stem)
+        except ValueError:
+            continue
+        ok, _ = daily_file_has_full_schema(path)
+        if ok:
+            dates.append(file_date.isoformat())
+            if len(dates) >= limit:
+                break
+    return dates
 
 
 def quality_check_daily(df: pd.DataFrame, trade_date: str, minimum_rows: int | None = None) -> dict:
@@ -485,10 +502,11 @@ def git_checkpoint(paths: list[str], message: str) -> None:
             time.sleep(wait)
 def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
     api = api_client()
-    recent = load_trade_days(api)[:days]
+    recent = latest_complete_history_dates(days)
     if not recent:
-        raise RuntimeError("no recent trading days returned")
+        raise RuntimeError("没有可用于质量检查的已完成历史交易日")
 
+    print(f"质量检查日期：{', '.join(recent)}")
     results = []
     for trade_date in recent:
         raw = request_bulk_day(api, trade_date)
@@ -513,6 +531,7 @@ def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
         "days": results,
         "bulk_limit": BULK_LIMIT,
         "advanced_fields": sorted(DAILY_REQUIRED | set(VALUATION_COLUMNS)),
+        "validation_policy": "只验证仓库中最近已落库且结构完整的交易日，排除当天尚未收盘的数据",
     }
     HISTORY.mkdir(parents=True, exist_ok=True)
     VALIDATION_FILE.write_text(
@@ -542,7 +561,8 @@ def save_state(state: dict) -> None:
 
 def backfill_daily(end_date: date | None = None) -> None:
     api = api_client()
-    requested_end = end_date or datetime.now(TZ).date()
+    now_bj = datetime.now(TZ)
+    requested_end = end_date or now_bj.date()
     today = requested_end
     try:
         full_history_start = today.replace(year=today.year - TARGET_YEARS)
@@ -571,24 +591,38 @@ def backfill_daily(end_date: date | None = None) -> None:
     else:
         target_start = latest_existing + timedelta(days=1)
 
+    # 18:00 前当天尚未完成收盘，动态恢复只能取到前一个自然日；18:00 后才允许纳入当天。
+    # 手工指定 --end-date 时严格按指定日期执行，不受当前时间影响。
+    if end_date is None and now_bj.hour < 18:
+        calendar_end = requested_end - timedelta(days=1)
+        print(f"当前北京时间 {now_bj.isoformat()} 尚未到日线完成时点，本次结束日期锁定为 {calendar_end}")
+    else:
+        calendar_end = requested_end
+
+    if calendar_end < target_start:
+        raise RuntimeError(
+            f"没有需要增量更新的交易日：已有最新完整数据={latest_existing}, 目标结束日期={calendar_end}"
+        )
+
+    trade_days = load_trade_days(
+        api,
+        start=target_start.strftime("%Y%m%d"),
+        end=calendar_end.strftime("%Y%m%d"),
+    )
+    if not trade_days:
+        raise RuntimeError(
+            f"没有需要增量更新的交易日：已有最新完整数据={latest_existing}, 目标结束日期={calendar_end}"
+        )
+
+    # 交易日历按倒序返回，第一项才是区间内最近的交易日。
+    today = date.fromisoformat(trade_days[0])
+    if end_date is None and today != requested_end:
+        print(f"恢复模式：当前北京时间 {requested_end} 未完成，自动使用最近已完成交易日 {today}")
     trade_days = load_trade_days(
         api,
         start=target_start.strftime("%Y%m%d"),
         end=today.strftime("%Y%m%d"),
     )
-    if not trade_days:
-        raise RuntimeError(
-            f"没有需要增量更新的交易日：已有最新完整数据={latest_existing}, 目标结束日期={today}"
-        )
-    if end_date is None:
-        today = date.fromisoformat(trade_days[-1])
-        if today != requested_end:
-            print(f"恢复模式：当前日期 {requested_end} 非交易日，自动使用最近完成交易日 {today}")
-        trade_days = load_trade_days(
-            api,
-            start=target_start.strftime("%Y%m%d"),
-            end=today.strftime("%Y%m%d"),
-        )
     print(
         f"增量范围：已有最新完整数据={latest_existing or '无'}，"
         f"本次只处理 {target_start} -> {today}"
@@ -597,7 +631,7 @@ def backfill_daily(end_date: date | None = None) -> None:
     state = load_state()
     if state is None:
         state = {}
-    # Migrate legacy checkpoint formats created by the previous collector.
+    # 兼容旧采集器生成的断点状态格式。
     state.setdefault("status", "running")
     state.setdefault("started_at", datetime.now(TZ).isoformat())
     state.setdefault("target_start", str(target_start))
@@ -668,8 +702,7 @@ def backfill_daily(end_date: date | None = None) -> None:
             f"days={state['days_completed']}/{len(trade_days)}"
         )
 
-    # Always push the final partial batch, including when the run resumes
-    # from a legacy checkpoint.
+    # 最后始终提交不足一个检查点批次的数据，包括从旧断点恢复的情况。
     if days_since_remote_checkpoint:
         git_checkpoint(
             ["data/history", "data/universe.json"],
@@ -882,7 +915,7 @@ def backfill_fundamentals() -> None:
         f"statements {finance_start} -> {finance_end}"
     )
 
-    # Daily valuation is stored inside each data/history/YYYY-MM-DD.csv.gz file.
+    # 每日估值数据直接存放在对应的 data/history/YYYY-MM-DD.csv.gz 文件中。
 
     for year, quarter, report_end in iter_quarters(finance_start, finance_end):
         if report_end > today:
@@ -957,9 +990,9 @@ def validate_fundamentals() -> None:
     api = api_client()
     checks = {}
 
-    recent_days = load_trade_days(api)[:1]
+    recent_days = latest_complete_history_dates(1)
     if not recent_days:
-        raise RuntimeError("no recent trading day for fundamentals validation")
+        raise RuntimeError("没有可用于基本面质量检查的已完成历史交易日")
     validation_date = recent_days[0]
     validation_ts = pd.Timestamp(validation_date)
     val = normalize_finance(api.finance_valuation(validation_date))
