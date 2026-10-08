@@ -1,10 +1,8 @@
-"""Path-aware full-market training for the +3% short-term profit opportunity.
+"""Executable path-aware research for the +3% short-term trading opportunity.
 
 Research only. A positive label means the T+1 entry price can reach at least
-+3% net profit within five sessions before a -3% stop from T+2 onward. T+1
-hitting +3% is counted as a win because the project explicitly treats maximum
-profit potential above +3% as a successful signal, even though selling on T+1
-is prohibited by the A-share T+1 rule.
++3% net profit from T+2 onward before a -3% stop, so every positive label
+represents a potentially sellable outcome under the A-share T+1 rule.
 """
 from __future__ import annotations
 
@@ -56,9 +54,6 @@ POSITIVE_CLASS_WEIGHT = 4.0
 TOP_K_VALUES = (2, 5, 10)
 ABSTAIN_TOP_PROBABILITY_VALUES = (0.55, 0.60, 0.65)
 MAX_ABSTAIN_SHARE_PCT = 15.0
-# 单变量实验：正样本按历史最大净盈利空间增加训练权重。
-UPSIDE_WEIGHT_SLOPE = 0.50
-UPSIDE_WEIGHT_MAX_MULTIPLIER = 2.00
 
 
 def percentile_rank(series):
@@ -112,10 +107,10 @@ def path_targets(symbols, future_days):
     for row in np.flatnonzero(complete):
         best_net[row] = np.max(highs[row]) / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         close_net[row] = closes[row, -1] / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
-        for d in range(MAX_FORWARD_SESSIONS):
-            # T+1 只允许观察目标机会，禁止退出；T+2 起若同一日同时触发止损与目标，
-            # 无法仅凭日线判断盘中先后，因此采用保守的“止损优先”规则，避免高估胜率。
-            if d >= 1 and lows[row, d] <= stop[row]:
+        for d in range(1, MAX_FORWARD_SESSIONS):
+            # T+1 仅允许建仓，不能卖出；从 T+2 起才允许触发止盈或止损。
+            # 同一日同时触及目标和止损时按止损优先。
+            if lows[row, d] <= stop[row]:
                 stopped_before_target[row] = True
                 break
             if highs[row, d] >= target[row]:
@@ -133,18 +128,12 @@ class LogisticModel:
         self.w = np.zeros(n_features, dtype=np.float64)
         self.b = 0.0
 
-    def update(self, x, y, upside_multiplier=None):
+    def update(self, x, y):
         if len(y) == 0:
             return
         z = np.clip(x @ self.w + self.b, -30.0, 30.0)
         p = 1.0 / (1.0 + np.exp(-z))
-        if upside_multiplier is None:
-            upside_multiplier = np.ones(len(y), dtype=np.float64)
-        sample_weight = np.where(
-            y > 0.5,
-            POSITIVE_CLASS_WEIGHT * upside_multiplier,
-            1.0,
-        )
+        sample_weight = np.where(y > 0.5, POSITIVE_CLASS_WEIGHT, 1.0)
         err = (p - y) * sample_weight
         weight_mean = float(sample_weight.mean())
         self.w -= LEARNING_RATE * ((x.T @ err) / len(y) / weight_mean + L2 * self.w)
@@ -205,14 +194,7 @@ def collect(files, start, end, state, model=None, train=False):
                 if not mask.any():
                     continue
                 for _ in range(EPOCHS_PER_DAY):
-                    upside = np.nan_to_num(bb[mask], nan=NET_WIN_THRESHOLD_PCT)
-                    upside_ratio = np.clip(
-                        (upside - NET_WIN_THRESHOLD_PCT) / NET_WIN_THRESHOLD_PCT,
-                        0.0,
-                        UPSIDE_WEIGHT_MAX_MULTIPLIER,
-                    )
-                    upside_multiplier = 1.0 + UPSIDE_WEIGHT_SLOPE * upside_ratio
-                    model[regime].update(x[mask], yy[mask], upside_multiplier)
+                    model[regime].update(x[mask], yy[mask])
         else:
             probs = np.zeros(len(yy), dtype=np.float64)
             for regime_idx, regime in enumerate(REGIME_NAMES):
@@ -403,7 +385,7 @@ def main():
         "schema_version": 3,
         "status": "research_only",
         "method": "full_market_path_aware_short_term_training",
-        "objective": "net_profit_at_least_3pct_opportunity_before_3pct_stop_within_5_sessions_with_upside_quality_weighting",
+        "objective": "net_profit_at_least_3pct_opportunity_before_3pct_stop_within_5_sessions",
         "data_start": args.start,
         "data_end": args.final_end,
         "splits": {
@@ -427,8 +409,6 @@ def main():
         "model": {
             "type": "logistic_regression_sgd_weighted_regime_routed",
             "positive_class_weight": POSITIVE_CLASS_WEIGHT,
-            "upside_weight_slope": UPSIDE_WEIGHT_SLOPE,
-            "upside_weight_max_multiplier": UPSIDE_WEIGHT_MAX_MULTIPLIER,
             "learning_rate": LEARNING_RATE,
             "l2": L2,
             "epochs_per_day": EPOCHS_PER_DAY,
@@ -467,7 +447,8 @@ def main():
             "same_day_target_stop_ambiguity": "daily_bar_conservative_stop_first",
             "formal_production_changed": False,
             "market_regime_routing_research_only": True,
-            "upside_quality_weighting_uses_future_training_labels_only": True,
+            "t_plus_1_target_not_counted_as_win": True,
+            "sellable_win_starts_t_plus_2": True,
         },
         "elapsed_seconds": round(time.time() - started, 2),
     }
