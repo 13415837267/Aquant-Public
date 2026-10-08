@@ -22,7 +22,7 @@
   ],
   "year_count": 12,
   "trading_days": 2855,
-  "days_completed": 50,
+  "days_completed": 55,
   "files_by_year": {
     "2015": 244,
     "2016": 244,
@@ -94,27 +94,32 @@
     "2021-07-28",
     "2021-07-27",
     "2021-07-26",
-    "2021-07-23"
+    "2021-07-23",
+    "2021-07-22",
+    "2021-07-21",
+    "2021-07-20",
+    "2021-07-19",
+    "2021-07-16"
   ],
-  "rows_written": 228349,
+  "rows_written": 250842,
   "last_day": {
-    "date": "2021-07-23",
-    "rows": 4507,
-    "unique_symbols": 4507,
+    "date": "2021-07-16",
+    "rows": 4494,
+    "unique_symbols": 4494,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
-      ".SH": 1941,
-      ".SZ": 2459,
-      ".BJ": 107
+      ".SH": 1936,
+      ".SZ": 2453,
+      ".BJ": 105
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.976259,
-      "circulating_cap": 0.976259,
-      "circulating_market_cap": 0.976259,
+      "capitalization": 0.976636,
+      "circulating_cap": 0.976636,
+      "circulating_market_cap": 0.976636,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -124,21 +129,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.976259,
+      "market_cap": 0.976636,
       "open": 1.0,
-      "pb_ratio": 0.976259,
-      "pcf_ratio": 0.976259,
+      "pb_ratio": 0.976636,
+      "pcf_ratio": 0.976636,
       "pct_chg": 1.0,
-      "pe_ratio": 0.976259,
-      "pe_ratio_lyr": 0.976259,
+      "pe_ratio": 0.976636,
+      "pe_ratio_lyr": 0.976636,
       "pre_close": 1.0,
-      "ps_ratio": 0.976259,
+      "ps_ratio": 0.976636,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.973819,
+      "turnover_ratio": 0.97441,
       "volume": 1.0
     },
-    "valuation_rows": 4389
+    "valuation_rows": 4379
   },
-  "last_file": "data/history/2021/2021-07-23.csv.gz"
+  "last_file": "data/history/2021/2021-07-16.csv.gz"
 }
