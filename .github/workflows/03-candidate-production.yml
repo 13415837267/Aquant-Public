@@ -57,7 +57,7 @@ jobs:
   produce:
     name: "按正式基准生成候选池与下一交易日计划"
     needs: gate
-    if: ${{ needs.gate.outputs.is_trading_day == 'true' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ needs.gate.outputs.is_trading_day == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -178,5 +178,13 @@ jobs:
             echo "候选产物无变化，无需提交。"
           else
             git commit -m "生产：按第一版正式基准更新候选池与下一交易日计划"
-            git push
+            for attempt in 1 2 3; do
+              if git push; then
+                exit 0
+              fi
+              echo "候选产物推送遇到并发更新，第${attempt}次回基重试。"
+              git pull --rebase origin main
+            done
+            echo "候选产物连续三次推送失败。"
+            exit 1
           fi
