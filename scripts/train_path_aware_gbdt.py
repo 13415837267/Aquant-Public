@@ -40,15 +40,15 @@ def add_training_samples(buffers, x, y):
             buffers[cls].extend(rows)
 
 
-def collect_training(files, dates):
+def collect_training(files, dates, train_end):
     buffers = {0: [], 1: []}
     state = FeatureState()
-    start_i, end_i = dates.index(dates[0]), dates.index(TRAIN_END)
+    start_i, end_i = dates.index(dates[0]), dates.index(train_end)
     processed = samples = 0
     for i in range(start_i, end_i + 1):
         date = dates[i]
         frame = state.build(read_daily(files[i]))
-        if date < dates[0] or date > TRAIN_END or frame.empty or i + MAX_FORWARD_SESSIONS >= len(files):
+        if date < dates[0] or date > train_end or frame.empty or i + MAX_FORWARD_SESSIONS >= len(files):
             continue
         future = [read_daily(files[i + j]) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
         labels, _, _, complete = build_targets(frame["symbol"].astype(str).str.zfill(6).tolist(), future)
@@ -122,12 +122,16 @@ def select(rows):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", default=str(ROOT / "data/backtest/path_aware_gbdt_research.json"))
+    ap.add_argument("--train-end", default=TRAIN_END)
+    ap.add_argument("--fixed-threshold", type=float, default=None)
     args = ap.parse_args()
 
     started = time.time()
     files = history_files()
     dates = [p.name[:10] for p in files]
-    x, y, train_days, train_samples = collect_training(files, dates)
+    if args.train_end not in dates:
+        raise SystemExit(f"训练截止日不在交易日数据中: {args.train_end}")
+    x, y, train_days, train_samples = collect_training(files, dates, args.train_end)
 
     model = HistGradientBoostingClassifier(
         learning_rate=0.05,
@@ -148,11 +152,21 @@ def main():
 
     validation_rows = rows_for(validation)
     final_rows = rows_for(final)
-    selected = select(validation_rows)
+    if args.fixed_threshold is not None:
+        selected = next(
+            (r for r in validation_rows if r["probability_threshold"] == round(args.fixed_threshold, 2)),
+            None,
+        )
+        if selected is None:
+            raise SystemExit(f"固定阈值必须落在研究阈值网格内: {args.fixed_threshold}")
+        threshold_for_final = selected["probability_threshold"]
+    else:
+        selected = select(validation_rows)
+        threshold_for_final = selected["probability_threshold"] if selected else None
     selected_final = None
-    if selected:
+    if threshold_for_final is not None:
         selected_final = next(
-            (r for r in final_rows if r["probability_threshold"] == selected["probability_threshold"]),
+            (r for r in final_rows if r["probability_threshold"] == threshold_for_final),
             None,
         )
 
@@ -171,6 +185,8 @@ def main():
             "class_weight": "balanced",
             "seed": SEED,
             "full_training_samples": True,
+            "train_end": args.train_end,
+            "fixed_threshold": args.fixed_threshold,
             "min_operating_samples": MIN_OPERATING_SAMPLES,
             "min_operating_sample_share_pct": MIN_OPERATING_SAMPLE_SHARE_PCT,
         },
@@ -184,7 +200,8 @@ def main():
             "entry_is_T_plus_1_open": True,
             "exit_starts_T_plus_2": True,
             "strict_stop_first_managed_label": True,
-            "final_holdout_used_once_after_validation_selection": True,
+            "final_holdout_used_once_after_validation_selection": args.fixed_threshold is None,
+            "threshold_selection_source": "previous_baseline" if args.fixed_threshold is not None else "validation_selection",
             "minimum_operating_sample_guard": True,
             "production_changed": False,
         },
