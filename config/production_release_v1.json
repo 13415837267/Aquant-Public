@@ -15,7 +15,7 @@
   "strategy_source": {
     "repository": "13415837267/Aquant-Private",
     "branch": "main",
-    "commit": "f2b906ede1ab2ddbec7f581e1c99d5d7caca39dd"
+    "commit": "bd395f5577b4247ac621293dfb3a248a7b1d1e00"
   },
   "model_baseline": {
     "version": "近期训练窗口研究版",
