@@ -78,6 +78,7 @@ jobs:
           paths = [
               Path("data/backtest/high_precision_profit_mining_research_latest.json"),
               Path("data/backtest/path_aware_gbdt_research_latest.json"),
+              Path("data/backtest/path_aware_gbdt_train2024_fixed078.json"),
           ]
           for path in paths:
               if not path.exists():
@@ -104,6 +105,6 @@ jobs:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
-              data/backtest/path_aware_gbdt_train2024_fixed078.json
+            data/backtest/path_aware_gbdt_train2024_fixed078.json
           if-no-files-found: warn
           retention-days: 30
