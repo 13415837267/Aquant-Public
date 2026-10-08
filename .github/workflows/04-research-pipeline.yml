@@ -106,7 +106,8 @@ jobs:
           name: "第一版历史研究检查点"
           path: |
             data/research/short_term_release_validation
-            data/backtest/short_term_release_validation.json            data/backtest/path_aware_profit_3pct_training_latest.json
+            data/backtest/short_term_release_validation.json
+            data/backtest/path_aware_profit_3pct_training_latest.json
           if-no-files-found: warn
           retention-days: 30
 
