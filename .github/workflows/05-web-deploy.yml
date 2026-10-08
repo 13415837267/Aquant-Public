@@ -15,10 +15,6 @@ on:
       - "package.json"
       - "package-lock.json"
       - "next.config.ts"
-  workflow_run:
-    workflows: ["03 候选池生产"]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       debug_note:
@@ -38,7 +34,6 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     name: "构建第一版系统网页"
     runs-on: ubuntu-24.04
     steps:
