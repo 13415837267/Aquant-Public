@@ -4,9 +4,19 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/**"
   pull_request:
     branches:
       - main
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/**"
   workflow_dispatch:
 
 permissions:
