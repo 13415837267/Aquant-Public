@@ -1,50 +1,50 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-10-07T00:00:18.191636+08:00",
+  "generated_at": "2026-10-09T01:22:10.563367+08:00",
   "timezone": "Asia/Shanghai",
-  "next_trading_day": "2026-10-08",
-  "signal_date": "2026-09-30",
-  "data_cutoff": "2026-09-30",
+  "next_trading_day": "2026-10-09",
+  "signal_date": "2026-10-08",
+  "data_cutoff": "2026-10-08",
   "status": "research_plan",
   "production_release": false,
-  "title": "2026年10月8日下一交易日计划",
-  "summary": "2026-09-30 收盘候选快照直接作为 2026-10-08 开盘执行计划。候选身份、排序、分数与精度概率全部逐项继承 data/candidates.json，不重新选股、不重新打分，不读取执行日或之后的行情数据，因此不存在未来函数。",
+  "title": "2026年10月9日下一交易日计划",
+  "summary": "2026-10-08 收盘候选快照直接作为 2026-10-09 开盘执行计划。候选身份、排序、分数与精度概率全部逐项继承 data/candidates.json，不重新选股、不重新打分，不读取执行日或之后的行情数据，因此不存在未来函数。",
   "strategy_version": "近期训练窗口研究版",
   "strategy_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
   "candidate_policy": "top_2_by_recent_window_model_probability_threshold_0.60",
   "market": {
-    "breadth_pct": 54.387,
-    "median_return_pct": 0.245,
-    "regime": "neutral"
+    "breadth_pct": 39.485,
+    "median_return_pct": -0.546,
+    "regime": "risk_off"
   },
   "candidate_count": 2,
   "candidates": [
     {
       "rank": 1,
-      "symbol": "603057",
-      "name": "紫燕食品",
-      "price": 17.84,
-      "score": 66.801,
-      "precision_probability": 0.668012,
+      "symbol": "605333",
+      "name": "沪光股份",
+      "price": 16.49,
+      "score": 67.217,
+      "precision_probability": 0.672171,
       "admission_tier": "model_threshold_060_top2",
-      "signal_date": "2026-09-30",
-      "execution_date": "2026-10-08",
-      "earliest_exit_date": "2026-10-09",
+      "signal_date": "2026-10-08",
+      "execution_date": "2026-10-09",
+      "earliest_exit_date": "2026-10-12",
       "net_win_threshold_pct": 1.0,
       "stop_loss_pct": 3.0,
       "flags": []
     },
     {
       "rank": 2,
-      "symbol": "601966",
-      "name": "玲珑轮胎",
-      "price": 10.49,
-      "score": 65.818,
-      "precision_probability": 0.658178,
+      "symbol": "605599",
+      "name": "菜百股份",
+      "price": 13.4,
+      "score": 66.132,
+      "precision_probability": 0.661319,
       "admission_tier": "model_threshold_060_top2",
-      "signal_date": "2026-09-30",
-      "execution_date": "2026-10-08",
-      "earliest_exit_date": "2026-10-09",
+      "signal_date": "2026-10-08",
+      "execution_date": "2026-10-09",
+      "earliest_exit_date": "2026-10-12",
       "net_win_threshold_pct": 1.0,
       "stop_loss_pct": 3.0,
       "flags": []
@@ -52,20 +52,20 @@
   ],
   "steps": [
     {
-      "time": "2026-10-08 盘前",
-      "action": "仅核对计划候选与开盘前可执行性及统一硬风控；不使用 2026-10-08 收盘以后产生的行情数据。"
+      "time": "2026-10-09 盘前",
+      "action": "仅核对计划候选与开盘前可执行性及统一硬风控；不使用 2026-10-09 收盘以后产生的行情数据。"
     },
     {
-      "time": "2026-10-08 开盘",
-      "action": "若仅作为研究/模拟执行，按 2026-09-30 收盘形成的信号对应 T+1 开盘执行；正式生产门禁未通过时禁止实盘。"
+      "time": "2026-10-09 开盘",
+      "action": "若仅作为研究/模拟执行，按 2026-10-08 收盘形成的信号对应 T+1 开盘执行；正式生产门禁未通过时禁止实盘。"
     },
     {
-      "time": "2026-10-08 收盘后",
-      "action": "把 2026-10-08 作为新的 T 日，以该日收盘及此前数据重新生成下一交易日计划。"
+      "time": "2026-10-09 收盘后",
+      "action": "把 2026-10-09 作为新的 T 日，以该日收盘及此前数据重新生成下一交易日计划。"
     },
     {
-      "time": "2026-10-09 起",
-      "action": "对 2026-10-08 新信号严格执行 T+2 最早卖出规则；最长持有 5 个完整交易日。"
+      "time": "2026-10-12 起",
+      "action": "对 2026-10-09 新信号严格执行 T+2 最早卖出规则；最长持有 5 个完整交易日。"
     }
   ],
   "hard_rules": [
@@ -77,7 +77,7 @@
   ],
   "source_snapshot": {
     "path": "data/candidates.json",
-    "as_of": "2026-09-30T18:00:00+08:00",
+    "as_of": "2026-10-08T18:00:00+08:00",
     "strategy_version": "近期训练窗口研究版",
     "strategy_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592"
   }
