@@ -90,7 +90,7 @@ def main():
     dates = [p.name[:10] for p in files]
     signal_date = args.signal_date or dates[-1]
     if signal_date not in dates:
-        raise ValueError("训练区间不在历史数据范围内")
+        raise ValueError(f"信号日期不在历史数据范围内：{signal_date}")
     if not 0 < args.threshold < 1:
         raise ValueError("概率阈值必须在0和1之间")
 
