@@ -38,6 +38,10 @@
 
 生产运行直接 checkout `Aquant-Private/main` 做来源审计；当前候选生成使用已物化并锁定的第一版模型权重，模型版本、模型代码提交号、训练窗口和候选参数均必须与 `config/production_release_v1.json` 一致。日常生产不重新训练模型。
 
+## Action 与 Deployment 审计基线
+
+当前仓库的 Action/Deployment 项目审计记录已重建为**当前基线唯一记录**。GitHub 平台服务器端的历史 Actions 运行记录和 Deployment 对象不属于仓库文件，当前授权接口无法删除，因此不把服务器历史数量误报为已清空；历史记录不参与当前生产状态判断。
+
 ## 工作流架构
 
 当前主动工作流已整理为单一生产链与两个独立研究入口：
