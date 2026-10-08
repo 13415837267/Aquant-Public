@@ -11,7 +11,10 @@
   "strategy_source": "Aquant-Private/main",
   "strategy_source_commit": "bd395f5577b4247ac621293dfb3a248a7b1d1e00",
   "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
-  "training_window": ["2019-01-02", "2026-09-30"],
+  "training_window": [
+    "2019-01-02",
+    "2026-09-30"
+  ],
   "data_cutoff": "2026-09-30",
   "candidate_policy": "top_2_by_recent_window_model_probability_threshold_0.60",
   "future_function": false,
@@ -27,12 +30,17 @@
     "private_strategy_source_checked": true,
     "single_main_branch_policy": true,
     "cloud_runtime_only": true,
-    "production_quality_gate_passed": false
+    "production_quality_gate_passed": false,
+    "workflow_architecture_checked": true,
+    "duplicate_research_workflows_removed": true,
+    "candidate_production_data_success_gate": true,
+    "web_deploy_duplicate_trigger_removed": true,
+    "quality_workflow_latest_commit_only": true
   },
   "quality_gate": {
-    "target_win_rate_pct": 80.0,
+    "target_win_rate_pct": 80,
     "final_holdout_win_rate_pct": 62.32080906207761,
     "passed": false
   },
-  "note": "第一版系统工程链路正式启用，但策略质量门槛未通过，因此只允许研究/模拟信号，不自动下单。旧审计结果不作为当前生产输入。"
+  "note": "第一版系统基线已完成工作流整理：生产模型资产不变；研究训练入口收敛；候选生产要求数据维护成功；网页部署去除重复触发。"
 }
