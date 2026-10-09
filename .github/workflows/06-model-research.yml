@@ -64,6 +64,9 @@ jobs:
       - name: "执行可执行复利组合评估"
         run: python scripts/compound_portfolio_backtest.py --model-result data/backtest/high_precision_profit_mining_research_latest.json --output data/backtest/high_precision_compound_portfolio_latest.json
 
+      - name: "执行全条件挖掘与模型比较"
+        run: python scripts/run_all_conditions_research.py
+
       - name: "执行路径感知梯度提升研究"
         run: |
           python scripts/train_path_aware_gbdt.py             --output data/backtest/path_aware_gbdt_research_latest.json
