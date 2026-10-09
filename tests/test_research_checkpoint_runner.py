@@ -7,6 +7,7 @@ from scripts.research_checkpoint_runner import (
     checkpoint_reuse_reason,
     file_sha256,
 )
+from scripts.run_all_conditions_research import summarize_stage_status
 
 
 def test_canonical_fingerprint_is_order_independent_and_input_sensitive():
@@ -43,3 +44,27 @@ def test_checkpoint_reuse_rejects_missing_or_modified_result(tmp_path):
     assert "不存在" in checkpoint_reuse_reason(
         {"status": "running", "fingerprint": "same"}, "same", output
     )
+
+
+def test_individual_stage_runs_keep_overall_manifest_in_running_state_until_all_pass():
+    keys = ["stage_a", "stage_b", "stage_c"]
+    status, successful, failed = summarize_stage_status(
+        {"stage_a": {"status": "success"}}, keys
+    )
+    assert status == "running"
+    assert successful == ["stage_a"]
+    assert failed == []
+
+    status, successful, failed = summarize_stage_status(
+        {"stage_a": {"status": "success"}, "stage_b": {"status": "failed"}}, keys
+    )
+    assert status == "failed"
+    assert successful == ["stage_a"]
+    assert failed == ["stage_b"]
+
+    status, successful, failed = summarize_stage_status(
+        {key: {"status": "success"} for key in keys}, keys
+    )
+    assert status == "completed"
+    assert successful == keys
+    assert failed == []

@@ -64,6 +64,18 @@ def stage_resume_reason(previous: dict, expected_fingerprint: str, output: Path)
     return None
 
 
+def summarize_stage_status(results: dict, stage_keys: list[str]) -> tuple[str, list[str], list[str]]:
+    successful = [key for key in stage_keys if results.get(key, {}).get("status") == "success"]
+    failed = [key for key in stage_keys if results.get(key, {}).get("status") == "failed"]
+    if failed:
+        status = "failed"
+    elif len(successful) == len(stage_keys):
+        status = "completed"
+    else:
+        status = "running"
+    return status, successful, failed
+
+
 def current_time() -> str:
     return datetime.now(TIMEZONE).isoformat(timespec="seconds")
 
@@ -201,6 +213,8 @@ def build_stages(private_path: Path, private_commit: str) -> list[dict]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="运行全部条件挖掘和候选模型研究")
     parser.add_argument("--resume-manifest", default=str(MANIFEST_PATH))
+    parser.add_argument("--stage-key", choices=tuple(STAGE_DEPENDENCIES), default=None,
+                        help="只运行指定阶段，以便在云端每阶段持久化检查点")
     args = parser.parse_args()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -255,7 +269,13 @@ def main() -> int:
     append_log(f"研究启动；公开提交={public_commit}；私有策略提交={private_commit or '未检出'}")
 
     failures = []
-    for stage in build_stages(private_path, private_commit):
+    all_stages = build_stages(private_path, private_commit)
+    all_stage_keys = [stage["key"] for stage in all_stages]
+    stages_to_run = (
+        [stage for stage in all_stages if stage["key"] == args.stage_key]
+        if args.stage_key else all_stages
+    )
+    for stage in stages_to_run:
         key = stage["key"]
         output = stage["output"]
         old = results.get(key, {})
@@ -323,9 +343,15 @@ def main() -> int:
         manifest["last_completed_or_failed_stage"] = key
         write_json(MANIFEST_PATH, sanitize(manifest))
 
-    manifest["status"] = "failed" if failures else "completed"
-    manifest["finished_at"] = current_time()
-    manifest["failed_stages"] = failures
+    status, successful_stage_keys, failed_stage_keys = summarize_stage_status(results, all_stage_keys)
+    manifest["status"] = status
+    if status in ("failed", "completed"):
+        manifest["finished_at"] = current_time()
+    else:
+        manifest.pop("finished_at", None)
+    manifest["completed_stage_count"] = len(successful_stage_keys)
+    manifest["failed_stage_count"] = len(failed_stage_keys)
+    manifest["failed_stages"] = failed_stage_keys
     manifest["stages"] = results
     manifest["metrics_summary"] = {
         key: value.get("summary", {"status": value.get("status"), "error": value.get("error")})
@@ -334,7 +360,7 @@ def main() -> int:
     manifest = sanitize(manifest)
     write_json(MANIFEST_PATH, manifest)
 
-    # 将研究总清单嵌入既有研究工件，确保失败或超时前的阶段摘要能随工件一并取回。
+    # 将研究总清单嵌入既有研究工件，确保阶段状态可随工件一并取回。
     high_precision_path = OUT_DIR / "high_precision_profit_mining_research_latest.json"
     if high_precision_path.exists():
         try:
@@ -344,11 +370,12 @@ def main() -> int:
         except Exception as exc:
             append_log(f"写入研究工件摘要失败：{type(exc).__name__}: {exc}")
 
-    append_log(f"全部条件研究结束；状态={manifest['status']}；失败阶段={failures}")
+    append_log(f"阶段调用结束；总研究状态={manifest['status']}；失败阶段={failed_stage_keys}")
     print(json.dumps({
         "status": manifest["status"],
-        "successful_stages": manifest["completed_stage_count"],
-        "failed_stages": failures,
+        "successful_stages": len(successful_stage_keys),
+        "failed_stages": failed_stage_keys,
+        "executed_stage": args.stage_key or "全部阶段",
         "manifest": str(MANIFEST_PATH),
         "formal_production_changed": False,
     }, ensure_ascii=False), flush=True)

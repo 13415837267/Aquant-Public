@@ -17,6 +17,7 @@ on:
       - "scripts/pack_all_condition_results.py"
       - "scripts/compound_portfolio_backtest.py"
       - "scripts/run_all_conditions_research.py"
+      - "scripts/research_checkpoint_runner.py"
       - "requirements.txt"
 
 permissions:
@@ -136,10 +137,11 @@ jobs:
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-02-compound
 
-      - name: "执行全条件挖掘与模型比较（按阶段断点恢复）"
-        run: python scripts/run_all_conditions_research.py
+      - name: "执行或恢复：单因子与双条件组合挖掘"
+        if: ${{ always() }}
+        run: python scripts/run_all_conditions_research.py --stage-key single_and_double_condition_rules
 
-      - name: "持久化检查点：全条件阶段"
+      - name: "持久化检查点：单因子与双条件组合挖掘"
         if: ${{ always() }}
         uses: actions/cache/save@v4
         with:
@@ -156,7 +158,99 @@ jobs:
             data/backtest/path_aware_gbdt_train2024_fixed078.json
             data/research/workflow_stages/
             data/research/all_conditions/
-          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-03-all-conditions
+          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-03-single-double
+
+      - name: "执行或恢复：市场状态与三条件组合挖掘"
+        if: ${{ always() }}
+        run: python scripts/run_all_conditions_research.py --stage-key market_regime_three_condition_rules
+
+      - name: "持久化检查点：市场状态与三条件组合挖掘"
+        if: ${{ always() }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/backtest/high_precision_profit_mining_research_latest.json
+            data/backtest/high_precision_compound_portfolio_latest.json
+            data/backtest/path_rule_mining_research_latest.json
+            data/backtest/path_regime_rule_mining_research_latest.json
+            data/backtest/strict_path_strategy_score_mining_research_latest.json
+            data/backtest/feature_training_research_latest.json
+            data/backtest/executable_path_profit_training_research_latest.json
+            data/backtest/all_conditions_research_manifest_latest.json
+            data/backtest/path_aware_gbdt_research_latest.json
+            data/backtest/path_aware_gbdt_train2024_fixed078.json
+            data/research/workflow_stages/
+            data/research/all_conditions/
+          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-04-market-regime
+
+      - name: "执行或恢复：正式策略评分阈值挖掘"
+        if: ${{ always() }}
+        run: python scripts/run_all_conditions_research.py --stage-key private_strategy_score_thresholds
+
+      - name: "持久化检查点：正式策略评分阈值挖掘"
+        if: ${{ always() }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/backtest/high_precision_profit_mining_research_latest.json
+            data/backtest/high_precision_compound_portfolio_latest.json
+            data/backtest/path_rule_mining_research_latest.json
+            data/backtest/path_regime_rule_mining_research_latest.json
+            data/backtest/strict_path_strategy_score_mining_research_latest.json
+            data/backtest/feature_training_research_latest.json
+            data/backtest/executable_path_profit_training_research_latest.json
+            data/backtest/all_conditions_research_manifest_latest.json
+            data/backtest/path_aware_gbdt_research_latest.json
+            data/backtest/path_aware_gbdt_train2024_fixed078.json
+            data/research/workflow_stages/
+            data/research/all_conditions/
+          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-05-strategy-score
+
+      - name: "执行或恢复：短线净收益百分之一模型训练"
+        if: ${{ always() }}
+        run: python scripts/run_all_conditions_research.py --stage-key short_term_one_percent_model
+
+      - name: "持久化检查点：短线净收益百分之一模型训练"
+        if: ${{ always() }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/backtest/high_precision_profit_mining_research_latest.json
+            data/backtest/high_precision_compound_portfolio_latest.json
+            data/backtest/path_rule_mining_research_latest.json
+            data/backtest/path_regime_rule_mining_research_latest.json
+            data/backtest/strict_path_strategy_score_mining_research_latest.json
+            data/backtest/feature_training_research_latest.json
+            data/backtest/executable_path_profit_training_research_latest.json
+            data/backtest/all_conditions_research_manifest_latest.json
+            data/backtest/path_aware_gbdt_research_latest.json
+            data/backtest/path_aware_gbdt_train2024_fixed078.json
+            data/research/workflow_stages/
+            data/research/all_conditions/
+          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-06-short-term-model
+
+      - name: "执行或恢复：可执行净收益百分之三路径模型训练"
+        if: ${{ always() }}
+        run: python scripts/run_all_conditions_research.py --stage-key executable_three_percent_path_model
+
+      - name: "持久化检查点：可执行净收益百分之三路径模型训练"
+        if: ${{ always() }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/backtest/high_precision_profit_mining_research_latest.json
+            data/backtest/high_precision_compound_portfolio_latest.json
+            data/backtest/path_rule_mining_research_latest.json
+            data/backtest/path_regime_rule_mining_research_latest.json
+            data/backtest/strict_path_strategy_score_mining_research_latest.json
+            data/backtest/feature_training_research_latest.json
+            data/backtest/executable_path_profit_training_research_latest.json
+            data/backtest/all_conditions_research_manifest_latest.json
+            data/backtest/path_aware_gbdt_research_latest.json
+            data/backtest/path_aware_gbdt_train2024_fixed078.json
+            data/research/workflow_stages/
+            data/research/all_conditions/
+          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-07-executable-path-model
 
       - name: "打包完整条件研究产物"
         if: ${{ always() }}
@@ -187,7 +281,7 @@ jobs:
             data/backtest/path_aware_gbdt_train2024_fixed078.json
             data/research/workflow_stages/
             data/research/all_conditions/
-          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-04-gbdt
+          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-08-gbdt
 
       - name: "执行或恢复扩展训练窗口实验：固定阈值"
         if: ${{ always() }}
@@ -214,7 +308,7 @@ jobs:
             data/backtest/path_aware_gbdt_train2024_fixed078.json
             data/research/workflow_stages/
             data/research/all_conditions/
-          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-05-gbdt-fixed078
+          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-09-gbdt-fixed078
 
       - name: "汇总研究结果"
         if: ${{ always() }}
@@ -267,6 +361,7 @@ jobs:
             data/backtest/executable_path_profit_training_research_latest.json
             data/backtest/all_conditions_research_manifest_latest.json
             data/research/all_conditions/**
+            data/research/workflow_stages/**
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
           if-no-files-found: warn
