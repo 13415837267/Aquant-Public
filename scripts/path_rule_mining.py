@@ -173,7 +173,7 @@ def path_targets(symbols, future_days):
             # T+1 为建仓日，严格禁止在 T+1 触发卖出；T+2 才是最早退出日。
             if d == 0:
                 continue
-            day_open, day_high, day_low = opens[row, d], highs[row, d], lows[row]
+            day_open, day_high, day_low = opens[row, d], highs[row, d], lows[row, d]
             if day_open <= stop[row] or day_low <= stop[row]:
                 stop_day[row] = d + 1
                 stopped = True

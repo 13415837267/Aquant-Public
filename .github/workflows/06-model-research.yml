@@ -10,6 +10,11 @@ on:
       - "scripts/train_path_aware_gbdt.py"
       - "scripts/train_short_term_model.py"
       - "scripts/short_term_research.py"
+      - "scripts/path_rule_mining.py"
+      - "scripts/path_regime_rule_mining.py"
+      - "scripts/strict_path_strategy_score_mining.py"
+      - "scripts/train_executable_path_model.py"
+      - "scripts/pack_all_condition_results.py"
       - "scripts/compound_portfolio_backtest.py"
       - "scripts/run_all_conditions_research.py"
       - "requirements.txt"
@@ -69,13 +74,16 @@ jobs:
         run: python scripts/run_all_conditions_research.py
 
       - name: "打包完整条件研究产物"
+        if: ${{ always() }}
         run: python scripts/pack_all_condition_results.py
 
       - name: "执行路径感知梯度提升研究"
+        if: ${{ always() }}
         run: |
           python scripts/train_path_aware_gbdt.py             --output data/backtest/path_aware_gbdt_research_latest.json
 
       - name: "扩展训练窗口实验：固定阈值"
+        if: ${{ always() }}
         run: |
           python scripts/train_path_aware_gbdt.py             --train-end 2024-12-31             --fixed-threshold 0.78             --output data/backtest/path_aware_gbdt_train2024_fixed078.json
 
@@ -88,6 +96,13 @@ jobs:
 
           paths = [
               Path("data/backtest/high_precision_profit_mining_research_latest.json"),
+              Path("data/backtest/high_precision_compound_portfolio_latest.json"),
+              Path("data/backtest/path_rule_mining_research_latest.json"),
+              Path("data/backtest/path_regime_rule_mining_research_latest.json"),
+              Path("data/backtest/strict_path_strategy_score_mining_research_latest.json"),
+              Path("data/backtest/feature_training_research_latest.json"),
+              Path("data/backtest/executable_path_profit_training_research_latest.json"),
+              Path("data/backtest/all_conditions_research_manifest_latest.json"),
               Path("data/backtest/path_aware_gbdt_research_latest.json"),
               Path("data/backtest/path_aware_gbdt_train2024_fixed078.json"),
           ]
@@ -115,6 +130,14 @@ jobs:
           name: "短线模型研究结果"
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
+            data/backtest/high_precision_compound_portfolio_latest.json
+            data/backtest/path_rule_mining_research_latest.json
+            data/backtest/path_regime_rule_mining_research_latest.json
+            data/backtest/strict_path_strategy_score_mining_research_latest.json
+            data/backtest/feature_training_research_latest.json
+            data/backtest/executable_path_profit_training_research_latest.json
+            data/backtest/all_conditions_research_manifest_latest.json
+            data/research/all_conditions/**
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
           if-no-files-found: warn
