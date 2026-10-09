@@ -11,6 +11,7 @@ on:
       - "scripts/train_short_term_model.py"
       - "scripts/short_term_research.py"
       - "scripts/compound_portfolio_backtest.py"
+      - "scripts/run_all_conditions_research.py"
       - "requirements.txt"
 
 permissions:
