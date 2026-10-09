@@ -1,10 +1,10 @@
 name: "维护历史 Action 与部署记录"
 
 on:
-  push:
+  workflow_run:
+    workflows: ["01 Python质量检查"]
+    types: [completed]
     branches: [main]
-    paths:
-      - ".github/workflows/cleanup-action-deployment-history.yml"
   workflow_dispatch:
     inputs:
       baseline_run_id:
