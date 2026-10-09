@@ -3,8 +3,6 @@ name: "维护历史 Action 与部署记录"
 on:
   push:
     branches: [main]
-    paths:
-      - ".github/workflows/cleanup-action-deployment-history.yml"
   workflow_dispatch:
     inputs:
       baseline_run_id:
@@ -24,6 +22,7 @@ concurrency:
 
 jobs:
   cleanup:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '维护：执行历史 Action 与部署清理')) }}
     name: "云端历史记录维护"
     runs-on: ubuntu-24.04
     timeout-minutes: 30
