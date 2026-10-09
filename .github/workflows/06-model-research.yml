@@ -68,6 +68,9 @@ jobs:
       - name: "执行全条件挖掘与模型比较"
         run: python scripts/run_all_conditions_research.py
 
+      - name: "打包完整条件研究产物"
+        run: python scripts/pack_all_condition_results.py
+
       - name: "执行路径感知梯度提升研究"
         run: |
           python scripts/train_path_aware_gbdt.py             --output data/backtest/path_aware_gbdt_research_latest.json
