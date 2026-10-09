@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: "模型研究-main"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   research:
