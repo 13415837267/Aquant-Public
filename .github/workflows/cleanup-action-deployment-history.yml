@@ -1,6 +1,10 @@
 name: "维护历史 Action 与部署记录"
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cleanup-action-deployment-history.yml"
   workflow_dispatch:
     inputs:
       baseline_run_id:
@@ -26,7 +30,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      BASELINE_RUN_ID: ${{ inputs.baseline_run_id }}
+      BASELINE_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.baseline_run_id || '37879972344' }}
     steps:
       - name: "检出当前主分支"
         uses: actions/checkout@v7
@@ -55,6 +59,7 @@ jobs:
           deleted_actions='[]'
           preserved_active='[]'
           deleted_deployments='[]'
+          preserved_deployments='[]'
           cleanup_errors='[]'
 
           if ! runs_tsv="$(gh api --paginate "repos/$REPOSITORY/actions/runs?per_page=100" --jq '.workflow_runs[] | [.id, .created_at, .status, (.conclusion // ""), (.name // "")] | @tsv')"; then
@@ -87,13 +92,27 @@ jobs:
             exit 1
           fi
 
-          while IFS=$'\t' read -r deployment_id created_at environment task_name commit_sha; do
+          declare -A seen_environment=()
+          while IFS=$'\\t' read -r deployment_id created_at environment task_name commit_sha; do
             [[ -n "${deployment_id:-}" ]] || continue
-            [[ "$created_at" < "$cutoff" ]] || continue
+            environment_key="${environment:-未指定环境}"
+
+            if [[ "$created_at" > "$cutoff" || "$created_at" == "$cutoff" ]]; then
+              seen_environment["$environment_key"]=1
+              preserved_deployments="$(jq -c --arg id "$deployment_id" --arg created "$created_at" --arg environment "$environment_key" --arg task "$task_name" --arg sha "$commit_sha" --arg reason "基准时间之后的部署" '. + [{deployment_id:($id|tonumber), created_at:$created, environment:$environment, task:$task, commit_sha:$sha, reason:$reason}]' <<< "$preserved_deployments")"
+              continue
+            fi
+
+            if [[ -z "${seen_environment[$environment_key]+present}" ]]; then
+              seen_environment["$environment_key"]=1
+              preserved_deployments="$(jq -c --arg id "$deployment_id" --arg created "$created_at" --arg environment "$environment_key" --arg task "$task_name" --arg sha "$commit_sha" --arg reason "该环境最新现行基线" '. + [{deployment_id:($id|tonumber), created_at:$created, environment:$environment, task:$task, commit_sha:$sha, reason:$reason}]' <<< "$preserved_deployments")"
+              echo "保留环境最新部署基线：$deployment_id（$environment_key）"
+              continue
+            fi
 
             latest_state="$(gh api "repos/$REPOSITORY/deployments/$deployment_id/statuses?per_page=1" --jq '.[0].state // ""' 2>/dev/null || true)"
             if [[ "$latest_state" != "inactive" ]]; then
-              if ! gh api --method POST "repos/$REPOSITORY/deployments/$deployment_id/statuses" -f state=inactive -f description="清理基准之前的历史部署记录" >/dev/null; then
+              if ! gh api --method POST "repos/$REPOSITORY/deployments/$deployment_id/statuses" -f state=inactive -f description="清理现行基线之前的历史部署记录" >/dev/null; then
                 cleanup_errors="$(jq -c --arg kind "deployment_deactivate" --arg id "$deployment_id" '. + [{kind:$kind, id:$id}]' <<< "$cleanup_errors")"
                 echo "无法将历史部署标记为停用，保留记录：$deployment_id"
                 continue
@@ -101,11 +120,11 @@ jobs:
             fi
 
             if gh api --method DELETE "repos/$REPOSITORY/deployments/$deployment_id" >/dev/null; then
-              deleted_deployments="$(jq -c --arg id "$deployment_id" --arg created "$created_at" --arg environment "$environment" --arg task "$task_name" --arg sha "$commit_sha" '. + [{deployment_id:($id|tonumber), created_at:$created, environment:$environment, task:$task, commit_sha:$sha}]' <<< "$deleted_deployments")"
-              echo "已清理历史部署：$deployment_id（$environment）"
+              deleted_deployments="$(jq -c --arg id "$deployment_id" --arg created "$created_at" --arg environment "$environment_key" --arg task "$task_name" --arg sha "$commit_sha" '. + [{deployment_id:($id|tonumber), created_at:$created, environment:$environment, task:$task, commit_sha:$sha}]' <<< "$deleted_deployments")"
+              echo "已清理旧部署：$deployment_id（$environment_key）"
             else
               cleanup_errors="$(jq -c --arg kind "deployment_delete" --arg id "$deployment_id" '. + [{kind:$kind, id:$id}]' <<< "$cleanup_errors")"
-              echo "清理历史部署失败：$deployment_id"
+              echo "清理旧部署失败：$deployment_id"
             fi
           done <<< "$deployments_tsv"
 
@@ -119,8 +138,9 @@ jobs:
             --argjson deleted_actions "$deleted_actions" \
             --argjson preserved_active_runs "$preserved_active" \
             --argjson deleted_deployments "$deleted_deployments" \
+            --argjson preserved_deployments "$preserved_deployments" \
             --argjson errors "$cleanup_errors" \
-            '{repository:$repository, baseline_run_id:($baseline_run_id|tonumber), cutoff_created_at:$cutoff_created_at, completed_at:$completed_at, deleted_actions:$deleted_actions, preserved_active_runs:$preserved_active_runs, deleted_deployments:$deleted_deployments, errors:$errors}' \
+            '{repository:$repository, baseline_run_id:($baseline_run_id|tonumber), cutoff_created_at:$cutoff_created_at, completed_at:$completed_at, deleted_actions:$deleted_actions, preserved_active_runs:$preserved_active_runs, deleted_deployments:$deleted_deployments, preserved_deployments:$preserved_deployments, errors:$errors}' \
             > "$manifest_path"
 
           git config user.name "github-actions[bot]"
