@@ -27,6 +27,9 @@ from scripts.train_short_term_model import build_targets, make_features
 退出止损网格 = (1.0, 1.5, 2.0, 2.5, 3.0)
 退出参数最低交易数 = 100
 退出参数最大允许回撤百分比 = -30.0
+概率阈值网格 = (0.55, 0.60, 0.65, 0.70, 0.75, 0.80)
+阈值参数最低交易数 = 100
+阈值参数最大允许回撤百分比 = -30.0
 
 
 def 解析模型(结果: dict) -> NonlinearModel:
@@ -377,6 +380,34 @@ def 选择退出参数(验证网格: list[dict], minimum_trades: int, max_drawdo
     return chosen
 
 
+def 选择概率阈值(验证网格: list[dict], minimum_trades: int, max_drawdown_floor_pct: float) -> dict | None:
+    """只根据验证集选择概率阈值；样本量或回撤不达标的方案不得入选。"""
+    eligible = [
+        row for row in 验证网格
+        if int(row.get("completed_trades") or 0) >= minimum_trades
+        and row.get("max_drawdown_pct") is not None
+        and float(row["max_drawdown_pct"]) >= max_drawdown_floor_pct
+        and row.get("compound_return_pct") is not None
+        and row.get("annualized_compound_return_pct") is not None
+    ]
+    if not eligible:
+        return None
+    chosen = max(
+        eligible,
+        key=lambda row: (
+            float(row["compound_return_pct"]),
+            float(row["annualized_compound_return_pct"]),
+            float(row["max_drawdown_pct"]),
+            int(row["completed_trades"]),
+        ),
+    ).copy()
+    chosen["selection_status"] = (
+        "验证集正收益候选" if float(chosen["compound_return_pct"]) > 0
+        else "验证集未盈利，仅作为最终留出集研究对照"
+    )
+    return chosen
+
+
 def main() -> None:
     解析器 = argparse.ArgumentParser(description="评估短线信号在严格交易约束下的复利表现")
     解析器.add_argument("--model-result", default=str(默认模型结果))
@@ -426,6 +457,39 @@ def main() -> None:
             },
         }
         所有区间结果[区间] = 区间组合
+
+    # 第二轮实验：固定基线退出规则，仅在验证集对入场概率阈值做敏感性分析。
+    # 最终留出集不参与阈值选择，只用于评估验证集冻结的单一阈值。
+    阈值敏感性网格 = []
+    for 候选阈值 in 概率阈值网格:
+        结果 = 运行组合(
+            所有区间候选["validation"], 全部日期, "概率阈值",
+            目标净收益, 止损百分比, 成本基点,
+            top_k=1, 概率阈值=候选阈值,
+        )
+        阈值敏感性网格.append({
+            "probability_threshold": 候选阈值,
+            "completed_trades": 结果.get("completed_trades", 0),
+            "compound_return_pct": 结果.get("compound_return_pct"),
+            "annualized_compound_return_pct": 结果.get("annualized_compound_return_pct"),
+            "max_drawdown_pct": 结果.get("max_drawdown_pct"),
+            "sharpe_ratio": 结果.get("sharpe_ratio"),
+            "target_hit_rate_pct": 结果.get("target_hit_rate_pct"),
+            "mean_trade_net_return_pct": 结果.get("mean_trade_net_return_pct"),
+            "exit_reason_counts": 结果.get("exit_reason_counts", {}),
+        })
+    概率阈值选择 = 选择概率阈值(
+        阈值敏感性网格,
+        minimum_trades=阈值参数最低交易数,
+        max_drawdown_floor_pct=阈值参数最大允许回撤百分比,
+    )
+    概率阈值最终留出集 = None
+    if 概率阈值选择 is not None:
+        概率阈值最终留出集 = 运行组合(
+            所有区间候选["final"], 全部日期, "概率阈值",
+            目标净收益, 止损百分比, 成本基点,
+            top_k=1, 概率阈值=float(概率阈值选择["probability_threshold"]),
+        )
 
     # 只使用验证集选择止盈止损参数；最终留出集只评估冻结后的单一参数组合。
     验证集退出网格 = []
@@ -480,6 +544,19 @@ def main() -> None:
         "splits": 研究结果["splits"],
         "validation": 所有区间结果["validation"],
         "final": 所有区间结果["final"],
+        "entry_threshold_sensitivity": {
+            "objective": "固定基线止盈止损，只在验证集选择入场概率阈值；最终留出集不参与参数选择",
+            "baseline_target_net_profit_pct": 目标净收益,
+            "baseline_stop_loss_pct": 止损百分比,
+            "probability_threshold_grid": list(概率阈值网格),
+            "validation_min_completed_trades": 阈值参数最低交易数,
+            "validation_max_drawdown_floor_pct": 阈值参数最大允许回撤百分比,
+            "validation_grid": 阈值敏感性网格,
+            "selected_validation_threshold": 概率阈值选择,
+            "selected_threshold_final_holdout": 概率阈值最终留出集,
+            "final_holdout_used_for_threshold_selection": False,
+            "formal_production_changed": False,
+        },
         "exit_policy_sensitivity": {
             "objective": "验证集累计复利收益最大化，同时要求已完成交易数不少于预设下限且最大回撤不低于风险边界",
             "validation_min_completed_trades": 退出参数最低交易数,
@@ -514,6 +591,8 @@ def main() -> None:
         "validation_threshold": 输出结果["validation"]["threshold_strategy"],
         "final_threshold": 输出结果["final"]["threshold_strategy"],
         "final_top_k": {k: {key: value for key, value in result.items() if key in ("compound_return_pct", "annualized_compound_return_pct", "max_drawdown_pct", "target_hit_rate_pct", "completed_trades")} for k, result in 输出结果["final"]["daily_top_k"].items()},
+        "selected_probability_threshold": 输出结果["entry_threshold_sensitivity"]["selected_validation_threshold"],
+        "selected_probability_threshold_final_holdout": 输出结果["entry_threshold_sensitivity"]["selected_threshold_final_holdout"],
         "selected_exit_policy": 输出结果["exit_policy_sensitivity"]["selected_validation_policy"],
         "selected_exit_policy_final_holdout": 输出结果["exit_policy_sensitivity"]["selected_policy_final_holdout"],
         "output": str(输出路径),

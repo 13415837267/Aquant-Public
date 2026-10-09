@@ -134,3 +134,53 @@ def test_exit_policy_grid_returns_none_when_no_policy_meets_validation_gates():
          "max_drawdown_pct": -31.0},
     ]
     assert 选择退出参数(grid, minimum_trades=100, max_drawdown_floor_pct=-30.0) is None
+
+
+
+def test_probability_threshold_selection_uses_only_eligible_validation_rows():
+    from scripts.compound_portfolio_backtest import 选择概率阈值
+    grid = [
+        {"probability_threshold": 0.55, "completed_trades": 300,
+         "compound_return_pct": -20.0, "annualized_compound_return_pct": -10.0,
+         "max_drawdown_pct": -35.0},
+        {"probability_threshold": 0.60, "completed_trades": 240,
+         "compound_return_pct": 3.0, "annualized_compound_return_pct": 1.5,
+         "max_drawdown_pct": -20.0},
+        {"probability_threshold": 0.65, "completed_trades": 80,
+         "compound_return_pct": 30.0, "annualized_compound_return_pct": 15.0,
+         "max_drawdown_pct": -10.0},
+        {"probability_threshold": 0.70, "completed_trades": 180,
+         "compound_return_pct": 2.0, "annualized_compound_return_pct": 1.0,
+         "max_drawdown_pct": -18.0},
+    ]
+    picked = 选择概率阈值(grid, minimum_trades=100, max_drawdown_floor_pct=-30.0)
+    assert picked["probability_threshold"] == 0.60
+    assert picked["selection_status"] == "验证集正收益候选"
+
+
+def test_probability_threshold_selection_returns_nonprofitable_diagnostic_not_production_candidate():
+    from scripts.compound_portfolio_backtest import 选择概率阈值
+    grid = [
+        {"probability_threshold": 0.60, "completed_trades": 220,
+         "compound_return_pct": -5.0, "annualized_compound_return_pct": -2.0,
+         "max_drawdown_pct": -20.0},
+        {"probability_threshold": 0.65, "completed_trades": 180,
+         "compound_return_pct": -10.0, "annualized_compound_return_pct": -5.0,
+         "max_drawdown_pct": -15.0},
+    ]
+    picked = 选择概率阈值(grid, minimum_trades=100, max_drawdown_floor_pct=-30.0)
+    assert picked["probability_threshold"] == 0.60
+    assert picked["selection_status"] == "验证集未盈利，仅作为最终留出集研究对照"
+
+
+def test_probability_threshold_selection_returns_none_if_no_candidate_passes_risk_gates():
+    from scripts.compound_portfolio_backtest import 选择概率阈值
+    grid = [
+        {"probability_threshold": 0.60, "completed_trades": 90,
+         "compound_return_pct": 2.0, "annualized_compound_return_pct": 1.0,
+         "max_drawdown_pct": -10.0},
+        {"probability_threshold": 0.65, "completed_trades": 200,
+         "compound_return_pct": 4.0, "annualized_compound_return_pct": 2.0,
+         "max_drawdown_pct": -31.0},
+    ]
+    assert 选择概率阈值(grid, minimum_trades=100, max_drawdown_floor_pct=-30.0) is None
