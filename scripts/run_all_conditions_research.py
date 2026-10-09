@@ -1,0 +1,293 @@
+"""在GitHub云端统一执行条件挖掘与模型对比，并保存可恢复的进度清单。"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+OUT_DIR = ROOT / "data" / "backtest"
+STATE_DIR = ROOT / "data" / "research" / "all_conditions"
+MANIFEST_PATH = OUT_DIR / "all_conditions_research_manifest_latest.json"
+TIMEZONE = ZoneInfo("Asia/Shanghai")
+START_DATE = "2015-01-05"
+FINAL_DATE = "2026-09-30"
+
+
+def current_time() -> str:
+    return datetime.now(TIMEZONE).isoformat(timespec="seconds")
+
+
+def git_value(*args: str, cwd: Path = ROOT) -> str:
+    return subprocess.check_output(["git", *args], cwd=cwd, text=True).strip()
+
+
+def write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def sanitize(value):
+    if isinstance(value, float):
+        return value if value == value and abs(value) != float("inf") else None
+    if isinstance(value, dict):
+        return {str(k): sanitize(v) for k, v in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [sanitize(v) for v in value]
+    return value
+
+
+def append_log(message: str) -> None:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    with (STATE_DIR / "运行日志.txt").open("a", encoding="utf-8") as fh:
+        fh.write(f"{current_time()} {message}\n")
+    print(f"{current_time()} {message}", flush=True)
+
+
+def load_summary(path: Path) -> dict:
+    if not path.exists():
+        return {"result_file": str(path.relative_to(ROOT)), "status": "结果文件不存在"}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {
+            "result_file": str(path.relative_to(ROOT)),
+            "status": "结果解析失败",
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+    summary = {
+        "result_file": str(path.relative_to(ROOT)),
+        "status": data.get("status"),
+        "method": data.get("method"),
+        "data_start": data.get("data_start", data.get("start")),
+        "data_end": data.get("data_end", data.get("end")),
+        "elapsed_seconds": data.get("elapsed_seconds"),
+        "audit": data.get("audit"),
+    }
+    for key in (
+        "train", "validation", "final", "base",
+        "selected_validation_operating_point", "selected_final_operating_point",
+        "selected_rules", "validation_top_rules", "final_qualified_rules_ge_80pct",
+        "validation_qualified_rules_ge_80pct", "final",
+    ):
+        if key not in data:
+            continue
+        value = data[key]
+        if key in ("selected_rules", "validation_top_rules", "final_qualified_rules_ge_80pct",
+                   "validation_qualified_rules_ge_80pct"):
+            summary[key] = {
+                "count": len(value) if isinstance(value, list) else None,
+                "top": value[:5] if isinstance(value, list) else value,
+            }
+        elif key in ("train", "validation", "final", "base") and isinstance(value, dict):
+            summary[key] = {
+                subkey: subvalue
+                for subkey, subvalue in value.items()
+                if any(word in subkey.lower() for word in (
+                    "sample", "rate", "win", "return", "threshold", "drawdown",
+                    "trade", "qualified", "positive", "mean", "selected", "days",
+                ))
+            }
+        else:
+            summary[key] = value
+    return sanitize(summary)
+
+
+def build_stages(private_path: Path, private_commit: str) -> list[dict]:
+    py = sys.executable
+    common = ["--start", START_DATE, "--final-end", FINAL_DATE]
+    strategy_env = {
+        "AQUANT_PRIVATE_STRATEGY_PATH": str(private_path),
+        "AQUANT_PRIVATE_STRATEGY_COMMIT": private_commit,
+    }
+    return [
+        {
+            "key": "single_and_double_condition_rules",
+            "label": "单因子与双条件组合挖掘",
+            "command": [py, "scripts/path_rule_mining.py", *common,
+                        "--output", "data/backtest/path_rule_mining_research_latest.json"],
+            "output": OUT_DIR / "path_rule_mining_research_latest.json",
+            "env": {},
+        },
+        {
+            "key": "market_regime_three_condition_rules",
+            "label": "市场状态与三条件组合挖掘",
+            "command": [py, "scripts/path_regime_rule_mining.py", *common,
+                        "--output", "data/backtest/path_regime_rule_mining_research_latest.json"],
+            "output": OUT_DIR / "path_regime_rule_mining_research_latest.json",
+            "env": {},
+        },
+        {
+            "key": "private_strategy_score_thresholds",
+            "label": "正式策略评分阈值挖掘",
+            "command": [py, "scripts/strict_path_strategy_score_mining.py", *common,
+                        "--output", "data/backtest/strict_path_strategy_score_mining_research_latest.json"],
+            "output": OUT_DIR / "strict_path_strategy_score_mining_research_latest.json",
+            "env": strategy_env,
+        },
+        {
+            "key": "short_term_one_percent_model",
+            "label": "短线净收益百分之一模型训练",
+            "command": [py, "scripts/train_short_term_model.py", *common,
+                        "--output", "data/backtest/feature_training_research_latest.json"],
+            "output": OUT_DIR / "feature_training_research_latest.json",
+            "env": {},
+        },
+        {
+            "key": "executable_three_percent_path_model",
+            "label": "可执行净收益百分之三路径模型训练",
+            "command": [py, "scripts/train_executable_path_model.py", *common,
+                        "--output", "data/backtest/executable_path_profit_training_research_latest.json"],
+            "output": OUT_DIR / "executable_path_profit_training_research_latest.json",
+            "env": {},
+        },
+    ]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="运行全部条件挖掘和候选模型研究")
+    parser.add_argument("--resume-manifest", default=str(MANIFEST_PATH))
+    args = parser.parse_args()
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+
+    public_commit = git_value("rev-parse", "HEAD")
+    private_path = ROOT / "private-strategy"
+    private_commit = ""
+    if private_path.exists():
+        private_commit = git_value("-C", str(private_path), "rev-parse", "HEAD")
+    research_key = f"{public_commit}:{private_commit}:{START_DATE}:{FINAL_DATE}"
+
+    manifest_path = Path(args.resume_manifest)
+    previous = {}
+    if manifest_path.exists():
+        try:
+            previous = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            previous = {}
+    same_research = previous.get("research_key") == research_key
+    results = previous.get("stages", {}) if same_research else {}
+    manifest = {
+        "schema_version": 1,
+        "status": "running",
+        "method": "all_condition_and_model_research",
+        "started_at": current_time(),
+        "updated_at": current_time(),
+        "timezone": "Asia/Shanghai",
+        "public_commit": public_commit,
+        "private_strategy_commit": private_commit or None,
+        "research_key": research_key,
+        "period": {"start": START_DATE, "final_end": FINAL_DATE},
+        "resume_source_matched": same_research,
+        "stages": results,
+        "formal_production_changed": False,
+    }
+    write_json(MANIFEST_PATH, manifest)
+    append_log(f"研究启动；公开提交={public_commit}；私有策略提交={private_commit or '未检出'}")
+
+    failures = []
+    for stage in build_stages(private_path, private_commit):
+        key = stage["key"]
+        output = stage["output"]
+        old = results.get(key, {})
+        if same_research and old.get("status") == "success" and output.exists():
+            append_log(f"断点恢复：复用已完成阶段“{stage['label']}”")
+            continue
+
+        append_log(f"阶段开始：{stage['label']}")
+        env = os.environ.copy()
+        env.update(stage["env"])
+        started = time.monotonic()
+        try:
+            with subprocess.Popen(
+                stage["command"],
+                cwd=ROOT,
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            ) as proc:
+                log_path = STATE_DIR / f"{key}.日志.txt"
+                with log_path.open("w", encoding="utf-8") as log_file:
+                    assert proc.stdout is not None
+                    for line in proc.stdout:
+                        print(line, end="", flush=True)
+                        log_file.write(line)
+                        log_file.flush()
+                    return_code = proc.wait()
+
+            if return_code != 0:
+                raise subprocess.CalledProcessError(return_code, stage["command"])
+            if not output.exists():
+                raise FileNotFoundError(f"研究脚本未生成结果：{output}")
+            results[key] = {
+                "status": "success",
+                "label": stage["label"],
+                "started_at": current_time(),
+                "elapsed_seconds": round(time.monotonic() - started, 2),
+                "summary": load_summary(output),
+            }
+            append_log(f"阶段完成：{stage['label']}；耗时={results[key]['elapsed_seconds']}秒")
+        except Exception as exc:
+            results[key] = {
+                "status": "failed",
+                "label": stage["label"],
+                "failed_at": current_time(),
+                "elapsed_seconds": round(time.monotonic() - started, 2),
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+            failures.append(key)
+            append_log(f"阶段失败：{stage['label']}；错误={type(exc).__name__}: {exc}")
+        manifest["stages"] = results
+        manifest["updated_at"] = current_time()
+        manifest["completed_stage_count"] = sum(v.get("status") == "success" for v in results.values())
+        manifest["failed_stage_count"] = sum(v.get("status") == "failed" for v in results.values())
+        manifest["last_completed_or_failed_stage"] = key
+        write_json(MANIFEST_PATH, sanitize(manifest))
+
+    manifest["status"] = "failed" if failures else "completed"
+    manifest["finished_at"] = current_time()
+    manifest["failed_stages"] = failures
+    manifest["stages"] = results
+    manifest["metrics_summary"] = {
+        key: value.get("summary", {"status": value.get("status"), "error": value.get("error")})
+        for key, value in results.items()
+    }
+    manifest = sanitize(manifest)
+    write_json(MANIFEST_PATH, manifest)
+
+    # 将研究总清单嵌入既有研究工件，确保失败或超时前的阶段摘要能随工件一并取回。
+    high_precision_path = OUT_DIR / "high_precision_profit_mining_research_latest.json"
+    if high_precision_path.exists():
+        try:
+            base = json.loads(high_precision_path.read_text(encoding="utf-8"))
+            base["all_conditions_research"] = manifest
+            write_json(high_precision_path, sanitize(base))
+        except Exception as exc:
+            append_log(f"写入研究工件摘要失败：{type(exc).__name__}: {exc}")
+
+    append_log(f"全部条件研究结束；状态={manifest['status']}；失败阶段={failures}")
+    print(json.dumps({
+        "status": manifest["status"],
+        "successful_stages": manifest["completed_stage_count"],
+        "failed_stages": failures,
+        "manifest": str(MANIFEST_PATH),
+        "formal_production_changed": False,
+    }, ensure_ascii=False), flush=True)
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
