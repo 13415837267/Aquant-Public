@@ -23,6 +23,10 @@ from scripts.train_short_term_model import build_targets, make_features
 止损幅度百分比 = 3.0
 每日最多排名数 = max(TOP_K_PER_DAY)
 初始资金 = 100_000.0
+退出目标网格 = (1.0, 1.5, 2.0, 2.5, 3.0)
+退出止损网格 = (1.0, 1.5, 2.0, 2.5, 3.0)
+退出参数最低交易数 = 100
+退出参数最大允许回撤百分比 = -30.0
 
 
 def 解析模型(结果: dict) -> NonlinearModel:
@@ -41,10 +45,12 @@ def 解析模型(结果: dict) -> NonlinearModel:
 
 
 def 解析退出(entry: float, high: float, low: float, close: float, 持有日序号: int,
-          目标净收益百分比: float, 止损百分比: float, 成本基点: float) -> tuple[str | None, float | None, float]:
-    """根据可执行时序计算退出；T+1不允许退出，同日碰到止盈止损时止损优先。"""
+          目标净收益百分比: float, 止损百分比: float, 成本基点: float,
+          开盘价: float | None = None) -> tuple[str | None, float | None, float]:
+    """根据可执行时序计算退出；遇到跳空时按开盘价而非理想止损/止盈价估算成交。"""
     if not all(np.isfinite(x) for x in (entry, high, low, close)) or entry <= 0:
         raise ValueError("退出判断收到无效行情")
+    开盘有效 = 开盘价 is not None and np.isfinite(开盘价) and 开盘价 > 0
     成本百分比 = 成本基点 / 100.0
     目标毛收益百分比 = 目标净收益百分比 + 成本百分比
     止损价 = entry * (1.0 - 止损百分比 / 100.0)
@@ -52,10 +58,14 @@ def 解析退出(entry: float, high: float, low: float, close: float, 持有日�
 
     if 持有日序号 == 0:
         return None, None, close
+    # 同一根日线同时触及两条边界时，仍按止损优先的保守规则处理。
+    # 如果开盘已跳空跌破止损，按更差的开盘价估算，而不是假设能按止损价成交。
     if low <= 止损价:
-        return "止损", (止损价 / entry - 1.0) * 100.0 - 成本百分比, 止损价
+        成交价 = min(止损价, float(开盘价)) if 开盘有效 else 止损价
+        return "止损", (成交价 / entry - 1.0) * 100.0 - 成本百分比, 成交价
     if high >= 止盈价:
-        return "止盈", 目标净收益百分比, 止盈价
+        成交价 = max(止盈价, float(开盘价)) if 开盘有效 else 止盈价
+        return "止盈", (成交价 / entry - 1.0) * 100.0 - 成本百分比, 成交价
     if 持有日序号 >= MAX_FORWARD_SESSIONS - 1:
         return "到期", (close / entry - 1.0) * 100.0 - 成本百分比, close
     return None, None, close
@@ -238,6 +248,7 @@ def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目�
             退出原因, 净收益百分比, _ = 解析退出(
                 仓位["entry_price"], 当日行情["high"], 当日行情["low"], 当日行情["close"],
                 已持有日, 目标净收益百分比, 止损百分比, 成本基点,
+                开盘价=当日行情.get("open"),
             )
             if 退出原因 is not None:
                 现金 += 仓位["notional"] * (1.0 + float(净收益百分比) / 100.0)
@@ -338,6 +349,34 @@ def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目�
     return 返回
 
 
+def 选择退出参数(验证网格: list[dict], minimum_trades: int, max_drawdown_floor_pct: float) -> dict | None:
+    """仅根据验证集选择满足样本与回撤边界的退出方案，不读取最终留出集指标。"""
+    eligible = [
+        row for row in 验证网格
+        if int(row.get("completed_trades") or 0) >= minimum_trades
+        and row.get("max_drawdown_pct") is not None
+        and float(row["max_drawdown_pct"]) >= max_drawdown_floor_pct
+        and row.get("compound_return_pct") is not None
+        and row.get("annualized_compound_return_pct") is not None
+    ]
+    if not eligible:
+        return None
+    chosen = max(
+        eligible,
+        key=lambda row: (
+            float(row["compound_return_pct"]),
+            float(row["annualized_compound_return_pct"]),
+            float(row["max_drawdown_pct"]),
+            int(row["completed_trades"]),
+        ),
+    ).copy()
+    chosen["selection_status"] = (
+        "验证集正收益候选" if float(chosen["compound_return_pct"]) > 0
+        else "验证集未盈利，仅作为最终留出集研究对照"
+    )
+    return chosen
+
+
 def main() -> None:
     解析器 = argparse.ArgumentParser(description="评估短线信号在严格交易约束下的复利表现")
     解析器.add_argument("--model-result", default=str(默认模型结果))
@@ -361,6 +400,7 @@ def main() -> None:
     文件列表 = history_files()
     全部日期 = [p.name[:10] for p in 文件列表]
     所有区间结果 = {}
+    所有区间候选 = {}
 
     for 区间 in ("validation", "final"):
         起始日, 结束日 = 研究结果["splits"][区间]
@@ -368,6 +408,7 @@ def main() -> None:
         每日候选, 诊断 = 提取每日候选(
             文件列表, 全部日期, 起始日, 结束日, 模型, 目标净收益, 成本基点,
         )
+        所有区间候选[区间] = 每日候选
         阈值 = 研究结果.get("selected_validation_operating_point", {}).get("probability_threshold")
         区间组合 = {
             "window": [起始日, 结束日],
@@ -386,6 +427,42 @@ def main() -> None:
         }
         所有区间结果[区间] = 区间组合
 
+    # 只使用验证集选择止盈止损参数；最终留出集只评估冻结后的单一参数组合。
+    验证集退出网格 = []
+    for 目标净收益候选 in 退出目标网格:
+        for 止损候选 in 退出止损网格:
+            结果 = 运行组合(
+                所有区间候选["validation"], 全部日期, "概率阈值",
+                目标净收益候选, 止损候选, 成本基点,
+                top_k=1, 概率阈值=float(阈值) if 阈值 is not None else None,
+            )
+            验证集退出网格.append({
+                "target_net_profit_pct": 目标净收益候选,
+                "stop_loss_pct": 止损候选,
+                "completed_trades": 结果.get("completed_trades", 0),
+                "compound_return_pct": 结果.get("compound_return_pct"),
+                "annualized_compound_return_pct": 结果.get("annualized_compound_return_pct"),
+                "max_drawdown_pct": 结果.get("max_drawdown_pct"),
+                "sharpe_ratio": 结果.get("sharpe_ratio"),
+                "target_hit_rate_pct": 结果.get("target_hit_rate_pct"),
+                "mean_trade_net_return_pct": 结果.get("mean_trade_net_return_pct"),
+                "exit_reason_counts": 结果.get("exit_reason_counts", {}),
+            })
+
+    退出参数选择 = 选择退出参数(
+        验证集退出网格,
+        minimum_trades=退出参数最低交易数,
+        max_drawdown_floor_pct=退出参数最大允许回撤百分比,
+    )
+    最终候选策略结果 = None
+    if 退出参数选择 is not None:
+        最终候选策略结果 = 运行组合(
+            所有区间候选["final"], 全部日期, "概率阈值",
+            float(退出参数选择["target_net_profit_pct"]),
+            float(退出参数选择["stop_loss_pct"]), 成本基点,
+            top_k=1, 概率阈值=float(阈值) if 阈值 is not None else None,
+        )
+
     输出结果 = {
         "schema_version": 1,
         "status": "research_only",
@@ -403,6 +480,18 @@ def main() -> None:
         "splits": 研究结果["splits"],
         "validation": 所有区间结果["validation"],
         "final": 所有区间结果["final"],
+        "exit_policy_sensitivity": {
+            "objective": "验证集累计复利收益最大化，同时要求已完成交易数不少于预设下限且最大回撤不低于风险边界",
+            "validation_min_completed_trades": 退出参数最低交易数,
+            "validation_max_drawdown_floor_pct": 退出参数最大允许回撤百分比,
+            "target_net_profit_grid_pct": list(退出目标网格),
+            "stop_loss_grid_pct": list(退出止损网格),
+            "validation_grid": 验证集退出网格,
+            "selected_validation_policy": 退出参数选择,
+            "selected_policy_final_holdout": 最终候选策略结果,
+            "final_holdout_used_for_policy_selection": False,
+            "formal_production_changed": False,
+        },
         "audit": {
             "no_future_features": True,
             "final_holdout_used_for_selection": False,
@@ -425,6 +514,8 @@ def main() -> None:
         "validation_threshold": 输出结果["validation"]["threshold_strategy"],
         "final_threshold": 输出结果["final"]["threshold_strategy"],
         "final_top_k": {k: {key: value for key, value in result.items() if key in ("compound_return_pct", "annualized_compound_return_pct", "max_drawdown_pct", "target_hit_rate_pct", "completed_trades")} for k, result in 输出结果["final"]["daily_top_k"].items()},
+        "selected_exit_policy": 输出结果["exit_policy_sensitivity"]["selected_validation_policy"],
+        "selected_exit_policy_final_holdout": 输出结果["exit_policy_sensitivity"]["selected_policy_final_holdout"],
         "output": str(输出路径),
     }, ensure_ascii=False, allow_nan=False))
 
