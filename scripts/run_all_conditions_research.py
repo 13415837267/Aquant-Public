@@ -13,12 +13,55 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+from scripts.research_checkpoint_runner import canonical_hash, file_sha256, history_data_fingerprint
+
 OUT_DIR = ROOT / "data" / "backtest"
 STATE_DIR = ROOT / "data" / "research" / "all_conditions"
 MANIFEST_PATH = OUT_DIR / "all_conditions_research_manifest_latest.json"
 TIMEZONE = ZoneInfo("Asia/Shanghai")
 START_DATE = "2015-01-05"
 FINAL_DATE = "2026-09-30"
+
+STAGE_DEPENDENCIES = {
+    "single_and_double_condition_rules": ["scripts/path_rule_mining.py", "scripts/short_term_research.py", "scripts/market_scope.py"],
+    "market_regime_three_condition_rules": ["scripts/path_regime_rule_mining.py", "scripts/short_term_research.py", "scripts/market_scope.py"],
+    "private_strategy_score_thresholds": ["scripts/strict_path_strategy_score_mining.py", "scripts/short_term_research.py", "scripts/market_scope.py"],
+    "short_term_one_percent_model": ["scripts/train_short_term_model.py", "scripts/short_term_research.py", "scripts/market_scope.py"],
+    "executable_three_percent_path_model": ["scripts/train_executable_path_model.py", "scripts/train_short_term_model.py", "scripts/short_term_research.py", "scripts/market_scope.py"],
+}
+
+
+def stage_fingerprint(stage: dict, private_commit: str, history_digest: str, requirements_digest: str) -> str:
+    key = stage["key"]
+    dependencies = STAGE_DEPENDENCIES[key]
+    return canonical_hash({
+        "schema_version": 2,
+        "stage_key": key,
+        "command": stage["command"][1:],
+        "dependencies": {name: file_sha256(ROOT / name) for name in dependencies},
+        "private_strategy_commit": private_commit if key == "private_strategy_score_thresholds" else None,
+        "history_data_fingerprint": history_digest,
+        "requirements_sha256": requirements_digest,
+        "period": {"start": START_DATE, "final_end": FINAL_DATE},
+    })
+
+
+def stage_resume_reason(previous: dict, expected_fingerprint: str, output: Path) -> str | None:
+    if previous.get("status") != "success":
+        return "没有已成功阶段记录"
+    if previous.get("fingerprint") != expected_fingerprint:
+        return "本阶段代码、数据或参数已变化"
+    if not output.is_file():
+        return "结果文件不存在"
+    expected_digest = previous.get("output_sha256")
+    if not isinstance(expected_digest, str) or file_sha256(output) != expected_digest:
+        return "结果文件摘要不匹配"
+    try:
+        json.loads(output.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return "结果文件不是有效JSON"
+    return None
 
 
 def current_time() -> str:
@@ -167,7 +210,14 @@ def main() -> int:
     private_commit = ""
     if private_path.exists():
         private_commit = git_value("-C", str(private_path), "rev-parse", "HEAD")
-    research_key = f"{public_commit}:{private_commit}:{START_DATE}:{FINAL_DATE}"
+    history_digest = history_data_fingerprint(ROOT)
+    requirements_digest = file_sha256(ROOT / "requirements.txt")
+    compatibility_key = canonical_hash({
+        "schema_version": 2,
+        "period": {"start": START_DATE, "final_end": FINAL_DATE},
+        "history_data_fingerprint": history_digest,
+        "requirements_sha256": requirements_digest,
+    })
 
     manifest_path = Path(args.resume_manifest)
     previous = {}
@@ -176,10 +226,13 @@ def main() -> int:
             previous = json.loads(manifest_path.read_text(encoding="utf-8"))
         except Exception:
             previous = {}
-    same_research = previous.get("research_key") == research_key
+    same_research = (
+        previous.get("schema_version") == 2
+        and previous.get("compatibility_key") == compatibility_key
+    )
     results = previous.get("stages", {}) if same_research else {}
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "running",
         "method": "all_condition_and_model_research",
         "started_at": current_time(),
@@ -187,7 +240,12 @@ def main() -> int:
         "timezone": "Asia/Shanghai",
         "public_commit": public_commit,
         "private_strategy_commit": private_commit or None,
-        "research_key": research_key,
+        "research_key": compatibility_key,
+        "compatibility_key": compatibility_key,
+        "input_fingerprints": {
+            "history_data": history_digest,
+            "requirements": requirements_digest,
+        },
         "period": {"start": START_DATE, "final_end": FINAL_DATE},
         "resume_source_matched": same_research,
         "stages": results,
@@ -201,9 +259,14 @@ def main() -> int:
         key = stage["key"]
         output = stage["output"]
         old = results.get(key, {})
-        if same_research and old.get("status") == "success" and output.exists():
-            append_log(f"断点恢复：复用已完成阶段“{stage['label']}”")
-            continue
+        fingerprint = stage_fingerprint(stage, private_commit, history_digest, requirements_digest)
+        if same_research:
+            reuse_reason = stage_resume_reason(old, fingerprint, output)
+            if reuse_reason is None:
+                append_log(f"断点恢复：复用已验证阶段“{stage['label']}”")
+                continue
+            if old:
+                append_log(f"检查点不可复用：{stage['label']}；原因={reuse_reason}")
 
         append_log(f"阶段开始：{stage['label']}")
         env = os.environ.copy()
@@ -237,6 +300,8 @@ def main() -> int:
                 "label": stage["label"],
                 "started_at": current_time(),
                 "elapsed_seconds": round(time.monotonic() - started, 2),
+                "fingerprint": fingerprint,
+                "output_sha256": file_sha256(output),
                 "summary": load_summary(output),
             }
             append_log(f"阶段完成：{stage['label']}；耗时={results[key]['elapsed_seconds']}秒")
@@ -246,6 +311,7 @@ def main() -> int:
                 "label": stage["label"],
                 "failed_at": current_time(),
                 "elapsed_seconds": round(time.monotonic() - started, 2),
+                "fingerprint": fingerprint,
                 "error": f"{type(exc).__name__}: {exc}",
             }
             failures.append(key)
