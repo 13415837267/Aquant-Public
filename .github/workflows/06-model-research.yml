@@ -10,6 +10,7 @@ on:
       - "scripts/train_path_aware_gbdt.py"
       - "scripts/train_short_term_model.py"
       - "scripts/short_term_research.py"
+      - "scripts/compound_portfolio_backtest.py"
       - "requirements.txt"
 
 permissions:
