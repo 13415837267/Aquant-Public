@@ -360,16 +360,6 @@ def main() -> int:
     manifest = sanitize(manifest)
     write_json(MANIFEST_PATH, manifest)
 
-    # 将研究总清单嵌入既有研究工件，确保阶段状态可随工件一并取回。
-    high_precision_path = OUT_DIR / "high_precision_profit_mining_research_latest.json"
-    if high_precision_path.exists():
-        try:
-            base = json.loads(high_precision_path.read_text(encoding="utf-8"))
-            base["all_conditions_research"] = manifest
-            write_json(high_precision_path, sanitize(base))
-        except Exception as exc:
-            append_log(f"写入研究工件摘要失败：{type(exc).__name__}: {exc}")
-
     append_log(f"阶段调用结束；总研究状态={manifest['status']}；失败阶段={failed_stage_keys}")
     print(json.dumps({
         "status": manifest["status"],
