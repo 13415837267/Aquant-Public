@@ -92,19 +92,31 @@ jobs:
             exit 1
           fi
 
-          declare -A seen_environment=()
-          while IFS= created_at environment task_name commit_sha; do
-            [[ -n "${deployment_id:-}" ]] || continue
-            environment_key="${environment:-未指定环境}"
+          seen_env_file="$RUNNER_TEMP/seen-environments.txt"
+          : > "$seen_env_file"
+          while IFS= read -r deployment_row; do
+            [[ -n "$deployment_row" ]] || continue
+            deployment_id="$(cut -f1 <<< "$deployment_row")"
+            created_at="$(cut -f2 <<< "$deployment_row")"
+            environment="$(cut -f3 <<< "$deployment_row")"
+            task_name="$(cut -f4 <<< "$deployment_row")"
+            commit_sha="$(cut -f5 <<< "$deployment_row")"
+            [[ -n "$deployment_id" ]] || continue
+            environment_key="$environment"
+            if [[ -z "$environment_key" ]]; then
+              environment_key="未指定环境"
+            fi
 
+            # 基准时间之后的部署全部保留，并作为该环境当前状态的参考。
             if [[ "$created_at" > "$cutoff" || "$created_at" == "$cutoff" ]]; then
-              seen_environment["$environment_key"]=1
+              printf '%s\n' "$environment_key" >> "$seen_env_file"
               preserved_deployments="$(jq -c --arg id "$deployment_id" --arg created "$created_at" --arg environment "$environment_key" --arg task "$task_name" --arg sha "$commit_sha" --arg reason "基准时间之后的部署" '. + [{deployment_id:($id|tonumber), created_at:$created, environment:$environment, task:$task, commit_sha:$sha, reason:$reason}]' <<< "$preserved_deployments")"
               continue
             fi
 
-            if [[ -z "${seen_environment[$environment_key]+present}" ]]; then
-              seen_environment["$environment_key"]=1
+            # 若该环境在基准时间后没有新部署，则保留其最新旧部署作为当前部署基线。
+            if ! grep -Fqx -- "$environment_key" "$seen_env_file"; then
+              printf '%s\n' "$environment_key" >> "$seen_env_file"
               preserved_deployments="$(jq -c --arg id "$deployment_id" --arg created "$created_at" --arg environment "$environment_key" --arg task "$task_name" --arg sha "$commit_sha" --arg reason "该环境最新现行基线" '. + [{deployment_id:($id|tonumber), created_at:$created, environment:$environment, task:$task, commit_sha:$sha, reason:$reason}]' <<< "$preserved_deployments")"
               echo "保留环境最新部署基线：$deployment_id（$environment_key）"
               continue
