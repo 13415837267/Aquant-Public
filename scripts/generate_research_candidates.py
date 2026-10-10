@@ -9,9 +9,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.production_model import load_model, DEFAULT_MODEL_PATH
+from scripts.production_model import load_model, DEFAULT_MODEL_PATH, make_production_features
 from scripts.short_term_research import FeatureState, history_files, read_daily
-from scripts.train_short_term_model import make_features
 
 ROOT = Path(__file__).resolve().parents[1]
 TOP_K = 2
@@ -96,7 +95,7 @@ def main():
 
     model, model_payload = load_fixed_model(Path(args.model))
     frame, signal_date = build_latest_frame(files, signal_date)
-    probabilities = model.predict(make_features(frame))
+    probabilities = model.predict(make_production_features(frame))
     scored = frame.copy()
     scored["precision_probability"] = probabilities
     scored["score"] = probabilities * 100.0

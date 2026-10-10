@@ -4,9 +4,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+
 from scripts.high_precision_profit_mining import NonlinearModel
+from scripts.selection_factor_catalog import BASE_STOCK_FACTORS, transform_market_feature
 from scripts.short_term_research import history_files, read_daily
-from scripts.train_short_term_model import FEATURES, build_targets, make_features
+from scripts.train_short_term_model import build_targets
 
 MODEL_SCHEMA_VERSION = 1
 MODEL_TYPE = "numpy_two_layer_mlp"
@@ -20,13 +24,32 @@ DEFAULT_SEED = 42
 DEFAULT_HIDDEN = 32
 DEFAULT_LEARNING_RATE = 0.03
 DEFAULT_L2 = 0.001
+PRODUCTION_V1_MARKET_FEATURES = ("market_breadth_pct", "market_median_return_pct")
+PRODUCTION_V1_FEATURES = tuple(BASE_STOCK_FACTORS) + PRODUCTION_V1_MARKET_FEATURES
+
+
+def _percentile_rank(series):
+    numeric = pd.to_numeric(series, errors="coerce")
+    return numeric.rank(method="average", pct=True).fillna(0.5).to_numpy(dtype=np.float64)
+
+
+def make_production_features(frame):
+    """按第一版正式模型固定的17个个股因子和2个市场因子构造输入。"""
+    if frame.empty:
+        return np.empty((0, len(PRODUCTION_V1_FEATURES)), dtype=np.float64)
+    missing = [name for name in PRODUCTION_V1_FEATURES if name not in frame.columns]
+    if missing:
+        raise ValueError(f"第一版正式模型缺少输入特征：{missing}")
+    columns = [_percentile_rank(frame[name]) for name in BASE_STOCK_FACTORS]
+    columns.extend(transform_market_feature(frame, name) for name in PRODUCTION_V1_MARKET_FEATURES)
+    return np.column_stack(columns)
 
 
 def train_fixed_baseline(files, start_date: str, end_date: str) -> tuple[NonlinearModel, int, int]:
     dates = [p.name[:10] for p in files]
     start_i, end_i = dates.index(start_date), dates.index(end_date)
     model = NonlinearModel(
-        len(FEATURES),
+        len(PRODUCTION_V1_FEATURES),
         hidden=DEFAULT_HIDDEN,
         learning_rate=DEFAULT_LEARNING_RATE,
         l2=DEFAULT_L2,
@@ -50,7 +73,7 @@ def train_fixed_baseline(files, start_date: str, end_date: str) -> tuple[Nonline
         if i + DEFAULT_MAX_FORWARD_SESSIONS >= len(files):
             continue
         futures = [get(i + j) for j in range(1, DEFAULT_MAX_FORWARD_SESSIONS + 1)]
-        x = make_features(frame)
+        x = make_production_features(frame)
         labels, _, _, complete = build_targets(
             frame["symbol"].astype(str).str.zfill(6).tolist(), futures
         )
@@ -77,7 +100,7 @@ def model_payload(model: NonlinearModel, training_start: str, training_end: str,
         "hidden_units": int(model.hidden),
         "learning_rate": float(model.learning_rate),
         "l2": float(model.l2),
-        "features": FEATURES,
+        "features": list(PRODUCTION_V1_FEATURES),
         "input_weights": model.w1.tolist(),
         "hidden_bias": model.b1.tolist(),
         "output_weights": model.w2.tolist(),
@@ -109,18 +132,29 @@ def load_model(path: Path, expected_version: str | None = None, expected_commit:
         raise RuntimeError("正式模型版本与生产基准不一致")
     if expected_commit and payload.get("model_code_commit") != expected_commit:
         raise RuntimeError("正式模型代码提交号与生产基准不一致")
-    if payload.get("features") != FEATURES:
-        raise RuntimeError("正式模型特征空间与当前代码不一致")
+    if payload.get("features") != list(PRODUCTION_V1_FEATURES):
+        raise RuntimeError("正式模型特征空间与第一版固定特征定义不一致")
+
+    hidden_units = int(payload["hidden_units"])
+    input_weights = np.asarray(payload["input_weights"], dtype=float)
+    hidden_bias = np.asarray(payload["hidden_bias"], dtype=float)
+    output_weights = np.asarray(payload["output_weights"], dtype=float)
+    if (
+        input_weights.shape != (len(PRODUCTION_V1_FEATURES), hidden_units)
+        or hidden_bias.shape != (hidden_units,)
+        or output_weights.shape != (hidden_units,)
+    ):
+        raise RuntimeError("正式模型权重维度与第一版固定特征定义不一致")
 
     model = NonlinearModel(
-        len(FEATURES),
-        hidden=int(payload["hidden_units"]),
+        len(PRODUCTION_V1_FEATURES),
+        hidden=hidden_units,
         learning_rate=float(payload["learning_rate"]),
         l2=float(payload["l2"]),
         seed=int(payload.get("seed", DEFAULT_SEED)),
     )
-    model.w1 = __import__("numpy").array(payload["input_weights"], dtype=float)
-    model.b1 = __import__("numpy").array(payload["hidden_bias"], dtype=float)
-    model.w2 = __import__("numpy").array(payload["output_weights"], dtype=float)
+    model.w1 = input_weights
+    model.b1 = hidden_bias
+    model.w2 = output_weights
     model.b2 = float(payload["intercept"])
     return model, payload

@@ -38,6 +38,10 @@
 
 生产运行直接 checkout `Aquant-Private/main` 做来源审计；当前候选生成使用已物化并锁定的第一版模型权重，模型版本、模型代码提交号、训练窗口和候选参数均必须与 `config/production_release_v1.json` 一致。日常生产不重新训练模型。
 
+## 第一版正式模型特征锁定
+
+正式模型 `data/models/production_v1.json` 的权重固定对应 **17 个基础个股量价因子 + 2 个市场因子**。研究配置可继续增加技术因子，但生产推理必须通过 `scripts/production_model.py` 的固定特征构造函数生成输入，不得读取研究层动态扩展后的完整特征列表。质量检查会校验正式模型特征清单与权重维度，防止研究层变更误伤每日候选生产。
+
 ## Action 与 Deployment 审计基线
 
 GitHub 平台端的 Actions 与 Deployment 历史记录通过专用云端维护流程管理。执行入口为 `.github/workflows/cleanup-action-deployment-history.yml`，脚本为 `scripts/cleanup_action_deployment_history.sh`。当前生产状态以 `main` 分支、固定生产模型和每个环境最新的网页部署为准；维护流程保留当前基准运行、执行中的任务及基准时间之后的新记录。处理明细以 `data/maintenance/action_deployment_cleanup/` 下的 JSON 文件留存，保持必要的审计追溯。
