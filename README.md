@@ -44,7 +44,7 @@
 
 ## Action 与 Deployment 审计基线
 
-GitHub 平台端的 Actions 与 Deployment 历史记录通过专用云端维护流程管理。执行入口为 `.github/workflows/cleanup-action-deployment-history.yml`，脚本为 `scripts/cleanup_action_deployment_history.sh`。当前生产状态以 `main` 分支、固定生产模型和每个环境最新的网页部署为准；维护流程保留当前基准运行、执行中的任务及基准时间之后的新记录。处理明细以 `data/maintenance/action_deployment_cleanup/` 下的 JSON 文件留存，保持必要的审计追溯。
+GitHub 平台端的 Actions 与 Deployment 历史记录通过专用云端维护流程管理。执行入口为 `.github/workflows/cleanup-action-deployment-history.yml`，脚本为 `scripts/cleanup_action_deployment_history.sh`。默认清理保留基准已更新为完整成功的模型研究运行 `38036111501`；维护流程保留该基准、基准之后的新记录和执行中的任务，并为每个部署环境保留当前部署基线。处理明细以 `data/maintenance/action_deployment_cleanup/` 下的 JSON 文件留存，保持必要的审计追溯。
 
 ## 工作流架构
 
