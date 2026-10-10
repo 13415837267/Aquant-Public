@@ -3,6 +3,10 @@ name: "02 数据维护"
 on:
   schedule:
     - cron: "0 10 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/02-data-maintenance.yml"
   workflow_dispatch:
     inputs:
       force_latest_completed:
@@ -82,13 +86,13 @@ jobs:
         run: echo "当前北京时间不是A股交易日，本次只保存交易日状态，不生成交易数据。"
 
       - name: "增量更新日线历史数据"
-        if: steps.trading_day.outputs.is_trading_day == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_latest_completed == true)
+        if: steps.trading_day.outputs.is_trading_day == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_latest_completed == true) || github.event_name == 'push'
         env:
           ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
         run: python scripts/backfill_history.py --mode backfill
 
       - name: "验证最新日线数据"
-        if: steps.trading_day.outputs.is_trading_day == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_latest_completed == true)
+        if: steps.trading_day.outputs.is_trading_day == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force_latest_completed == true) || github.event_name == 'push'
         env:
           ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
         run: python scripts/backfill_history.py --mode validate --days 3
