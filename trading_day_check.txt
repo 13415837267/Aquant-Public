@@ -1,9 +1,9 @@
 ZZSHARE: using anonymous mode
-WARN daily 2026-10-09 attempt 1: RuntimeError: empty daily dataframe; sleep=1.4s
-WARN daily 2026-10-09 attempt 2: RuntimeError: empty daily dataframe; sleep=2.4s
-WARN daily 2026-10-09 attempt 3: RuntimeError: empty daily dataframe; sleep=4.7s
-WARN daily 2026-10-09 attempt 4: RuntimeError: empty daily dataframe; sleep=8.8s
-TRADE_DAY_FALLBACK_ERROR=RuntimeError: zzshare bulk failed for 2026-10-09: empty daily dataframe
-TRADE_DATE=20261009
+WARN daily 2026-10-10 attempt 1: RuntimeError: empty daily dataframe; sleep=1.8s
+WARN daily 2026-10-10 attempt 2: RuntimeError: empty daily dataframe; sleep=2.3s
+WARN daily 2026-10-10 attempt 3: RuntimeError: empty daily dataframe; sleep=4.7s
+WARN daily 2026-10-10 attempt 4: RuntimeError: empty daily dataframe; sleep=8.5s
+TRADE_DAY_FALLBACK_ERROR=RuntimeError: zzshare bulk failed for 2026-10-10: empty daily dataframe
+TRADE_DATE=20261010
 IS_TRADING_DAY=false
 DETECTION_SOURCE=trade_calendar
