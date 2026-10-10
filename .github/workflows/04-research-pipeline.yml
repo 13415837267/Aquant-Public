@@ -7,7 +7,11 @@ on:
     paths:
       - ".github/workflows/04-research-pipeline.yml"
       - "scripts/short_term_release_validation.py"
+      - "scripts/short_term_research.py"
+      - "scripts/train_short_term_model.py"
+      - "scripts/train_path_aware_model.py"
       - "tests/test_short_term_release_validation.py"
+      - "tests/test_short_term_research.py"
       - "config/research_run_contract.json"
   workflow_dispatch:
     inputs:

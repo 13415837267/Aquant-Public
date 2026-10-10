@@ -18,7 +18,9 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.short_term_research import (
+    FeatureState, FEATURE_WARMUP_SESSIONS, executable_entry_mask, history_files, read_daily
+)
 from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, transform_market_feature
 
 OUT_DIR = ROOT / "data" / "backtest"
@@ -93,7 +95,8 @@ def path_targets(symbols, future_days):
         np.isfinite(opens).all(axis=1) &
         np.isfinite(highs).all(axis=1) &
         np.isfinite(lows).all(axis=1) &
-        np.isfinite(closes).all(axis=1)
+        np.isfinite(closes).all(axis=1) &
+        executable_entry_mask(keys, future_days[0])
     )
 
     target_hit = np.zeros(n, dtype=bool)

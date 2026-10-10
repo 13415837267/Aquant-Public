@@ -1,6 +1,9 @@
+import numpy as np
 import pandas as pd
 
 from scripts.short_term_research import managed_trade
+from scripts.train_path_aware_model import path_targets
+from scripts.train_short_term_model import build_targets
 
 
 def _day(symbol, open_, high, low, close, high_limit=20.0):
@@ -44,3 +47,35 @@ def test_same_day_stop_takes_priority_over_target():
     assert result is not None
     assert result["exit_reason"] == "stop"
     assert result["holding_days"] == 2
+
+
+
+def _five_future_days(entry_open=10.0, entry_high_limit=11.0):
+    days = [_day("600000", entry_open, entry_open * 1.01, entry_open * 0.99,
+                 entry_open, high_limit=entry_high_limit)]
+    for _ in range(4):
+        days.append(_day("600000", 10.0, 10.5, 10.0, 10.3, high_limit=11.0))
+    return days
+
+
+def test_one_percent_labels_exclude_non_executable_limit_up_entry():
+    labels, _, _, complete = build_targets(["600000"], _five_future_days(20.0, 20.0))
+    assert complete.tolist() == [False]
+    assert labels.tolist() == [False]
+
+
+def test_three_percent_labels_exclude_non_executable_limit_up_entry():
+    labels, _, _, complete = path_targets(["600000"], _five_future_days(20.0, 20.0))
+    assert complete.tolist() == [False]
+    assert labels.tolist() == [False]
+
+
+def test_executable_entry_remains_in_both_label_sets():
+    futures = _five_future_days(10.0, 11.0)
+    labels_1pct, _, _, complete_1pct = build_targets(["600000"], futures)
+    labels_3pct, _, _, complete_3pct = path_targets(["600000"], futures)
+
+    assert complete_1pct.tolist() == [True]
+    assert complete_3pct.tolist() == [True]
+    assert labels_1pct.tolist() == [True]
+    assert labels_3pct.tolist() == [True]

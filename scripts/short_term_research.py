@@ -29,6 +29,31 @@ ROUND_TRIP_COST_BPS = float(RESEARCH_CONFIG["往返交易成本基点"])
 TARGET_PCT = WIN_THRESHOLD_PCT + ROUND_TRIP_COST_BPS / 100.0
 
 
+def executable_entry_mask(symbols, entry_day: pd.DataFrame) -> np.ndarray:
+    """Return entries executable at T+1 open under the production entry rules."""
+    count = len(symbols)
+    if count == 0 or entry_day.empty or "symbol" not in entry_day or "open" not in entry_day:
+        return np.zeros(count, dtype=bool)
+
+    keys = pd.Index(
+        pd.Series(symbols, dtype="string").astype(str)
+        .str.extract(r"(\\d{6})")[0].fillna("").str.zfill(6)
+    )
+    day = entry_day.copy()
+    day["_symbol_key"] = (
+        day["symbol"].astype(str).str.extract(r"(\\d{6})")[0].fillna("").str.zfill(6)
+    )
+    day = day.drop_duplicates("_symbol_key", keep="last").set_index("_symbol_key")
+    entry = pd.to_numeric(day["open"], errors="coerce").reindex(keys).to_numpy(dtype=np.float64)
+    executable = np.isfinite(entry) & (entry > 0)
+
+    if ENTRY_LIMIT_UP_BLOCK and "high_limit" in day:
+        high_limit = pd.to_numeric(day["high_limit"], errors="coerce").reindex(keys).to_numpy(dtype=np.float64)
+        blocked = np.isfinite(high_limit) & (entry >= high_limit * (1.0 - 1e-6))
+        executable &= ~blocked
+    return executable
+
+
 def history_files():
     paths = sorted(HISTORY_DIR.glob("????-??-??.csv.gz"), key=lambda p: p.name[:10])
     if not paths:

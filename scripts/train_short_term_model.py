@@ -21,7 +21,9 @@ sys.path.insert(0, str(ROOT))
 import numpy as np
 import pandas as pd
 
-from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.short_term_research import (
+    FeatureState, FEATURE_WARMUP_SESSIONS, executable_entry_mask, history_files, read_daily
+)
 from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, transform_market_feature
 
 OUT_DIR = ROOT / "data" / "backtest"
@@ -80,8 +82,11 @@ def build_targets(symbols, future_days):
         lows.append(pd.to_numeric(indexed["low"], errors="coerce").reindex(keys).to_numpy(dtype=float))
         closes.append(pd.to_numeric(indexed["close"], errors="coerce").reindex(keys).to_numpy(dtype=float))
     highs = np.column_stack(highs); lows = np.column_stack(lows); closes = np.column_stack(closes)
-    complete = (np.isfinite(entry) & (entry > 0) & np.isfinite(highs).all(axis=1)
-                & np.isfinite(lows).all(axis=1) & np.isfinite(closes).all(axis=1))
+    complete = (
+        np.isfinite(entry) & (entry > 0) & np.isfinite(highs).all(axis=1)
+        & np.isfinite(lows).all(axis=1) & np.isfinite(closes).all(axis=1)
+        & executable_entry_mask(keys, future_days[0])
+    )
     target_gross = NET_WIN_THRESHOLD_PCT + ROUND_TRIP_COST_BPS / 100.0
     stop_gross = -float(RESEARCH_CONFIG["止损幅度百分比"])
     target_price = entry * (1.0 + target_gross / 100.0)
