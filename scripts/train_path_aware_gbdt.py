@@ -42,7 +42,7 @@ def add_training_samples(buffers, x, y):
             buffers[cls].extend(rows)
 
 
-def collect_training(files, dates, train_end):
+def collect_training(files, dates, train_end, validation_start_index):
     buffers = {0: [], 1: []}
     state = FeatureState()
     start_i, end_i = dates.index(dates[0]), dates.index(train_end)
@@ -50,7 +50,10 @@ def collect_training(files, dates, train_end):
     for i in range(start_i, end_i + 1):
         date = dates[i]
         frame = state.build(read_daily(files[i]))
-        if date < dates[0] or date > train_end or frame.empty or i + MAX_FORWARD_SESSIONS >= len(files):
+        # 清除标签前瞻窗口触及验证区间的训练样本，防止跨期标签重叠。
+        if (date < dates[0] or date > train_end or frame.empty
+                or i + MAX_FORWARD_SESSIONS >= len(files)
+                or i + MAX_FORWARD_SESSIONS >= validation_start_index):
             continue
         future = [read_daily(files[i + j]) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
         labels, _, _, complete = build_targets(frame["symbol"].astype(str).str.zfill(6).tolist(), future)
@@ -66,7 +69,7 @@ def collect_training(files, dates, train_end):
     return x, y, processed, samples
 
 
-def collect_eval(files, dates, start, end, model):
+def collect_eval(files, dates, start, end, model, label_end_before_index=None):
     state = FeatureState()
     metrics = []
     start_i, end_i = dates.index(start), dates.index(end)
@@ -74,7 +77,10 @@ def collect_eval(files, dates, start, end, model):
     for i in range(max(0, start_i - FEATURE_WARMUP_SESSIONS), end_i + 1):
         date = dates[i]
         frame = state.build(read_daily(files[i]))
-        if date < start or date > end or frame.empty or i + MAX_FORWARD_SESSIONS >= len(files):
+        if (date < start or date > end or frame.empty
+                or i + MAX_FORWARD_SESSIONS >= len(files)
+                or (label_end_before_index is not None
+                    and i + MAX_FORWARD_SESSIONS >= label_end_before_index)):
             continue
         future = [read_daily(files[i + j]) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
         labels, _, _, complete = build_targets(frame["symbol"].astype(str).str.zfill(6).tolist(), future)
@@ -125,15 +131,33 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", default=str(ROOT / "data/backtest/path_aware_gbdt_research.json"))
     ap.add_argument("--train-end", default=TRAIN_END)
+    ap.add_argument("--validation-start", default=VALIDATION_START)
+    ap.add_argument("--validation-end", default=VALIDATION_END)
+    ap.add_argument("--final-start", default=FINAL_START)
+    ap.add_argument("--final-end", default=FINAL_END)
     ap.add_argument("--fixed-threshold", type=float, default=None)
     args = ap.parse_args()
 
     started = time.time()
     files = history_files()
     dates = [p.name[:10] for p in files]
-    if args.train_end not in dates:
-        raise SystemExit(f"训练截止日不在交易日数据中: {args.train_end}")
-    x, y, train_days, train_samples = collect_training(files, dates, args.train_end)
+    split_dates = {
+        "train_end": args.train_end,
+        "validation_start": args.validation_start,
+        "validation_end": args.validation_end,
+        "final_start": args.final_start,
+        "final_end": args.final_end,
+    }
+    missing_dates = [name for name, date in split_dates.items() if date not in dates]
+    if missing_dates:
+        raise SystemExit("以下时间切分日期不在交易日数据中: " + ", ".join(missing_dates))
+    if not (args.train_end < args.validation_start <= args.validation_end < args.final_start <= args.final_end):
+        raise SystemExit("时间切分必须严格按训练、验证、最终留出顺序排列，且各区间不得重叠")
+    validation_start_index = dates.index(args.validation_start)
+    final_start_index = dates.index(args.final_start)
+    x, y, train_days, train_samples = collect_training(
+        files, dates, args.train_end, validation_start_index
+    )
 
     model = HistGradientBoostingClassifier(
         learning_rate=0.05,
@@ -149,8 +173,13 @@ def main():
     )
     model.fit(x, y)
 
-    validation, validation_days, validation_samples = collect_eval(files, dates, VALIDATION_START, VALIDATION_END, model)
-    final, final_days, final_samples = collect_eval(files, dates, FINAL_START, FINAL_END, model)
+    validation, validation_days, validation_samples = collect_eval(
+        files, dates, args.validation_start, args.validation_end, model,
+        label_end_before_index=final_start_index,
+    )
+    final, final_days, final_samples = collect_eval(
+        files, dates, args.final_start, args.final_end, model
+    )
 
     validation_rows = rows_for(validation)
     final_rows = rows_for(final)
@@ -188,11 +217,23 @@ def main():
             "seed": SEED,
             "full_training_samples": True,
             "train_end": args.train_end,
+            "validation_start": args.validation_start,
+            "validation_end": args.validation_end,
+            "final_start": args.final_start,
+            "final_end": args.final_end,
+            "training_label_purge_sessions": MAX_FORWARD_SESSIONS,
+            "validation_end_label_purge_sessions": MAX_FORWARD_SESSIONS,
             "fixed_threshold": args.fixed_threshold,
             "min_operating_samples": MIN_OPERATING_SAMPLES,
             "min_operating_sample_share_pct": MIN_OPERATING_SAMPLE_SHARE_PCT,
         },
         "train": {"processed_days": train_days, "raw_samples": train_samples, "samples": int(len(y)), "positive_rate_pct": float(y.mean() * 100.0)},
+        "splits": {
+            "train_feature_end": args.train_end,
+            "validation": [args.validation_start, args.validation_end],
+            "final": [args.final_start, args.final_end],
+            "validation_label_horizon_stops_before_final": True,
+        },
         "validation": {"processed_days": validation_days, "samples": validation_samples, "thresholds": validation_rows},
         "final": {"processed_days": final_days, "samples": final_samples, "thresholds": final_rows},
         "selected_validation_operating_point": selected,
@@ -202,6 +243,9 @@ def main():
             "entry_is_T_plus_1_open": True,
             "exit_starts_T_plus_2": True,
             "strict_stop_first_managed_label": True,
+            "training_label_horizon_does_not_overlap_validation": True,
+            "validation_label_horizon_does_not_overlap_final_holdout": True,
+            "temporal_splits_are_ordered_and_disjoint": True,
             "final_holdout_used_once_after_validation_selection": args.fixed_threshold is None,
             "threshold_selection_source": "previous_baseline" if args.fixed_threshold is not None else "validation_selection",
             "minimum_operating_sample_guard": True,
