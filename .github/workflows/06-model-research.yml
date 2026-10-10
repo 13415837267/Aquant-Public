@@ -52,6 +52,36 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      - name: "预检历史行情覆盖与训练边界"
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from scripts.short_term_research import history_files
+
+          files = history_files()
+          dates = [path.name[:10] for path in files]
+          required_dates = (
+              "2015-01-05",
+              "2022-12-30",
+              "2023-01-03",
+              "2024-12-31",
+              "2025-01-02",
+              "2026-09-30",
+          )
+          date_set = set(dates)
+          missing = [day for day in required_dates if day not in date_set]
+          year_counts = Counter(day[:4] for day in dates)
+
+          print("历史行情文件数：", len(files))
+          print("实际数据范围：", dates[0], "至", dates[-1])
+          print("逐年交易日文件数：", dict(sorted(year_counts.items())))
+          print("模型研究区间：2015-01-05 至 2026-09-30")
+          if missing:
+              raise SystemExit(f"缺少训练、验证或留出集边界交易日：{missing}")
+          if dates[0] > required_dates[0] or dates[-1] < required_dates[-1]:
+              raise SystemExit("历史行情未覆盖要求的模型研究区间")
+          PY
+
       - name: "检出当前私有策略"
         uses: actions/checkout@v7
         with:
