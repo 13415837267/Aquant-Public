@@ -461,7 +461,7 @@ def run(args):
     output["release_gate"] = output["final_holdout"]["production_gate_passed"]
     output["release_gate_scope"] = "final_holdout_only"
 
-    output_path = Path(args.output)
+    output_path = Path(args.output).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
