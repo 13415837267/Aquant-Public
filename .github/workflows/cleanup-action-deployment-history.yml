@@ -3,8 +3,6 @@ name: "维护历史 Action 与部署记录"
 # 默认保留基准为完整成功的模型研究运行 38036111501。
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       baseline_run_id:
@@ -24,7 +22,6 @@ concurrency:
 
 jobs:
   cleanup:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '维护：执行历史 Action 与部署清理')) }}
     name: "云端历史记录维护"
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -59,6 +56,7 @@ jobs:
 
           deleted_actions='[]'
           preserved_active='[]'
+          preserved_successful='[]'
           deleted_deployments='[]'
           preserved_deployments='[]'
           cleanup_errors='[]'
@@ -76,6 +74,12 @@ jobs:
             if [[ "$status" != "completed" ]]; then
               preserved_active="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg status "$status" --arg name "$run_name" '. + [{run_id:($id|tonumber), created_at:$created, status:$status, name:$name}]' <<< "$preserved_active")"
               echo "保留尚未完成的旧运行：$run_id（$status）"
+              continue
+            fi
+
+            if [[ "$conclusion" != "failure" && "$conclusion" != "skipped" ]]; then
+              preserved_successful="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg conclusion "$conclusion" --arg name "$run_name" '. + [{run_id:($id|tonumber), created_at:$created, conclusion:$conclusion, name:$name}]' <<< "$preserved_successful")"
+              echo "保留成功或其他非目标结论的历史运行：$run_id（$conclusion）"
               continue
             fi
 
@@ -150,6 +154,7 @@ jobs:
             --arg completed_at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
             --argjson deleted_actions "$deleted_actions" \
             --argjson preserved_active_runs "$preserved_active" \
+            --argjson preserved_successful_runs "$preserved_successful" \
             --argjson deleted_deployments "$deleted_deployments" \
             --argjson preserved_deployments "$preserved_deployments" \
             --argjson errors "$cleanup_errors" \
@@ -178,6 +183,7 @@ jobs:
 
           echo "已清理 Action 记录数：$(jq 'length' <<< "$deleted_actions")"
           echo "保留的活动运行数：$(jq 'length' <<< "$preserved_active")"
+          echo "保留的成功及其他非目标运行数：$(jq 'length' <<< "$preserved_successful")"
           echo "已清理部署记录数：$(jq 'length' <<< "$deleted_deployments")"
           echo "清理错误数：$(jq 'length' <<< "$cleanup_errors")"
           if [[ "$(jq 'length' <<< "$cleanup_errors")" -gt 0 ]]; then
