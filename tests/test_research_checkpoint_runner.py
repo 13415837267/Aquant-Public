@@ -5,7 +5,11 @@ import json
 from scripts.research_checkpoint_runner import (
     canonical_hash,
     checkpoint_reuse_reason,
+    compatible_legacy_checkpoint_reason,
     file_sha256,
+    history_changes_only_after_cutoff,
+    history_data_fingerprint,
+    history_data_fingerprint_at_commit,
 )
 from scripts.run_all_conditions_research import summarize_stage_status
 
@@ -93,8 +97,8 @@ def _init_research_repo(tmp_path):
     (tmp_path / "scripts").mkdir(parents=True)
     (tmp_path / "requirements.txt").write_text("pandas==2.3.3\n", encoding="utf-8")
     (tmp_path / "scripts/model.py").write_text("VALUE = 1\n", encoding="utf-8")
-    (tmp_path / "data/history/2026/2026-09-30.csv.gz").write_bytes(b"截止日前行情")
-    (tmp_path / "data/history/2026/2026-10-08.csv.gz").write_bytes(b"旧的截止日后行情")
+    (tmp_path / "data/history/2026/2026-09-30.csv.gz").write_bytes("截止日前行情".encode("utf-8"))
+    (tmp_path / "data/history/2026/2026-10-08.csv.gz").write_bytes("旧的截止日后行情".encode("utf-8"))
     (tmp_path / "data/history/_BACKFILL_STATE.json").write_text("{}", encoding="utf-8")
     (tmp_path / "data/universe.json").write_text("[]", encoding="utf-8")
     (tmp_path / "data/backtest/result.json").write_text('{"status":"research_only"}', encoding="utf-8")
@@ -106,8 +110,8 @@ def test_history_fingerprint_ignores_later_incremental_market_data(tmp_path):
     stable_before = history_data_fingerprint(tmp_path, "2026-09-30")
     full_before = history_data_fingerprint_at_commit(baseline, tmp_path)
 
-    (tmp_path / "data/history/2026/2026-10-08.csv.gz").write_bytes(b"修复后的截止日后行情")
-    (tmp_path / "data/history/2026/2026-10-09.csv.gz").write_bytes(b"新增的截止日后行情")
+    (tmp_path / "data/history/2026/2026-10-08.csv.gz").write_bytes("修复后的截止日后行情".encode("utf-8"))
+    (tmp_path / "data/history/2026/2026-10-09.csv.gz").write_bytes("新增的截止日后行情".encode("utf-8"))
     (tmp_path / "data/history/_BACKFILL_STATE.json").write_text('{"status":"complete"}', encoding="utf-8")
     (tmp_path / "data/universe.json").write_text('[{"symbol":"600000.SH"}]', encoding="utf-8")
     _git_commit(tmp_path, "追加研究截止日后的增量行情")
@@ -115,7 +119,7 @@ def test_history_fingerprint_ignores_later_incremental_market_data(tmp_path):
     assert history_data_fingerprint_at_commit(baseline, tmp_path) == full_before
     assert history_changes_only_after_cutoff(baseline, "2026-09-30", tmp_path)
 
-    (tmp_path / "data/history/2026/2026-09-30.csv.gz").write_bytes(b"被修改的截止日前历史行情")
+    (tmp_path / "data/history/2026/2026-09-30.csv.gz").write_bytes("被修改的截止日前历史行情".encode("utf-8"))
     _git_commit(tmp_path, "修改研究截止日前的历史行情")
     assert not history_changes_only_after_cutoff(baseline, "2026-09-30", tmp_path)
     assert history_data_fingerprint(tmp_path, "2026-09-30") != stable_before
@@ -154,7 +158,7 @@ def test_legacy_checkpoint_reuse_requires_code_params_inputs_and_output_to_match
         "inputs": inputs,
     }
 
-    (tmp_path / "data/history/2026/2026-10-09.csv.gz").write_bytes(b"新交易日行情")
+    (tmp_path / "data/history/2026/2026-10-09.csv.gz").write_bytes("新交易日行情".encode("utf-8"))
     _git_commit(tmp_path, "只追加截止日后的行情")
     assert compatible_legacy_checkpoint_reason(
         checkpoint, "sample_stage", command, dependencies, inputs, output,
