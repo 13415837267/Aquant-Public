@@ -89,3 +89,14 @@ def test_executable_entry_mask_matches_each_symbol_independently():
     ])
 
     assert executable_entry_mask(["600000", "000001"], entry_day).tolist() == [False, True]
+
+
+
+def test_label_window_must_end_strictly_before_next_split():
+    from scripts.short_term_research import label_window_precedes_boundary
+
+    boundary = 100
+    horizon = 5
+    assert label_window_precedes_boundary(94, horizon, boundary)
+    assert not label_window_precedes_boundary(95, horizon, boundary)
+    assert not label_window_precedes_boundary(99, horizon, boundary)

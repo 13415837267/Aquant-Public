@@ -20,7 +20,9 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.short_term_research import (
+    FeatureState, FEATURE_WARMUP_SESSIONS, label_window_precedes_boundary, history_files, read_daily
+)
 from scripts.selection_factor_catalog import load_research_config
 from scripts.train_short_term_model import FEATURES, build_targets, make_features
 
@@ -126,7 +128,7 @@ def wilson_lower_bound(wins: int, samples: int, z: float = 1.96) -> float:
     return (center - spread) / denom
 
 
-def collect_scored(files, start, end, state, model):
+def collect_scored(files, start, end, state, model, label_end_before_index=None):
     dates = [p.name[:10] for p in files]
     start_i, end_i = dates.index(start), dates.index(end)
     cache = {}
@@ -147,6 +149,10 @@ def collect_scored(files, start, end, state, model):
         if date < start or date > end:
             continue
         if i + MAX_FORWARD_SESSIONS >= len(files) or frame.empty:
+            continue
+        if label_end_before_index is not None and not label_window_precedes_boundary(
+            i, MAX_FORWARD_SESSIONS, label_end_before_index
+        ):
             continue
 
         futures = [get(i + j) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
@@ -318,6 +324,10 @@ def main():
             continue
         if i + MAX_FORWARD_SESSIONS >= len(files) or frame.empty:
             continue
+        if not label_window_precedes_boundary(
+            i, MAX_FORWARD_SESSIONS, train_dates.index(VALIDATION_START)
+        ):
+            continue
         futures = [get_train(i + j) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
         x_all = make_features(frame)
         labels, _, _, complete = build_targets(
@@ -336,12 +346,15 @@ def main():
             print(f"[非线性研究] 训练已处理{train_days}日，样本{train_samples}", flush=True)
 
     validation_state = FeatureState()
+    final_start_index = dates.index(FINAL_START)
     validation_metrics, validation_days, validation_samples = collect_scored(
-        files, VALIDATION_START, VALIDATION_END, validation_state, model
+        files, VALIDATION_START, VALIDATION_END, validation_state, model,
+        label_end_before_index=final_start_index
     )
     compatible_validation_state = FeatureState()
     compatible_validation_metrics, _, _ = collect_scored(
-        files, VALIDATION_START, VALIDATION_END, compatible_validation_state, compatible_model
+        files, VALIDATION_START, VALIDATION_END, compatible_validation_state, compatible_model,
+        label_end_before_index=final_start_index
     )
     final_state = FeatureState()
     final_metrics, final_days, final_samples = collect_scored(

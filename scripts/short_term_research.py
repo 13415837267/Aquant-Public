@@ -54,6 +54,13 @@ def executable_entry_mask(symbols, entry_day: pd.DataFrame) -> np.ndarray:
     return executable
 
 
+def label_window_precedes_boundary(
+    signal_index: int, horizon_sessions: int, boundary_index: int
+) -> bool:
+    """Label outcomes must end strictly before the next split begins."""
+    return signal_index + horizon_sessions < boundary_index
+
+
 def history_files():
     paths = sorted(HISTORY_DIR.glob("????-??-??.csv.gz"), key=lambda p: p.name[:10])
     if not paths:

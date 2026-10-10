@@ -19,7 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.short_term_research import (
-    FeatureState, FEATURE_WARMUP_SESSIONS, executable_entry_mask, history_files, read_daily
+    FeatureState, FEATURE_WARMUP_SESSIONS, executable_entry_mask,
+    label_window_precedes_boundary, history_files, read_daily
 )
 from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, transform_market_feature
 
@@ -150,7 +151,7 @@ class LogisticModel:
         return 1.0 / (1.0 + np.exp(-z))
 
 
-def collect(files, start, end, state, model=None, train=False):
+def collect(files, start, end, state, model=None, train=False, label_end_before_index=None):
     dates = [p.name[:10] for p in files]
     start_i, end_i = dates.index(start), dates.index(end)
     cache = {}
@@ -170,6 +171,10 @@ def collect(files, start, end, state, model=None, train=False):
         if date < start or date > end:
             continue
         if i + MAX_FORWARD_SESSIONS >= len(files) or frame.empty:
+            continue
+        if label_end_before_index is not None and not label_window_precedes_boundary(
+            i, MAX_FORWARD_SESSIONS, label_end_before_index
+        ):
             continue
 
         futures = [get(i + j) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
@@ -352,16 +357,20 @@ def main():
 
     model = {regime: LogisticModel(len(FEATURE_NAMES)) for regime in REGIME_NAMES}
 
+    validation_start_index = dates.index(VALIDATION_START)
+    final_start_index = dates.index(FINAL_START)
     train_state = FeatureState()
     _, train_days, train_samples = collect(
-        files, args.start, TRAIN_END, train_state, model=model, train=True
+        files, args.start, TRAIN_END, train_state, model=model, train=True,
+        label_end_before_index=validation_start_index
     )
     if train_samples < MIN_SELECTION_SAMPLES:
         raise RuntimeError(f"训练样本不足: {train_samples}")
 
     validation_state = FeatureState()
     validation_metrics, validation_days, validation_samples = collect(
-        files, VALIDATION_START, VALIDATION_END, validation_state, model=model, train=False
+        files, VALIDATION_START, VALIDATION_END, validation_state, model=model, train=False,
+        label_end_before_index=final_start_index
     )
 
     final_state = FeatureState()

@@ -22,7 +22,8 @@ import numpy as np
 import pandas as pd
 
 from scripts.short_term_research import (
-    FeatureState, FEATURE_WARMUP_SESSIONS, executable_entry_mask, history_files, read_daily
+    FeatureState, FEATURE_WARMUP_SESSIONS, executable_entry_mask,
+    label_window_precedes_boundary, history_files, read_daily
 )
 from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, transform_market_feature
 
@@ -140,7 +141,10 @@ def date_split(date):
     return "ignore"
 
 
-def stream_dataset(files, start, end, state, mode, model=None, metrics=None, feature_stats=None):
+def stream_dataset(
+    files, start, end, state, mode, model=None, metrics=None, feature_stats=None,
+    label_end_before_index=None
+):
     dates = [p.name[:10] for p in files]
     start_i = dates.index(start)
     end_i = dates.index(end)
@@ -161,6 +165,10 @@ def stream_dataset(files, start, end, state, mode, model=None, metrics=None, fea
             continue
         frame = state.build(get(i))
         if i + MAX_FORWARD_SESSIONS >= len(files):
+            continue
+        if label_end_before_index is not None and not label_window_precedes_boundary(
+            i, MAX_FORWARD_SESSIONS, label_end_before_index
+        ):
             continue
         futures = [get(i + j) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
         if frame.empty:
@@ -253,8 +261,11 @@ def main():
     model = LogisticModel(len(FEATURES))
     feature_stats = {"samples": 0, "positives": 0, "best_returns": []}
 
+    validation_start_index = dates.index(VALIDATION_START)
+    final_start_index = dates.index(FINAL_START)
     train_processed, train_samples = stream_dataset(
-        files, args.start, TRAIN_END, state, "train", model=model, feature_stats=feature_stats
+        files, args.start, TRAIN_END, state, "train", model=model, feature_stats=feature_stats,
+        label_end_before_index=validation_start_index
     )
     if train_samples < MIN_TRAIN_SAMPLES:
         raise RuntimeError(f"训练样本不足: {train_samples}")
@@ -262,7 +273,8 @@ def main():
     validation_metrics = []
     state = FeatureState()
     validation_processed, validation_samples = stream_dataset(
-        files, VALIDATION_START, VALIDATION_END, state, "evaluate", model=model, metrics=validation_metrics
+        files, VALIDATION_START, VALIDATION_END, state, "evaluate", model=model, metrics=validation_metrics,
+        label_end_before_index=final_start_index
     )
 
     final_metrics = []
