@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "signal_date": "2026-07-17",
+  "period": "final_holdout",
+  "strategy_version": "2.5.0",
+  "strategy_commit": "bd395f5577b4247ac621293dfb3a248a7b1d1e00",
+  "candidate_count": 0,
+  "candidates": []
+}

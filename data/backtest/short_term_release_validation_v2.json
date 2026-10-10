@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "status": "ready",
+  "method": "short_term_release_validation",
+  "strategy_source": "Aquant-Private/main",
+  "strategy_version": "2.5.0",
+  "strategy_commit": "bd395f5577b4247ac621293dfb3a248a7b1d1e00",
+  "future_function": false,
+  "entry": "T+1_open",
+  "max_holding_sessions": 5,
+  "cost_bps": 3.0,
+  "slippage_bps": 2.0,
+  "production_gate": {
+    "forward_3d_mean_return_pct": 0.1,
+    "forward_5d_mean_return_pct": 0.1,
+    "forward_5d_positive_rate_pct": 50.0,
+    "managed_trade_mean_return_pct": 0.1,
+    "managed_trade_threshold_win_rate_pct": 80.0,
+    "max_managed_trade_drawdown_pct": -40.0,
+    "minimum_managed_trade_samples": 100
+  },
+  "selection_rule": "strategy version and admission parameters are fixed before final_holdout evaluation",
+  "win_definition": "net_profit_at_least_1pct_before_3pct_stop_within_5_sessions",
+  "fallback_policy": "below_80_pct_use_highest_stable_research_operating_point; do_not_force_production_gate",
+  "development": {
+    "signal_days": 1684,
+    "candidate_days": 1000,
+    "candidate_day_rate_pct": 59.38242280285036,
+    "forward_3d": {
+      "samples": 1009,
+      "mean_return_pct": 0.5696275604924448,
+      "positive_rate_pct": 45.986124876114964
+    },
+    "forward_5d": {
+      "samples": 1009,
+      "mean_return_pct": 0.3683933355952098,
+      "positive_rate_pct": 44.5986124876115
+    },
+    "managed_trade": {
+      "samples": 1008,
+      "win_rate_pct": 0.0,
+      "positive_rate_pct": 47.023809523809526,
+      "threshold_win_rate_pct": 0.0,
+      "win_threshold_pct": 1.0,
+      "mean_return_pct": -1.172023809523816,
+      "median_return_pct": -3.0999999999999917,
+      "max_drawdown_pct": -99.99947079827743,
+      "mean_holding_days": 2.0218253968253967
+    },
+    "production_gate_passed": false
+  },
+  "validation": {
+    "signal_days": 238,
+    "candidate_days": 160,
+    "candidate_day_rate_pct": 67.22689075630252,
+    "forward_3d": {
+      "samples": 164,
+      "mean_return_pct": -1.5204224083600149,
+      "positive_rate_pct": 39.63414634146341
+    },
+    "forward_5d": {
+      "samples": 164,
+      "mean_return_pct": -2.744864749056875,
+      "positive_rate_pct": 35.97560975609756
+    },
+    "managed_trade": {
+      "samples": 162,
+      "win_rate_pct": 0.0,
+      "positive_rate_pct": 43.82716049382716,
+      "threshold_win_rate_pct": 0.0,
+      "win_threshold_pct": 1.0,
+      "mean_return_pct": -1.3030864197530925,
+      "median_return_pct": -3.099999999999997,
+      "max_drawdown_pct": -88.5722724856796,
+      "mean_holding_days": 2.0185185185185186
+    },
+    "production_gate_passed": false
+  },
+  "final_holdout": {
+    "signal_days": 176,
+    "candidate_days": 99,
+    "candidate_day_rate_pct": 56.25,
+    "forward_3d": {
+      "samples": 101,
+      "mean_return_pct": -0.39099813639149567,
+      "positive_rate_pct": 48.51485148514851
+    },
+    "forward_5d": {
+      "samples": 101,
+      "mean_return_pct": -1.6401438956330698,
+      "positive_rate_pct": 41.584158415841586
+    },
+    "managed_trade": {
+      "samples": 101,
+      "win_rate_pct": 0.0,
+      "positive_rate_pct": 37.62376237623762,
+      "threshold_win_rate_pct": 0.0,
+      "win_threshold_pct": 1.0,
+      "mean_return_pct": -1.5574257425742626,
+      "median_return_pct": -3.1000000000000028,
+      "max_drawdown_pct": -79.49003085099515,
+      "mean_holding_days": 2.00990099009901
+    },
+    "production_gate_passed": false
+  },
+  "release_gate": false,
+  "release_gate_scope": "final_holdout_only"
+}
