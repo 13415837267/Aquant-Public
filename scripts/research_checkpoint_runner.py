@@ -129,7 +129,7 @@ def history_data_fingerprint_at_commit(commit_sha: str, root: Path = ROOT) -> st
     if not _ensure_commit_available(commit_sha, root):
         raise ValueError(f"旧检查点提交不可读取：{commit_sha}")
     lines = subprocess.check_output(
-        ["git", "ls-tree", "-r", "-s", "--full-tree", commit_sha, "--", "data/history", "data/universe.json"],
+        ["git", "ls-tree", "-r", "-l", "--full-tree", commit_sha, "--", "data/history", "data/universe.json"],
         cwd=root,
         text=True,
     ).splitlines()
