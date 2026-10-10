@@ -43,6 +43,11 @@ HIGH_PRECISION_THRESHOLDS = tuple(float(x) for x in RESEARCH_CONFIG["高精度�
 MIN_SELECTION_SAMPLES = 100
 TOP_K_PER_DAY = (1, 2, 3, 5, 10)
 MIN_DAILY_TOPK_DAYS = 50
+PAIRWISE_LEARNING_RATE = 0.02
+PAIRWISE_L2 = 0.001
+PAIRWISE_MAX_POSITIVES_PER_DAY = 32
+PAIRWISE_MAX_NEGATIVES_PER_DAY = 96
+PAIRWISE_RANDOM_SEED = 42
 
 
 def sigmoid(x):
@@ -116,6 +121,67 @@ class NonlinearModel:
     def predict(self, x):
         h = np.tanh(np.clip(x @ self.w1 + self.b1, -8.0, 8.0))
         return sigmoid(h @ self.w2 + self.b2)
+
+
+class PairwiseRankingModel:
+    """按每个信号日的正负样本对学习横截面排序，仅用于研究。"""
+
+    def __init__(
+        self,
+        n_features: int,
+        learning_rate: float = PAIRWISE_LEARNING_RATE,
+        l2: float = PAIRWISE_L2,
+        max_positives_per_day: int = PAIRWISE_MAX_POSITIVES_PER_DAY,
+        max_negatives_per_day: int = PAIRWISE_MAX_NEGATIVES_PER_DAY,
+        seed: int = PAIRWISE_RANDOM_SEED,
+    ):
+        self.w = np.zeros(n_features, dtype=np.float64)
+        self.learning_rate = learning_rate
+        self.l2 = l2
+        self.max_positives_per_day = max_positives_per_day
+        self.max_negatives_per_day = max_negatives_per_day
+        self.rng = np.random.default_rng(seed)
+        self.pair_updates = 0
+        self.pairs_seen = 0
+
+    def update(self, x: np.ndarray, y: np.ndarray) -> int:
+        positive_idx = np.flatnonzero(y > 0.5)
+        negative_idx = np.flatnonzero(y <= 0.5)
+        if len(positive_idx) == 0 or len(negative_idx) == 0:
+            return 0
+
+        if len(positive_idx) > self.max_positives_per_day:
+            positive_idx = self.rng.choice(
+                positive_idx, size=self.max_positives_per_day, replace=False
+            )
+        if len(negative_idx) > self.max_negatives_per_day:
+            negative_idx = self.rng.choice(
+                negative_idx, size=self.max_negatives_per_day, replace=False
+            )
+
+        positive = x[positive_idx]
+        negative = x[negative_idx]
+        differences = positive[:, None, :] - negative[None, :, :]
+        margins = np.clip(differences @ self.w, -30.0, 30.0)
+        pair_weights = sigmoid(-margins)
+        gradient = (
+            -np.einsum("ij,ijf->f", pair_weights, differences, optimize=True)
+            / pair_weights.size
+            + self.l2 * self.w
+        )
+        gradient_norm = float(np.linalg.norm(gradient))
+        if gradient_norm > 5.0:
+            gradient *= 5.0 / gradient_norm
+
+        self.w -= self.learning_rate * gradient
+        pair_count = int(pair_weights.size)
+        self.pair_updates += 1
+        self.pairs_seen += pair_count
+        return pair_count
+
+    def predict(self, x: np.ndarray) -> np.ndarray:
+        # Sigmoid is monotonic: it preserves the pairwise score ordering.
+        return sigmoid(x @ self.w)
 
 
 def wilson_lower_bound(wins: int, samples: int, z: float = 1.96) -> float:
@@ -305,6 +371,7 @@ def main():
 
     model = NonlinearModel(len(FEATURES))
     compatible_model = ProductionCompatibleLogisticModel(len(FEATURES))
+    pairwise_model = PairwiseRankingModel(len(FEATURES))
     train_state = FeatureState()
     train_dates = dates
     train_start_i, train_end_i = train_dates.index(args.start), train_dates.index(TRAIN_END)
@@ -340,6 +407,7 @@ def main():
         y = labels[keep].astype(np.float64)
         model.update(x, y)
         compatible_model.update(x, y)
+        pairwise_model.update(x, y)
         train_samples += len(y)
         train_days += 1
         if train_days % 50 == 0:
@@ -356,6 +424,11 @@ def main():
         files, VALIDATION_START, VALIDATION_END, compatible_validation_state, compatible_model,
         label_end_before_index=final_start_index
     )
+    pairwise_validation_state = FeatureState()
+    pairwise_validation_metrics, pairwise_validation_days, pairwise_validation_samples = collect_scored(
+        files, VALIDATION_START, VALIDATION_END, pairwise_validation_state, pairwise_model,
+        label_end_before_index=final_start_index
+    )
     final_state = FeatureState()
     final_metrics, final_days, final_samples = collect_scored(
         files, FINAL_START, args.final_end, final_state, model
@@ -363,6 +436,10 @@ def main():
     compatible_final_state = FeatureState()
     compatible_final_metrics, _, _ = collect_scored(
         files, FINAL_START, args.final_end, compatible_final_state, compatible_model
+    )
+    pairwise_final_state = FeatureState()
+    pairwise_final_metrics, pairwise_final_days, pairwise_final_samples = collect_scored(
+        files, FINAL_START, args.final_end, pairwise_final_state, pairwise_model
     )
 
     validation_thresholds = threshold_rows(validation_metrics)
@@ -413,6 +490,42 @@ def main():
             "processed_days": train_days,
             "samples": train_samples,
         },
+        "pairwise_ranker": {
+            "type": "daily_cross_sectional_pairwise_logistic_ranker",
+            "features": FEATURES,
+            "coefficients": {name: float(value) for name, value in zip(FEATURES, pairwise_model.w)},
+            "parameters": {
+                "learning_rate": pairwise_model.learning_rate,
+                "l2": pairwise_model.l2,
+                "max_positives_per_day": pairwise_model.max_positives_per_day,
+                "max_negatives_per_day": pairwise_model.max_negatives_per_day,
+                "random_seed": PAIRWISE_RANDOM_SEED,
+            },
+            "training": {
+                "processed_days": train_days,
+                "samples": train_samples,
+                "pair_updates": pairwise_model.pair_updates,
+                "pairs_seen": pairwise_model.pairs_seen,
+            },
+            "validation": {
+                "processed_days": pairwise_validation_days,
+                "samples": pairwise_validation_samples,
+                "daily_topk": daily_topk_rows(pairwise_validation_metrics),
+            },
+            "final": {
+                "processed_days": pairwise_final_days,
+                "samples": pairwise_final_samples,
+                "daily_topk": daily_topk_rows(pairwise_final_metrics),
+            },
+            "audit": {
+                "objective": "within_signal_day_positive_negative_pairwise_ordering",
+                "threshold_tuning_used": False,
+                "training_labels_exclude_non_executable_entries": True,
+                "label_windows_purged_at_train_validation_boundary": True,
+                "label_windows_purged_at_validation_final_boundary": True,
+                "final_holdout_used_for_parameter_selection": False,
+            },
+        },
         "production_compatible_logistic": {
             "parameters": {
                 "learning_rate": compatible_model.learning_rate,
@@ -453,6 +566,7 @@ def main():
             "future_window_is_five_sessions": True,
             "strict_stop_first_managed_label": True,
             "threshold_selected_only_on_validation": True,
+            "pairwise_challenger_has_no_probability_threshold": True,
             "final_holdout_used_once_after_selection": True,
             "formal_production_changed": False,
         },

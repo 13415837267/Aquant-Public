@@ -1,0 +1,33 @@
+import numpy as np
+
+from scripts.high_precision_profit_mining import PairwiseRankingModel
+
+
+def test_pairwise_update_improves_positive_negative_ordering():
+    x = np.asarray([[1.0, 0.0], [0.0, 1.0]], dtype=np.float64)
+    y = np.asarray([1.0, 0.0], dtype=np.float64)
+    model = PairwiseRankingModel(
+        n_features=2,
+        learning_rate=0.1,
+        l2=0.0,
+        max_positives_per_day=1,
+        max_negatives_per_day=1,
+        seed=7,
+    )
+
+    before = model.predict(x)[0] - model.predict(x)[1]
+    pairs = model.update(x, y)
+    after = model.predict(x)[0] - model.predict(x)[1]
+
+    assert pairs == 1
+    assert model.pair_updates == 1
+    assert model.pairs_seen == 1
+    assert after > before
+
+
+def test_pairwise_update_skips_days_without_both_classes():
+    model = PairwiseRankingModel(n_features=2, seed=7)
+    x = np.asarray([[1.0, 0.0], [0.0, 1.0]], dtype=np.float64)
+    assert model.update(x, np.asarray([1.0, 1.0])) == 0
+    assert model.pair_updates == 0
+    assert model.pairs_seen == 0

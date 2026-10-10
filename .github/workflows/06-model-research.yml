@@ -13,9 +13,7 @@ on:
       - "scripts/train_short_term_model.py"
       - "scripts/train_executable_path_model.py"
       - "scripts/short_term_research.py"
-      - "scripts/train_executable_path_model.py"
       - "scripts/train_path_aware_model.py"
-      - "scripts/short_term_research.py"
       - "scripts/path_rule_mining.py"
       - "scripts/path_regime_rule_mining.py"
       - "scripts/strict_path_strategy_score_mining.py"
@@ -24,6 +22,8 @@ on:
       - "scripts/run_all_conditions_research.py"
       - "scripts/research_checkpoint_runner.py"
       - "requirements.txt"
+      - "scripts/pairwise_rank_compound_backtest.py"
+      - "tests/test_pairwise_ranking_model.py"
 
 permissions:
   contents: read
@@ -99,6 +99,7 @@ jobs:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
             data/backtest/high_precision_compound_portfolio_latest.json
+            data/backtest/pairwise_rank_compound_latest.json
             data/backtest/path_rule_mining_research_latest.json
             data/backtest/path_regime_rule_mining_research_latest.json
             data/backtest/strict_path_strategy_score_mining_research_latest.json
@@ -152,6 +153,12 @@ jobs:
           --inputs data/backtest/high_precision_profit_mining_research_latest.json
           --dependencies scripts/compound_portfolio_backtest.py scripts/high_precision_profit_mining.py scripts/train_short_term_model.py scripts/short_term_research.py scripts/market_scope.py scripts/selection_factor_catalog.py config/选股条件研究配置.json
           --command python scripts/compound_portfolio_backtest.py --model-result data/backtest/high_precision_profit_mining_research_latest.json --output data/backtest/high_precision_compound_portfolio_latest.json
+
+      - name: "比较每日成对排序与分类模型的可执行复利"
+        run: >-
+          python scripts/pairwise_rank_compound_backtest.py
+          --model-result data/backtest/high_precision_profit_mining_research_latest.json
+          --output data/backtest/pairwise_rank_compound_latest.json
 
       - name: "持久化检查点：复利评估"
         if: ${{ always() }}
@@ -355,6 +362,7 @@ jobs:
           paths = [
               Path("data/backtest/high_precision_profit_mining_research_latest.json"),
               Path("data/backtest/high_precision_compound_portfolio_latest.json"),
+              Path("data/backtest/pairwise_rank_compound_latest.json"),
               Path("data/backtest/path_rule_mining_research_latest.json"),
               Path("data/backtest/path_regime_rule_mining_research_latest.json"),
               Path("data/backtest/strict_path_strategy_score_mining_research_latest.json"),

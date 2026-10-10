@@ -51,6 +51,9 @@ def executable_entry_mask(symbols, entry_day: pd.DataFrame) -> np.ndarray:
         high_limit = pd.to_numeric(day["high_limit"], errors="coerce").reindex(keys).to_numpy(dtype=np.float64)
         blocked = np.isfinite(high_limit) & (entry >= high_limit * (1.0 - 1e-6))
         executable &= ~blocked
+    if "is_paused" in day:
+        paused = pd.to_numeric(day["is_paused"], errors="coerce").reindex(keys).fillna(0).to_numpy(dtype=np.float64)
+        executable &= paused <= 0
     return executable
 
 
@@ -245,6 +248,8 @@ def managed_trade(symbol: str, future_days: list[pd.DataFrame], round_trip_cost_
     if row.empty or pd.isna(row.iloc[0].get("open")): return None
     entry = float(row.iloc[0]["open"])
     if entry <= 0 or not np.isfinite(entry): return None
+    paused = row.iloc[0].get("is_paused", 0)
+    if pd.notna(paused) and float(paused) > 0: return None
     high_limit = row.iloc[0].get("high_limit", np.nan)
     if ENTRY_LIMIT_UP_BLOCK and pd.notna(high_limit):
         high_limit = float(high_limit)

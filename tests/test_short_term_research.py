@@ -100,3 +100,113 @@ def test_label_window_must_end_strictly_before_next_split():
     assert label_window_precedes_boundary(94, horizon, boundary)
     assert not label_window_precedes_boundary(95, horizon, boundary)
     assert not label_window_precedes_boundary(99, horizon, boundary)
+
+
+
+def test_pairwise_ranker_learns_positive_over_negative_ordering():
+    from scripts.high_precision_profit_mining import PairwiseRankingModel
+
+    x = np.asarray([[1.0, 0.0], [0.0, 1.0]], dtype=np.float64)
+    y = np.asarray([1.0, 0.0], dtype=np.float64)
+    model = PairwiseRankingModel(
+        n_features=2, learning_rate=0.1, l2=0.0,
+        max_positives_per_day=1, max_negatives_per_day=1, seed=7
+    )
+
+    before = model.predict(x)[0] - model.predict(x)[1]
+    pairs = model.update(x, y)
+    after = model.predict(x)[0] - model.predict(x)[1]
+
+    assert pairs == 1
+    assert model.pair_updates == 1
+    assert model.pairs_seen == 1
+    assert after > before
+
+
+def test_pairwise_ranker_skips_single_class_days():
+    from scripts.high_precision_profit_mining import PairwiseRankingModel
+
+    model = PairwiseRankingModel(n_features=2, seed=7)
+    pairs = model.update(
+        np.asarray([[1.0, 0.0], [0.0, 1.0]], dtype=np.float64),
+        np.asarray([1.0, 1.0], dtype=np.float64)
+    )
+
+    assert pairs == 0
+    assert model.pair_updates == 0
+    assert model.pairs_seen == 0
+
+
+def test_managed_trade_rejects_paused_entry():
+    future = [
+        pd.DataFrame([{
+            "symbol": "600000", "open": 10.0, "high": 10.1,
+            "low": 9.9, "close": 10.0, "high_limit": 11.0, "is_paused": 1
+        }]),
+        _day("600000", 10.0, 10.2, 10.0, 10.1, high_limit=11.0),
+        _day("600000", 10.1, 10.2, 10.0, 10.1, high_limit=11.0),
+    ]
+    assert managed_trade("600000", future) is None
+
+
+def test_executable_entry_mask_rejects_paused_symbol_only():
+    entry_day = pd.DataFrame([
+        {"symbol": "600000", "open": 10.0, "high_limit": 11.0, "is_paused": 1},
+        {"symbol": "000001", "open": 10.0, "high_limit": 11.0, "is_paused": 0},
+    ])
+    assert executable_entry_mask(["600000", "000001"], entry_day).tolist() == [False, True]
+
+
+
+def test_pairwise_ranker_learns_positive_over_negative_ordering():
+    from scripts.high_precision_profit_mining import PairwiseRankingModel
+
+    x = np.asarray([[1.0, 0.0], [0.0, 1.0]], dtype=np.float64)
+    y = np.asarray([1.0, 0.0], dtype=np.float64)
+    model = PairwiseRankingModel(
+        n_features=2, learning_rate=0.1, l2=0.0,
+        max_positives_per_day=1, max_negatives_per_day=1, seed=7
+    )
+
+    before = model.predict(x)[0] - model.predict(x)[1]
+    pairs = model.update(x, y)
+    after = model.predict(x)[0] - model.predict(x)[1]
+
+    assert pairs == 1
+    assert model.pair_updates == 1
+    assert model.pairs_seen == 1
+    assert after > before
+
+
+def test_pairwise_ranker_skips_single_class_days():
+    from scripts.high_precision_profit_mining import PairwiseRankingModel
+
+    model = PairwiseRankingModel(n_features=2, seed=7)
+    pairs = model.update(
+        np.asarray([[1.0, 0.0], [0.0, 1.0]], dtype=np.float64),
+        np.asarray([1.0, 1.0], dtype=np.float64)
+    )
+
+    assert pairs == 0
+    assert model.pair_updates == 0
+    assert model.pairs_seen == 0
+
+
+def test_managed_trade_rejects_paused_entry():
+    future = [
+        pd.DataFrame([{
+            "symbol": "600000", "open": 10.0, "high": 10.1,
+            "low": 9.9, "close": 10.0, "high_limit": 11.0, "is_paused": 1
+        }]),
+        _day("600000", 10.0, 10.2, 10.0, 10.1, high_limit=11.0),
+        _day("600000", 10.1, 10.2, 10.0, 10.1, high_limit=11.0),
+    ]
+    assert managed_trade("600000", future) is None
+
+
+def test_executable_entry_mask_rejects_paused_symbol_only():
+    entry_day = pd.DataFrame([
+        {"symbol": "600000", "open": 10.0, "high_limit": 11.0, "is_paused": 1},
+        {"symbol": "000001", "open": 10.0, "high_limit": 11.0, "is_paused": 0},
+    ])
+    assert executable_entry_mask(["600000", "000001"], entry_day).tolist() == [False, True]
