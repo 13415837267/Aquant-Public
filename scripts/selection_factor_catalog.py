@@ -44,6 +44,9 @@ DEFAULT_CONFIG={
  "复利入场概率阈值网格":[0.55,0.60,0.65,0.70,0.75,0.80],
  "复利止盈目标网格百分比":[1.0,1.5,2.0,2.5,3.0],"复利止损幅度网格百分比":[1.0,1.5,2.0,2.5,3.0],
  "参数选择最低交易数":100,"参数选择最大允许回撤百分比":-30.0,
+ "短线目标净收益百分比":1.0,"高收益目标净收益百分比":3.0,"止损幅度百分比":3.0,
+ "往返交易成本基点":10.0,"最大前瞻交易日数":5,"最早允许退出日序号":2,"开盘涨停禁止入场":True,
+ "正式策略评分阈值网格":[round(70+i*0.5,1) for i in range(59)],
  "最少训练条件样本数":10000,"最少验证条件样本数":5000,"最少市场状态样本数":25000,
  "最大原子条件候选数":24,"最大双条件候选数":36,"每个市场状态原子候选数":10,
  "每个市场状态最多输出条件数":3,"最多输出条件数":30,"目标命中率百分比":80.0,"正式模型自动替换":False,
@@ -57,11 +60,11 @@ def load_research_config():
   config.update(saved)
  for key,allowed in (("启用个股因子",set(ALL_STOCK_FACTORS)),("启用市场因子",set(ALL_MARKET_FACTORS))):
   values=config.get(key)
-  if not isinstance(values,list) or not values or any(not isinstance(x,str) for x in values): raise ValueError(f"配置项“{key}”必须是非空字符串列表")
+  if not isinstance(values,list) or (key=="启用个股因子" and not values) or any(not isinstance(x,str) for x in values): raise ValueError(f"配置项“{key}”必须是字符串列表，个股因子至少启用一项")
   if len(values)!=len(set(values)): raise ValueError(f"配置项“{key}”存在重复因子")
   unknown=sorted(set(values)-allowed)
   if unknown: raise ValueError(f"配置项“{key}”包含未知因子：{unknown}")
- numeric_keys=("分位阈值","市场广度阈值","市场中位收益阈值","市场收益离散度阈值","短线模型概率阈值网格","高收益模型概率阈值网格","高精度模型概率阈值网格","路径模型概率阈值网格","复利入场概率阈值网格","复利止盈目标网格百分比","复利止损幅度网格百分比")
+ numeric_keys=("分位阈值","市场广度阈值","市场中位收益阈值","市场收益离散度阈值","短线模型概率阈值网格","高收益模型概率阈值网格","高精度模型概率阈值网格","路径模型概率阈值网格","复利入场概率阈值网格","复利止盈目标网格百分比","复利止损幅度网格百分比","正式策略评分阈值网格")
  for key in numeric_keys:
   values=config.get(key)
   if not isinstance(values,list) or not values: raise ValueError(f"配置项“{key}”必须是非空数字列表")
@@ -71,9 +74,15 @@ def load_research_config():
   if len(numbers)!=len(set(numbers)): raise ValueError(f"配置项“{key}”存在重复值")
   if key=="分位阈值" and any(x<=0 or x>=1 for x in numbers): raise ValueError("分位阈值必须在0与1之间")
   if "概率阈值网格" in key and any(x<0 or x>1 for x in numbers): raise ValueError(f"配置项“{key}”必须在0与1之间")
- for key in ("参数选择最低交易数","最少训练条件样本数","最少验证条件样本数","最少市场状态样本数","最大原子条件候选数","最大双条件候选数","每个市场状态原子候选数","每个市场状态最多输出条件数","最多输出条件数"):
+ for key in ("参数选择最低交易数","最大前瞻交易日数","最早允许退出日序号","最少训练条件样本数","最少验证条件样本数","最少市场状态样本数","最大原子条件候选数","最大双条件候选数","每个市场状态原子候选数","每个市场状态最多输出条件数","最多输出条件数"):
   value=config.get(key)
   if not isinstance(value,int) or isinstance(value,bool) or value<1: raise ValueError(f"配置项“{key}”必须为正整数")
+ for key in ("短线目标净收益百分比","高收益目标净收益百分比","止损幅度百分比","往返交易成本基点","参数选择最大允许回撤百分比","目标命中率百分比"):
+  value=config.get(key)
+  if not isinstance(value,(int,float)) or isinstance(value,bool) or not math.isfinite(float(value)): raise ValueError(f"配置项“{key}”必须为有限数字")
+ if config["短线目标净收益百分比"]<=0 or config["高收益目标净收益百分比"]<=0 or config["止损幅度百分比"]<=0 or config["往返交易成本基点"]<0: raise ValueError("目标收益、止损须为正数，交易成本不得为负")
+ if config["最早允许退出日序号"]<2 or config["最早允许退出日序号"]>config["最大前瞻交易日数"]: raise ValueError("退出时序必须满足T+1买入，T+2起可退出")
+ if config.get("开盘涨停禁止入场") is not True: raise ValueError("研究配置必须禁止开盘涨停入场")
  if config.get("正式模型自动替换") is not False: raise ValueError("研究配置禁止自动替换正式模型")
  return config
 def active_stock_factors(config=None):

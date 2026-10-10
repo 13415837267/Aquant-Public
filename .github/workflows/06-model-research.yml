@@ -1,19 +1,22 @@
 name: "06 模型研究"
 
-# 训练续跑基线：仅通过工作流变更触发云端研究，不改变研究参数或模型逻辑。
+# 研究条件、特征与模型脚本变化时，在GitHub云端重新训练和验证。
 on:
   workflow_dispatch:
   push:
     paths:
       - ".github/workflows/06-model-research.yml"
+      - "config/选股条件研究配置.json"
+      - "scripts/selection_factor_catalog.py"
       - "scripts/high_precision_profit_mining.py"
       - "scripts/train_path_aware_gbdt.py"
       - "scripts/train_short_term_model.py"
+      - "scripts/train_executable_path_model.py"
+      - "scripts/train_path_aware_model.py"
       - "scripts/short_term_research.py"
       - "scripts/path_rule_mining.py"
       - "scripts/path_regime_rule_mining.py"
       - "scripts/strict_path_strategy_score_mining.py"
-      - "scripts/train_executable_path_model.py"
       - "scripts/pack_all_condition_results.py"
       - "scripts/compound_portfolio_backtest.py"
       - "scripts/run_all_conditions_research.py"
@@ -88,7 +91,7 @@ jobs:
         run: >-
           python scripts/research_checkpoint_runner.py --key high_precision_profit_mining
           --output data/backtest/high_precision_profit_mining_research_latest.json
-          --dependencies scripts/high_precision_profit_mining.py scripts/train_short_term_model.py scripts/short_term_research.py scripts/market_scope.py
+          --dependencies scripts/high_precision_profit_mining.py scripts/train_short_term_model.py scripts/short_term_research.py scripts/market_scope.py scripts/selection_factor_catalog.py config/选股条件研究配置.json
           --command python scripts/high_precision_profit_mining.py --start 2015-01-05 --final-end 2026-09-30 --output data/backtest/high_precision_profit_mining_research_latest.json
 
       - name: "持久化检查点：高精度研究"
@@ -115,7 +118,7 @@ jobs:
           python scripts/research_checkpoint_runner.py --key high_precision_compound_portfolio
           --output data/backtest/high_precision_compound_portfolio_latest.json
           --inputs data/backtest/high_precision_profit_mining_research_latest.json
-          --dependencies scripts/compound_portfolio_backtest.py scripts/high_precision_profit_mining.py scripts/train_short_term_model.py scripts/short_term_research.py scripts/market_scope.py
+          --dependencies scripts/compound_portfolio_backtest.py scripts/high_precision_profit_mining.py scripts/train_short_term_model.py scripts/short_term_research.py scripts/market_scope.py scripts/selection_factor_catalog.py config/选股条件研究配置.json
           --command python scripts/compound_portfolio_backtest.py --model-result data/backtest/high_precision_profit_mining_research_latest.json --output data/backtest/high_precision_compound_portfolio_latest.json
 
       - name: "持久化检查点：复利评估"
@@ -261,7 +264,7 @@ jobs:
         run: >-
           python scripts/research_checkpoint_runner.py --key path_aware_gbdt
           --output data/backtest/path_aware_gbdt_research_latest.json
-          --dependencies scripts/train_path_aware_gbdt.py scripts/short_term_research.py scripts/train_short_term_model.py scripts/market_scope.py
+          --dependencies scripts/train_path_aware_gbdt.py scripts/train_path_aware_model.py scripts/short_term_research.py scripts/train_short_term_model.py scripts/market_scope.py scripts/selection_factor_catalog.py config/选股条件研究配置.json
           --command python scripts/train_path_aware_gbdt.py --output data/backtest/path_aware_gbdt_research_latest.json
 
       - name: "持久化检查点：路径感知模型"
@@ -288,7 +291,7 @@ jobs:
         run: >-
           python scripts/research_checkpoint_runner.py --key path_aware_gbdt_train2024_fixed078
           --output data/backtest/path_aware_gbdt_train2024_fixed078.json
-          --dependencies scripts/train_path_aware_gbdt.py scripts/short_term_research.py scripts/train_short_term_model.py scripts/market_scope.py
+          --dependencies scripts/train_path_aware_gbdt.py scripts/train_path_aware_model.py scripts/short_term_research.py scripts/train_short_term_model.py scripts/market_scope.py scripts/selection_factor_catalog.py config/选股条件研究配置.json
           --command python scripts/train_path_aware_gbdt.py --train-end 2024-12-31 --fixed-threshold 0.78 --output data/backtest/path_aware_gbdt_train2024_fixed078.json
 
       - name: "持久化检查点：扩展训练窗口实验"

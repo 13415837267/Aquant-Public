@@ -15,21 +15,23 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.high_precision_profit_mining import MAX_FORWARD_SESSIONS, NonlinearModel, TOP_K_PER_DAY
-from scripts.short_term_research import FeatureState, history_files, read_daily
+from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.selection_factor_catalog import load_research_config
 from scripts.train_short_term_model import build_targets, make_features
 
 默认模型结果 = ROOT / "data/backtest/high_precision_profit_mining_research_latest.json"
 默认输出 = ROOT / "data/backtest/high_precision_compound_portfolio_latest.json"
-止损幅度百分比 = 3.0
+RESEARCH_CONFIG = load_research_config()
+止损幅度百分比 = float(RESEARCH_CONFIG["止损幅度百分比"])
 每日最多排名数 = max(TOP_K_PER_DAY)
 初始资金 = 100_000.0
-退出目标网格 = (1.0, 1.5, 2.0, 2.5, 3.0)
-退出止损网格 = (1.0, 1.5, 2.0, 2.5, 3.0)
-退出参数最低交易数 = 100
-退出参数最大允许回撤百分比 = -30.0
-概率阈值网格 = (0.55, 0.60, 0.65, 0.70, 0.75, 0.80)
-阈值参数最低交易数 = 100
-阈值参数最大允许回撤百分比 = -30.0
+退出目标网格 = tuple(float(x) for x in RESEARCH_CONFIG["复利止盈目标网格百分比"])
+退出止损网格 = tuple(float(x) for x in RESEARCH_CONFIG["复利止损幅度网格百分比"])
+退出参数最低交易数 = RESEARCH_CONFIG["参数选择最低交易数"]
+退出参数最大允许回撤百分比 = float(RESEARCH_CONFIG["参数选择最大允许回撤百分比"])
+概率阈值网格 = tuple(float(x) for x in RESEARCH_CONFIG["复利入场概率阈值网格"])
+阈值参数最低交易数 = RESEARCH_CONFIG["参数选择最低交易数"]
+阈值参数最大允许回撤百分比 = float(RESEARCH_CONFIG["参数选择最大允许回撤百分比"])
 
 
 def 解析模型(结果: dict) -> NonlinearModel:
@@ -101,7 +103,7 @@ def 提取每日候选(files: list[Path], 日期: list[str], 起始日: str, 结
     }
 
     # 预热足够的历史日线，确保20日特征在研究区间首日已经可用。
-    for i in range(max(0, 起始索引 - 25), 结束索引 + 1):
+    for i in range(max(0, 起始索引 - FEATURE_WARMUP_SESSIONS), 结束索引 + 1):
         原始日线 = 读取(i)
         特征表 = 状态.build(原始日线)
         当前日 = 日期[i]

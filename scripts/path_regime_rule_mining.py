@@ -22,18 +22,14 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, history_files, read_daily
+from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.selection_factor_catalog import active_stock_factors, load_research_config
 
 OUT_DIR = ROOT / "data" / "backtest"
 
-STOCK_FEATURES = [
-    "return_1d_pct", "return_3d_pct", "return_5d_pct", "return_10d_pct",
-    "return_20d_pct", "overnight_1d_pct", "overnight_3d_pct",
-    "overnight_5d_pct", "overnight_10d_pct", "volume_ratio_5d",
-    "amount_20d", "volatility_10d_pct", "close_strength",
-    "intraday_return_pct", "limit_up_5d_count", "turnover_pct", "change_pct",
-]
-RANK_THRESHOLDS = (0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80)
+RESEARCH_CONFIG = load_research_config()
+STOCK_FEATURES = active_stock_factors(RESEARCH_CONFIG)
+RANK_THRESHOLDS = tuple(float(x) for x in RESEARCH_CONFIG["分位阈值"])
 
 TRAIN_END = "2022-12-30"
 VALIDATION_START = "2023-01-03"
@@ -41,23 +37,22 @@ VALIDATION_END = "2024-12-31"
 FINAL_START = "2025-01-02"
 FINAL_END = "2026-09-30"
 
-NET_WIN_THRESHOLD_PCT = 1.0
-STOP_LOSS_PCT = 3.0
-ROUND_TRIP_COST_BPS = 10.0
-MAX_FORWARD_SESSIONS = 5
+NET_WIN_THRESHOLD_PCT = float(RESEARCH_CONFIG["短线目标净收益百分比"])
+STOP_LOSS_PCT = float(RESEARCH_CONFIG["止损幅度百分比"])
+ROUND_TRIP_COST_BPS = float(RESEARCH_CONFIG["往返交易成本基点"])
+MAX_FORWARD_SESSIONS = int(RESEARCH_CONFIG["最大前瞻交易日数"])
 ENTRY_LIMIT_UP_BLOCK = True
 
-MIN_TRAIN_RULE_SAMPLES = 10_000
-MIN_VALIDATION_RULE_SAMPLES = 5_000
-MIN_REGIME_SAMPLES = 25_000
-TOP_STOCK_ATOMICS_PER_REGIME = 10
-MAX_TRAIN_PAIR_OUTPUT = 120
-TOP_OUTPUT_RULES = 30
-MAX_SELECTED_PER_REGIME = 3
-TARGET_WIN_RATE_PCT = 80.0
-
-BREADTH_BINS = (-np.inf, 40.0, 50.0, 60.0, 70.0, np.inf)
-MEDIAN_BINS = (-np.inf, -1.0, -0.5, 0.0, 0.5, 1.0, np.inf)
+MIN_TRAIN_RULE_SAMPLES = RESEARCH_CONFIG["最少训练条件样本数"]
+MIN_VALIDATION_RULE_SAMPLES = RESEARCH_CONFIG["最少验证条件样本数"]
+MIN_REGIME_SAMPLES = RESEARCH_CONFIG["最少市场状态样本数"]
+TOP_STOCK_ATOMICS_PER_REGIME = RESEARCH_CONFIG["每个市场状态原子候选数"]
+MAX_TRAIN_PAIR_OUTPUT = RESEARCH_CONFIG["最大双条件候选数"]
+TOP_OUTPUT_RULES = RESEARCH_CONFIG["最多输出条件数"]
+MAX_SELECTED_PER_REGIME = RESEARCH_CONFIG["每个市场状态最多输出条件数"]
+TARGET_WIN_RATE_PCT = float(RESEARCH_CONFIG["目标命中率百分比"])
+BREADTH_BINS = (-np.inf, *tuple(float(x) for x in RESEARCH_CONFIG["市场广度阈值"]), np.inf)
+MEDIAN_BINS = (-np.inf, *tuple(float(x) for x in RESEARCH_CONFIG["市场中位收益阈值"]), np.inf)
 
 
 def percentile_rank(series: pd.Series) -> np.ndarray:
@@ -317,7 +312,7 @@ def iter_split(files, start, end, state):
             del cache[next(iter(cache))]
         return cache[i]
 
-    for i in range(max(0, start_i - 20), end_i + 1):
+    for i in range(max(0, start_i - FEATURE_WARMUP_SESSIONS), end_i + 1):
         date = dates[i]
         frame = state.build(get(i))
         if date < start or date > end:
@@ -716,6 +711,7 @@ def main():
             "validation": [VALIDATION_START, VALIDATION_END],
             "final": [FINAL_START, args.final_end],
         },
+        "factor_configuration": {"active_stock_factors": STOCK_FEATURES, "rank_thresholds": list(RANK_THRESHOLDS)},
         "parameters": {
             "net_win_threshold_pct": NET_WIN_THRESHOLD_PCT,
             "stop_loss_pct": STOP_LOSS_PCT,

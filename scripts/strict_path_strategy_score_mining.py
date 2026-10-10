@@ -29,8 +29,9 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, history_files, read_daily
-from scripts.train_path_aware_model import path_targets
+from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.selection_factor_catalog import load_research_config
+from scripts.train_short_term_model import build_targets
 
 OUT_DIR = ROOT / "data" / "backtest"
 TRAIN_END = "2022-12-30"
@@ -38,17 +39,18 @@ VALIDATION_START = "2023-01-03"
 VALIDATION_END = "2024-12-31"
 FINAL_START = "2025-01-02"
 FINAL_END = "2026-09-30"
-MAX_FORWARD_SESSIONS = 5
-NET_WIN_THRESHOLD_PCT = 1.0
-STOP_LOSS_PCT = 3.0
-ROUND_TRIP_COST_BPS = 10.0
+RESEARCH_CONFIG = load_research_config()
+MAX_FORWARD_SESSIONS = int(RESEARCH_CONFIG["最大前瞻交易日数"])
+NET_WIN_THRESHOLD_PCT = float(RESEARCH_CONFIG["短线目标净收益百分比"])
+STOP_LOSS_PCT = float(RESEARCH_CONFIG["止损幅度百分比"])
+ROUND_TRIP_COST_BPS = float(RESEARCH_CONFIG["往返交易成本基点"])
 MIN_VALIDATION_SAMPLES = 200
 MIN_FINAL_SAMPLES = 100
 MIN_DAILY_TOPK_DAYS = 100
 TOP_K = (1, 2, 3, 5, 10)
 
 # score is 0-100 in the current private strategy.
-SCORE_THRESHOLDS = tuple(float(x) for x in np.arange(70.0, 99.5, 0.5))
+SCORE_THRESHOLDS = tuple(float(x) for x in RESEARCH_CONFIG["正式策略评分阈值网格"])
 
 
 def load_strategy():
@@ -91,7 +93,7 @@ def collect(files, start, end, strategy_model):
     days = []
     samples = 0
 
-    for i in range(max(0, start_i - 20), end_i + 1):
+    for i in range(max(0, start_i - FEATURE_WARMUP_SESSIONS), end_i + 1):
         date = dates[i]
         frame = state.build(get(i))
         if date < start or date > end or frame.empty:
@@ -105,7 +107,7 @@ def collect(files, start, end, strategy_model):
 
         futures = [get(i + j) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
         symbols = scored["symbol"].astype(str).str.zfill(6).tolist()
-        y, best, close5, complete = path_targets(symbols, futures)
+        y, best, close5, complete = build_targets(symbols, futures)
         keep = np.flatnonzero(complete)
         if len(keep) == 0:
             continue
@@ -386,7 +388,7 @@ def main():
             "no_future_features": True,
             "entry_is_T_plus_1_open": True,
             "target_is_net_profit_at_least_1pct": True,
-            "target_gross_equivalent_pct": 1.1,
+            "target_gross_equivalent_pct": NET_WIN_THRESHOLD_PCT + ROUND_TRIP_COST_BPS / 100.0,
             "stop_loss_gross_pct": STOP_LOSS_PCT,
             "same_day_stop_first": True,
             "threshold_selection_only_on_validation": True,

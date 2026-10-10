@@ -1,10 +1,8 @@
 """Path-aware full-market training for the +3% short-term profit opportunity.
 
-Research only. A positive label means the T+1 entry price can reach at least
-+3% net profit within five sessions before a -3% stop from T+2 onward. T+1
-hitting +3% is counted as a win because the project explicitly treats maximum
-profit potential above +3% as a successful signal, even though selling on T+1
-is prohibited by the A-share T+1 rule.
+Research only. A positive label means a T+1-open entry can reach at least +3%
+net profit from T+2 onward before the configured stop. A T+1 price movement
+cannot count as a sellable win under the A-share T+1 rule.
 """
 from __future__ import annotations
 
@@ -20,18 +18,14 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, history_files, read_daily
+from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, transform_market_feature
 
 OUT_DIR = ROOT / "data" / "backtest"
-FEATURES = [
-    "return_1d_pct", "return_3d_pct", "return_5d_pct", "return_10d_pct",
-    "return_20d_pct", "overnight_1d_pct", "overnight_3d_pct",
-    "overnight_5d_pct", "overnight_10d_pct", "volume_ratio_5d",
-    "amount_20d", "volatility_10d_pct", "close_strength",
-    "intraday_return_pct", "limit_up_5d_count", "turnover_pct",
-    "change_pct", "market_breadth_pct", "market_median_return_pct",
-]
-STOCK_RANK_FEATURES = FEATURES[:16] + ["change_pct"]
+RESEARCH_CONFIG = load_research_config()
+STOCK_RANK_FEATURES = active_stock_factors(RESEARCH_CONFIG)
+MARKET_FEATURES = active_market_factors(RESEARCH_CONFIG)
+FEATURES = STOCK_RANK_FEATURES + MARKET_FEATURES
 REGIME_NAMES = ("risk_off", "neutral", "risk_on")
 REGIME_BREADTH_CUTOFFS = (0.35, 0.65)
 FEATURE_NAMES = list(FEATURES)
@@ -42,16 +36,16 @@ VALIDATION_END = "2025-12-31"
 FINAL_START = "2026-01-05"
 FINAL_END = "2026-09-30"
 
-NET_WIN_THRESHOLD_PCT = 3.0
-STOP_LOSS_PCT = 3.0
-ROUND_TRIP_COST_BPS = 10.0
-MAX_FORWARD_SESSIONS = 5
+NET_WIN_THRESHOLD_PCT = float(RESEARCH_CONFIG["高收益目标净收益百分比"])
+STOP_LOSS_PCT = float(RESEARCH_CONFIG["止损幅度百分比"])
+ROUND_TRIP_COST_BPS = float(RESEARCH_CONFIG["往返交易成本基点"])
+MAX_FORWARD_SESSIONS = int(RESEARCH_CONFIG["最大前瞻交易日数"])
 MIN_SELECTION_SAMPLES = 5000
 
 LEARNING_RATE = 0.04
 L2 = 0.02
 EPOCHS_PER_DAY = 2
-THRESHOLDS = [0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]
+THRESHOLDS = [float(x) for x in RESEARCH_CONFIG["高收益模型概率阈值网格"]]
 POSITIVE_CLASS_WEIGHT = 4.0
 TOP_K_VALUES = (2, 5, 10)
 ABSTAIN_TOP_PROBABILITY_VALUES = (0.55, 0.60, 0.65)
@@ -70,9 +64,7 @@ def make_features(frame):
     if frame.empty:
         return np.empty((0, len(FEATURE_NAMES)), dtype=np.float64)
     cols = [percentile_rank(frame[name]) for name in STOCK_RANK_FEATURES]
-    breadth = np.clip(pd.to_numeric(frame["market_breadth_pct"], errors="coerce").fillna(50).to_numpy(dtype=float) / 100.0, 0.0, 1.0)
-    median_ret = np.clip(pd.to_numeric(frame["market_median_return_pct"], errors="coerce").fillna(0).to_numpy(dtype=float) / 5.0, -2.0, 2.0)
-    cols.extend([breadth, median_ret])
+    cols.extend(transform_market_feature(frame, name) for name in MARKET_FEATURES)
     return np.column_stack(cols)
 
 
@@ -110,19 +102,19 @@ def path_targets(symbols, future_days):
     close_net = np.full(n, np.nan)
 
     for row in np.flatnonzero(complete):
-        best_net[row] = np.max(highs[row]) / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
+        best_net[row] = np.max(highs[row, 1:]) / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
         close_net[row] = closes[row, -1] / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
-        for d in range(MAX_FORWARD_SESSIONS):
-            # T+1 只允许观察目标机会，禁止退出；T+2 起若同一日同时触发止损与目标，
-            # 无法仅凭日线判断盘中先后，因此采用保守的“止损优先”规则，避免高估胜率。
-            if d >= 1 and lows[row, d] <= stop[row]:
+        for d in range(1, MAX_FORWARD_SESSIONS):
+            # 索引0是T+1买入日，不能作为退出日；只评价T+2起可实际卖出的路径。
+            # 同一日同时触发止损与目标时按保守的止损优先处理。
+            if lows[row, d] <= stop[row]:
                 stopped_before_target[row] = True
                 break
             if highs[row, d] >= target[row]:
                 target_hit[row] = True
                 break
 
-    # +3% 机会优先：一旦 T+1~T+5 触达目标即为正样本；若先触发 T+2~T+5 止损则为负样本。
+    # +3%净收益必须在T+2至持有期末先于止损触发，才标记为正样本。
     labels = target_hit & ~stopped_before_target
     return labels, best_net, close_net, complete
 
@@ -169,7 +161,7 @@ def collect(files, start, end, state, model=None, train=False):
     samples = 0
     processed = 0
 
-    for i in range(max(0, start_i - 20), end_i + 1):
+    for i in range(max(0, start_i - FEATURE_WARMUP_SESSIONS), end_i + 1):
         date = dates[i]
         frame = state.build(get(i))
         if date < start or date > end:

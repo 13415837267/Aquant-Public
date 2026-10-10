@@ -17,7 +17,8 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, history_files, read_daily
+from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.selection_factor_catalog import load_research_config
 from scripts.train_short_term_model import FEATURES, build_targets, make_features
 
 TRAIN_END = "2022-12-30"
@@ -25,10 +26,11 @@ VALIDATION_START = "2023-01-03"
 VALIDATION_END = "2024-12-31"
 FINAL_START = "2025-01-02"
 FINAL_END = "2026-09-30"
-MAX_FORWARD_SESSIONS = 5
-NET_WIN_THRESHOLD_PCT = 1.0
+RESEARCH_CONFIG = load_research_config()
+MAX_FORWARD_SESSIONS = int(RESEARCH_CONFIG["最大前瞻交易日数"])
+NET_WIN_THRESHOLD_PCT = float(RESEARCH_CONFIG["短线目标净收益百分比"])
 SEED = 42
-THRESHOLDS = tuple(np.arange(0.50, 0.991, 0.01))
+THRESHOLDS = tuple(float(x) for x in RESEARCH_CONFIG["路径模型概率阈值网格"])
 MIN_OPERATING_SAMPLES = 1000
 MIN_OPERATING_SAMPLE_SHARE_PCT = 1.0
 
@@ -69,7 +71,7 @@ def collect_eval(files, dates, start, end, model):
     metrics = []
     start_i, end_i = dates.index(start), dates.index(end)
     processed = samples = 0
-    for i in range(max(0, start_i - 20), end_i + 1):
+    for i in range(max(0, start_i - FEATURE_WARMUP_SESSIONS), end_i + 1):
         date = dates[i]
         frame = state.build(read_daily(files[i]))
         if date < start or date > end or frame.empty or i + MAX_FORWARD_SESSIONS >= len(files):

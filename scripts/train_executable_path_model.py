@@ -18,18 +18,14 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, history_files, read_daily
+from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, transform_market_feature
 
 OUT_DIR = ROOT / "data" / "backtest"
-FEATURES = [
-    "return_1d_pct", "return_3d_pct", "return_5d_pct", "return_10d_pct",
-    "return_20d_pct", "overnight_1d_pct", "overnight_3d_pct",
-    "overnight_5d_pct", "overnight_10d_pct", "volume_ratio_5d",
-    "amount_20d", "volatility_10d_pct", "close_strength",
-    "intraday_return_pct", "limit_up_5d_count", "turnover_pct",
-    "change_pct", "market_breadth_pct", "market_median_return_pct",
-]
-STOCK_RANK_FEATURES = FEATURES[:16] + ["change_pct"]
+RESEARCH_CONFIG = load_research_config()
+STOCK_RANK_FEATURES = active_stock_factors(RESEARCH_CONFIG)
+MARKET_FEATURES = active_market_factors(RESEARCH_CONFIG)
+FEATURES = STOCK_RANK_FEATURES + MARKET_FEATURES
 REGIME_NAMES = ("risk_off", "neutral", "risk_on")
 REGIME_BREADTH_CUTOFFS = (0.35, 0.65)
 FEATURE_NAMES = list(FEATURES)
@@ -40,16 +36,16 @@ VALIDATION_END = "2025-12-31"
 FINAL_START = "2026-01-05"
 FINAL_END = "2026-09-30"
 
-NET_WIN_THRESHOLD_PCT = 3.0
-STOP_LOSS_PCT = 3.0
-ROUND_TRIP_COST_BPS = 10.0
-MAX_FORWARD_SESSIONS = 5
+NET_WIN_THRESHOLD_PCT = float(RESEARCH_CONFIG["高收益目标净收益百分比"])
+STOP_LOSS_PCT = float(RESEARCH_CONFIG["止损幅度百分比"])
+ROUND_TRIP_COST_BPS = float(RESEARCH_CONFIG["往返交易成本基点"])
+MAX_FORWARD_SESSIONS = int(RESEARCH_CONFIG["最大前瞻交易日数"])
 MIN_SELECTION_SAMPLES = 5000
 
 LEARNING_RATE = 0.04
 L2 = 0.02
 EPOCHS_PER_DAY = 2
-THRESHOLDS = [0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]
+THRESHOLDS = [float(x) for x in RESEARCH_CONFIG["高收益模型概率阈值网格"]]
 POSITIVE_CLASS_WEIGHT = 4.0
 TOP_K_VALUES = (2, 5, 10)
 ABSTAIN_TOP_PROBABILITY_VALUES = (0.55, 0.60, 0.65)
@@ -68,9 +64,7 @@ def make_features(frame):
     if frame.empty:
         return np.empty((0, len(FEATURE_NAMES)), dtype=np.float64)
     cols = [percentile_rank(frame[name]) for name in STOCK_RANK_FEATURES]
-    breadth = np.clip(pd.to_numeric(frame["market_breadth_pct"], errors="coerce").fillna(50).to_numpy(dtype=float) / 100.0, 0.0, 1.0)
-    median_ret = np.clip(pd.to_numeric(frame["market_median_return_pct"], errors="coerce").fillna(0).to_numpy(dtype=float) / 5.0, -2.0, 2.0)
-    cols.extend([breadth, median_ret])
+    cols.extend(transform_market_feature(frame, name) for name in MARKET_FEATURES)
     return np.column_stack(cols)
 
 
@@ -120,7 +114,7 @@ def path_targets(symbols, future_days):
                 target_hit[row] = True
                 break
 
-    # +3% 机会优先：一旦 T+1~T+5 触达目标即为正样本；若先触发 T+2~T+5 止损则为负样本。
+    # +3%目标只在T+2至T+5可退出的时段判断；若先触发止损则标记为负样本。
     labels = target_hit & ~stopped_before_target
     return labels, best_net, close_net, complete
 
@@ -167,7 +161,7 @@ def collect(files, start, end, state, model=None, train=False):
     samples = 0
     processed = 0
 
-    for i in range(max(0, start_i - 20), end_i + 1):
+    for i in range(max(0, start_i - FEATURE_WARMUP_SESSIONS), end_i + 1):
         date = dates[i]
         frame = state.build(get(i))
         if date < start or date > end:

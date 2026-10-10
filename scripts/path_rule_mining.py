@@ -18,18 +18,14 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, history_files, read_daily
+from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, market_thresholds, raw_market_feature
 
 OUT_DIR = ROOT / "data" / "backtest"
 
-STOCK_FEATURES = [
-    "return_1d_pct", "return_3d_pct", "return_5d_pct", "return_10d_pct",
-    "return_20d_pct", "overnight_1d_pct", "overnight_3d_pct",
-    "overnight_5d_pct", "overnight_10d_pct", "volume_ratio_5d",
-    "amount_20d", "volatility_10d_pct", "close_strength",
-    "intraday_return_pct", "limit_up_5d_count", "turnover_pct", "change_pct",
-]
-MARKET_FEATURES = ["market_breadth_pct", "market_median_return_pct"]
+RESEARCH_CONFIG = load_research_config()
+STOCK_FEATURES = active_stock_factors(RESEARCH_CONFIG)
+MARKET_FEATURES = active_market_factors(RESEARCH_CONFIG)
 ALL_FEATURES = STOCK_FEATURES + MARKET_FEATURES
 
 TRAIN_END = "2022-12-30"
@@ -38,22 +34,21 @@ VALIDATION_END = "2024-12-31"
 FINAL_START = "2025-01-02"
 FINAL_END = "2026-09-30"
 
-NET_WIN_THRESHOLD_PCT = 1.0
-STOP_LOSS_PCT = 3.0
-ROUND_TRIP_COST_BPS = 10.0
-MAX_FORWARD_SESSIONS = 5
+NET_WIN_THRESHOLD_PCT = float(RESEARCH_CONFIG["短线目标净收益百分比"])
+STOP_LOSS_PCT = float(RESEARCH_CONFIG["止损幅度百分比"])
+ROUND_TRIP_COST_BPS = float(RESEARCH_CONFIG["往返交易成本基点"])
+MAX_FORWARD_SESSIONS = int(RESEARCH_CONFIG["最大前瞻交易日数"])
 ENTRY_LIMIT_UP_BLOCK = True
 
-RANK_THRESHOLDS = (0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80)
-BREADTH_THRESHOLDS = (40.0, 45.0, 50.0, 55.0, 60.0, 65.0)
-MEDIAN_THRESHOLDS = (-1.0, -0.5, 0.0, 0.5, 1.0)
-
-MIN_TRAIN_RULE_SAMPLES = 10_000
-MIN_VALIDATION_RULE_SAMPLES = 5_000
-MAX_ATOMIC_CANDIDATES = 16
-MAX_PAIR_CANDIDATES = 24
-TOP_OUTPUT_RULES = 20
-TARGET_WIN_RATE_PCT = 80.0
+RANK_THRESHOLDS = tuple(float(x) for x in RESEARCH_CONFIG["分位阈值"])
+BREADTH_THRESHOLDS = tuple(float(x) for x in RESEARCH_CONFIG["市场广度阈值"])
+MEDIAN_THRESHOLDS = tuple(float(x) for x in RESEARCH_CONFIG["市场中位收益阈值"])
+MIN_TRAIN_RULE_SAMPLES = RESEARCH_CONFIG["最少训练条件样本数"]
+MIN_VALIDATION_RULE_SAMPLES = RESEARCH_CONFIG["最少验证条件样本数"]
+MAX_ATOMIC_CANDIDATES = RESEARCH_CONFIG["最大原子条件候选数"]
+MAX_PAIR_CANDIDATES = RESEARCH_CONFIG["最大双条件候选数"]
+TOP_OUTPUT_RULES = RESEARCH_CONFIG["最多输出条件数"]
+TARGET_WIN_RATE_PCT = float(RESEARCH_CONFIG["目标命中率百分比"])
 
 
 def percentile_rank(series):
@@ -63,14 +58,8 @@ def percentile_rank(series):
 
 def make_features(frame):
     stock = [percentile_rank(frame[name]) for name in STOCK_FEATURES]
-    breadth = np.clip(
-        pd.to_numeric(frame["market_breadth_pct"], errors="coerce")
-        .fillna(50.0).to_numpy(dtype=float), 0.0, 100.0
-    )
-    median_ret = pd.to_numeric(
-        frame["market_median_return_pct"], errors="coerce"
-    ).fillna(0.0).to_numpy(dtype=float)
-    return np.column_stack(stock + [breadth, median_ret])
+    market = [raw_market_feature(frame, name) for name in MARKET_FEATURES]
+    return np.column_stack(stock + market)
 
 
 def feature_defs():
@@ -79,12 +68,10 @@ def feature_defs():
         for threshold in RANK_THRESHOLDS:
             defs.append({"feature": name, "op": ">=", "threshold": threshold, "scale": "rank"})
             defs.append({"feature": name, "op": "<=", "threshold": threshold, "scale": "rank"})
-    for threshold in BREADTH_THRESHOLDS:
-        defs.append({"feature": "market_breadth_pct", "op": ">=", "threshold": threshold, "scale": "pct"})
-        defs.append({"feature": "market_breadth_pct", "op": "<=", "threshold": threshold, "scale": "pct"})
-    for threshold in MEDIAN_THRESHOLDS:
-        defs.append({"feature": "market_median_return_pct", "op": ">=", "threshold": threshold, "scale": "pct"})
-        defs.append({"feature": "market_median_return_pct", "op": "<=", "threshold": threshold, "scale": "pct"})
+    for feature in MARKET_FEATURES:
+        for threshold in market_thresholds(feature, RESEARCH_CONFIG):
+            defs.append({"feature": feature, "op": ">=", "threshold": threshold, "scale": "pct"})
+            defs.append({"feature": feature, "op": "<=", "threshold": threshold, "scale": "pct"})
     return defs
 
 
@@ -288,7 +275,7 @@ def iter_split(files, start, end, state):
             del cache[next(iter(cache))]
         return cache[i]
 
-    for i in range(max(0, start_i - 20), end_i + 1):
+    for i in range(max(0, start_i - FEATURE_WARMUP_SESSIONS), end_i + 1):
         date = dates[i]
         frame = state.build(get(i))
         if date < start or date > end:
@@ -499,6 +486,8 @@ def main():
             "validation": [VALIDATION_START, VALIDATION_END],
             "final": [FINAL_START, args.final_end],
         },
+        "factor_configuration": {"active_stock_factors": STOCK_FEATURES, "active_market_factors": MARKET_FEATURES,
+            "market_thresholds": {feature: market_thresholds(feature, RESEARCH_CONFIG) for feature in MARKET_FEATURES}},
         "parameters": {
             "net_win_threshold_pct": NET_WIN_THRESHOLD_PCT,
             "stop_loss_pct": STOP_LOSS_PCT,

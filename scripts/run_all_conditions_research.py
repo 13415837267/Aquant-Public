@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.research_checkpoint_runner import canonical_hash, file_sha256, history_data_fingerprint
+from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config
 
 OUT_DIR = ROOT / "data" / "backtest"
 STATE_DIR = ROOT / "data" / "research" / "all_conditions"
@@ -24,11 +25,11 @@ START_DATE = "2015-01-05"
 FINAL_DATE = "2026-09-30"
 
 STAGE_DEPENDENCIES = {
-    "single_and_double_condition_rules": ["scripts/path_rule_mining.py", "scripts/short_term_research.py", "scripts/market_scope.py"],
-    "market_regime_three_condition_rules": ["scripts/path_regime_rule_mining.py", "scripts/short_term_research.py", "scripts/market_scope.py"],
-    "private_strategy_score_thresholds": ["scripts/strict_path_strategy_score_mining.py", "scripts/short_term_research.py", "scripts/market_scope.py"],
-    "short_term_one_percent_model": ["scripts/train_short_term_model.py", "scripts/short_term_research.py", "scripts/market_scope.py"],
-    "executable_three_percent_path_model": ["scripts/train_executable_path_model.py", "scripts/train_short_term_model.py", "scripts/short_term_research.py", "scripts/market_scope.py"],
+    "single_and_double_condition_rules": ["scripts/path_rule_mining.py", "scripts/short_term_research.py", "scripts/market_scope.py", "scripts/selection_factor_catalog.py", "config/选股条件研究配置.json"],
+    "market_regime_three_condition_rules": ["scripts/path_regime_rule_mining.py", "scripts/short_term_research.py", "scripts/market_scope.py", "scripts/selection_factor_catalog.py", "config/选股条件研究配置.json"],
+    "private_strategy_score_thresholds": ["scripts/strict_path_strategy_score_mining.py", "scripts/short_term_research.py", "scripts/market_scope.py", "scripts/selection_factor_catalog.py", "config/选股条件研究配置.json", "scripts/train_short_term_model.py"],
+    "short_term_one_percent_model": ["scripts/train_short_term_model.py", "scripts/short_term_research.py", "scripts/market_scope.py", "scripts/selection_factor_catalog.py", "config/选股条件研究配置.json"],
+    "executable_three_percent_path_model": ["scripts/train_executable_path_model.py", "scripts/train_short_term_model.py", "scripts/short_term_research.py", "scripts/market_scope.py", "scripts/selection_factor_catalog.py", "config/选股条件研究配置.json"],
 }
 
 
@@ -262,6 +263,7 @@ def main() -> int:
         },
         "period": {"start": START_DATE, "final_end": FINAL_DATE},
         "resume_source_matched": same_research,
+        "factor_configuration": {"active_stock_factors": active_stock_factors(), "active_market_factors": active_market_factors(), "settings": load_research_config()},
         "stages": results,
         "formal_production_changed": False,
     }

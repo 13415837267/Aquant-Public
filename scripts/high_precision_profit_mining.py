@@ -20,7 +20,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, history_files, read_daily
+from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.selection_factor_catalog import load_research_config
 from scripts.train_short_term_model import FEATURES, build_targets, make_features
 
 OUT_DIR = ROOT / "data" / "backtest"
@@ -31,15 +32,12 @@ VALIDATION_END = "2024-12-31"
 FINAL_START = "2025-01-02"
 FINAL_END = "2026-09-30"
 
-NET_WIN_THRESHOLD_PCT = 1.0
-ROUND_TRIP_COST_BPS = 10.0
-MAX_FORWARD_SESSIONS = 5
+RESEARCH_CONFIG = load_research_config()
+NET_WIN_THRESHOLD_PCT = float(RESEARCH_CONFIG["短线目标净收益百分比"])
+ROUND_TRIP_COST_BPS = float(RESEARCH_CONFIG["往返交易成本基点"])
+MAX_FORWARD_SESSIONS = int(RESEARCH_CONFIG["最大前瞻交易日数"])
 
-HIGH_PRECISION_THRESHOLDS = (
-    0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80,
-    0.85, 0.86, 0.87, 0.88, 0.89, 0.90, 0.91, 0.92, 0.93,
-    0.94, 0.95, 0.96, 0.97, 0.98, 0.99,
-)
+HIGH_PRECISION_THRESHOLDS = tuple(float(x) for x in RESEARCH_CONFIG["高精度模型概率阈值网格"])
 MIN_SELECTION_SAMPLES = 100
 TOP_K_PER_DAY = (1, 2, 3, 5, 10)
 MIN_DAILY_TOPK_DAYS = 50
@@ -143,7 +141,7 @@ def collect_scored(files, start, end, state, model):
     metrics = []
     processed = samples = 0
 
-    for i in range(max(0, start_i - 20), end_i + 1):
+    for i in range(max(0, start_i - FEATURE_WARMUP_SESSIONS), end_i + 1):
         date = dates[i]
         frame = state.build(get(i))
         if date < start or date > end:
@@ -313,7 +311,7 @@ def main():
 
     train_samples = 0
     train_days = 0
-    for i in range(max(0, train_start_i - 20), train_end_i + 1):
+    for i in range(max(0, train_start_i - FEATURE_WARMUP_SESSIONS), train_end_i + 1):
         date = train_dates[i]
         frame = train_state.build(get_train(i))
         if date < args.start or date > TRAIN_END:
