@@ -1,0 +1,10 @@
+{
+  "release_gate": false,
+  "checks": {
+    "validation_win_rate": false,
+    "validation_samples": true,
+    "final_win_rate": false,
+    "final_samples": true,
+    "future_function": true
+  }
+}
