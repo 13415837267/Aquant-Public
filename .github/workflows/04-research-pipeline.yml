@@ -28,7 +28,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: "历史研究-main"
+  group: "历史研究-main-v2"
   cancel-in-progress: false
 
 jobs:
