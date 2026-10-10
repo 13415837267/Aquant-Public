@@ -292,7 +292,7 @@ jobs:
           python scripts/research_checkpoint_runner.py --key path_aware_gbdt_train2024_fixed078
           --output data/backtest/path_aware_gbdt_train2024_fixed078.json
           --dependencies scripts/train_path_aware_gbdt.py scripts/train_path_aware_model.py scripts/short_term_research.py scripts/train_short_term_model.py scripts/market_scope.py scripts/selection_factor_catalog.py config/选股条件研究配置.json
-          --command python scripts/train_path_aware_gbdt.py --train-end 2024-12-31 --fixed-threshold 0.78 --output data/backtest/path_aware_gbdt_train2024_fixed078.json
+          --command python scripts/train_path_aware_gbdt.py --train-end 2024-12-31 --validation-start 2025-01-02 --validation-end 2025-12-31 --final-start 2026-01-05 --final-end 2026-09-30 --fixed-threshold 0.78 --output data/backtest/path_aware_gbdt_train2024_fixed078.json
 
       - name: "持久化检查点：扩展训练窗口实验"
         if: ${{ always() }}
