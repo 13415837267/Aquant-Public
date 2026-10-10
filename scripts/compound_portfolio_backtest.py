@@ -547,35 +547,40 @@ def main() -> None:
         minimum_trades=阈值参数最低交易数,
         max_drawdown_floor_pct=阈值参数最大允许回撤百分比,
     )
+    冻结复利阈值 = (
+        float(概率阈值选择["probability_threshold"])
+        if 概率阈值选择 is not None else None
+    )
     概率阈值最终留出集 = None
-    if 概率阈值选择 is not None:
+    if 冻结复利阈值 is not None:
         概率阈值最终留出集 = 运行组合(
             所有区间候选["final"], 全部日期, "概率阈值",
             目标净收益, 止损百分比, 成本基点,
-            top_k=1, 概率阈值=float(概率阈值选择["probability_threshold"]),
+            top_k=1, 概率阈值=冻结复利阈值,
         )
 
-    # 只使用验证集选择止盈止损参数；最终留出集只评估冻结后的单一参数组合。
+    # 以验证集复利选出的冻结入场阈值为基础，再搜索止盈止损；最终留出集不参与参数选择。
     验证集退出网格 = []
-    for 目标净收益候选 in 退出目标网格:
-        for 止损候选 in 退出止损网格:
-            结果 = 运行组合(
-                所有区间候选["validation"], 全部日期, "概率阈值",
-                目标净收益候选, 止损候选, 成本基点,
-                top_k=1, 概率阈值=float(阈值) if 阈值 is not None else None,
-            )
-            验证集退出网格.append({
-                "target_net_profit_pct": 目标净收益候选,
-                "stop_loss_pct": 止损候选,
-                "completed_trades": 结果.get("completed_trades", 0),
-                "compound_return_pct": 结果.get("compound_return_pct"),
-                "annualized_compound_return_pct": 结果.get("annualized_compound_return_pct"),
-                "max_drawdown_pct": 结果.get("max_drawdown_pct"),
-                "sharpe_ratio": 结果.get("sharpe_ratio"),
-                "target_hit_rate_pct": 结果.get("target_hit_rate_pct"),
-                "mean_trade_net_return_pct": 结果.get("mean_trade_net_return_pct"),
-                "exit_reason_counts": 结果.get("exit_reason_counts", {}),
-            })
+    if 冻结复利阈值 is not None:
+        for 目标净收益候选 in 退出目标网格:
+            for 止损候选 in 退出止损网格:
+                结果 = 运行组合(
+                    所有区间候选["validation"], 全部日期, "概率阈值",
+                    目标净收益候选, 止损候选, 成本基点,
+                    top_k=1, 概率阈值=冻结复利阈值,
+                )
+                验证集退出网格.append({
+                    "target_net_profit_pct": 目标净收益候选,
+                    "stop_loss_pct": 止损候选,
+                    "completed_trades": 结果.get("completed_trades", 0),
+                    "compound_return_pct": 结果.get("compound_return_pct"),
+                    "annualized_compound_return_pct": 结果.get("annualized_compound_return_pct"),
+                    "max_drawdown_pct": 结果.get("max_drawdown_pct"),
+                    "sharpe_ratio": 结果.get("sharpe_ratio"),
+                    "target_hit_rate_pct": 结果.get("target_hit_rate_pct"),
+                    "mean_trade_net_return_pct": 结果.get("mean_trade_net_return_pct"),
+                    "exit_reason_counts": 结果.get("exit_reason_counts", {}),
+                })
 
     退出参数选择 = 选择退出参数(
         验证集退出网格,
@@ -583,12 +588,12 @@ def main() -> None:
         max_drawdown_floor_pct=退出参数最大允许回撤百分比,
     )
     最终候选策略结果 = None
-    if 退出参数选择 is not None:
+    if 退出参数选择 is not None and 冻结复利阈值 is not None:
         最终候选策略结果 = 运行组合(
             所有区间候选["final"], 全部日期, "概率阈值",
             float(退出参数选择["target_net_profit_pct"]),
             float(退出参数选择["stop_loss_pct"]), 成本基点,
-            top_k=1, 概率阈值=float(阈值) if 阈值 is not None else None,
+            top_k=1, 概率阈值=冻结复利阈值,
         )
 
     输出结果 = {
@@ -638,7 +643,8 @@ def main() -> None:
             "formal_production_changed": False,
         },
         "exit_policy_sensitivity": {
-            "objective": "验证集累计复利收益最大化，同时要求已完成交易数不少于预设下限且最大回撤不低于风险边界",
+            "objective": "先冻结验证集复利择优的入场阈值，再按验证集累计复利选择止盈止损；要求交易数与回撤满足约束",
+            "base_probability_threshold": 冻结复利阈值,
             "validation_min_completed_trades": 退出参数最低交易数,
             "validation_max_drawdown_floor_pct": 退出参数最大允许回撤百分比,
             "target_net_profit_grid_pct": list(退出目标网格),
