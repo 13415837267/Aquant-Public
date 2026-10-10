@@ -182,3 +182,47 @@ def test_probability_threshold_selection_returns_none_if_no_candidate_passes_ris
          "max_drawdown_pct": -31.0},
     ]
     assert 选择概率阈值(grid, minimum_trades=100, max_drawdown_floor_pct=-30.0) is None
+
+
+
+def test_candidate_rank_selection_uses_t_plus_one_execution_data_only():
+    import numpy as np
+    import pandas as pd
+    from scripts.compound_portfolio_backtest import select_executable_rank_indices
+
+    entry_day = pd.DataFrame([
+        {"symbol": "600000", "open": 10.0, "high_limit": 11.0, "is_paused": 0},
+        {"symbol": "000001", "open": 10.0, "high_limit": 11.0, "is_paused": 0},
+        {"symbol": "300001", "open": 10.0, "high_limit": 10.0, "is_paused": 0},
+    ])
+    probs = np.asarray([0.70, 0.90, 0.99])
+
+    selected, executable = select_executable_rank_indices(
+        probs, ["600000", "000001", "300001"], entry_day, top_k=2
+    )
+
+    assert executable.tolist() == [True, True, False]
+    assert selected.tolist() == [1, 0]
+
+
+def test_candidate_bar_path_keeps_missing_future_bar_as_unavailable():
+    import numpy as np
+    import pandas as pd
+    from scripts.compound_portfolio_backtest import candidate_bar_path
+
+    entry_day = pd.DataFrame([{
+        "symbol": "600000", "open": 10.0, "high": 10.1,
+        "low": 9.9, "close": 10.0, "high_limit": 11.0, "is_paused": 0
+    }])
+    missing_day = pd.DataFrame([{
+        "symbol": "000001", "open": 10.0, "high": 10.1,
+        "low": 9.9, "close": 10.0, "high_limit": 11.0, "is_paused": 0
+    }])
+
+    bars = candidate_bar_path(
+        "600000", [entry_day, missing_day], ["2026-01-02", "2026-01-05"], 10.0
+    )
+
+    assert bars[0]["bar_available"] is True
+    assert bars[1]["bar_available"] is False
+    assert np.isnan(bars[1]["close"])

@@ -210,3 +210,21 @@ def test_executable_entry_mask_rejects_paused_symbol_only():
         {"symbol": "000001", "open": 10.0, "high_limit": 11.0, "is_paused": 0},
     ])
     assert executable_entry_mask(["600000", "000001"], entry_day).tolist() == [False, True]
+
+
+
+def test_executable_entry_mask_rejects_missing_high_limit_when_required():
+    entry_day = pd.DataFrame([{"symbol": "600000", "open": 10.0, "is_paused": 0}])
+    assert executable_entry_mask(["600000"], entry_day).tolist() == [False]
+
+
+def test_managed_trade_rejects_missing_high_limit_when_required():
+    future = [
+        pd.DataFrame([{
+            "symbol": "600000", "open": 10.0, "high": 10.1,
+            "low": 9.9, "close": 10.0, "is_paused": 0
+        }]),
+        _day("600000", 10.0, 10.2, 10.0, 10.1, high_limit=11.0),
+        _day("600000", 10.1, 10.2, 10.0, 10.1, high_limit=11.0),
+    ]
+    assert managed_trade("600000", future) is None

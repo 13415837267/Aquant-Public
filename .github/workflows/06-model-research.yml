@@ -29,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: "模型研究-main-v2"
+  group: "模型研究-main-v3"
   cancel-in-progress: false
 
 jobs:

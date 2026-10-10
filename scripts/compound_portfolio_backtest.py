@@ -15,7 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.high_precision_profit_mining import MAX_FORWARD_SESSIONS, NonlinearModel, TOP_K_PER_DAY
-from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.short_term_research import (
+    FeatureState, FEATURE_WARMUP_SESSIONS, executable_entry_mask, history_files, read_daily
+)
 from scripts.selection_factor_catalog import load_research_config
 from scripts.train_short_term_model import build_targets, make_features
 
@@ -78,6 +80,75 @@ def 解析退出(entry: float, high: float, low: float, close: float, 持有日�
     return None, None, close
 
 
+def select_executable_rank_indices(
+    probabilities: np.ndarray,
+    symbols: list[str] | np.ndarray,
+    entry_day: pd.DataFrame,
+    top_k: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Select by T+1 execution data only; never consult later outcome completeness."""
+    probs = np.asarray(probabilities, dtype=np.float64)
+    if len(probs) != len(symbols):
+        raise ValueError("模型概率数量与证券数量不一致")
+    executable = executable_entry_mask(symbols, entry_day)
+    eligible = np.flatnonzero(executable & np.isfinite(probs))
+    order = eligible[np.argsort(-probs[eligible], kind="stable")]
+    return order[:max(0, int(top_k))], executable
+
+
+def candidate_bar_path(
+    symbol: str,
+    future_days: list[pd.DataFrame],
+    future_dates: list[str],
+    entry_price: float,
+) -> list[dict]:
+    """Preserve selected entries when later bars are missing; mark gaps as untradeable."""
+    bars = []
+    fields = ("open", "high", "low", "close")
+    for day_index, (day, date) in enumerate(zip(future_days, future_dates)):
+        unavailable = {
+            "date": date,
+            "open": float("nan"),
+            "high": float("nan"),
+            "low": float("nan"),
+            "close": float("nan"),
+            "bar_available": False,
+        }
+        if day.empty or "symbol" not in day:
+            bars.append(unavailable)
+            continue
+        normalized = day.copy()
+        normalized["_symbol_key"] = (
+            normalized["symbol"].astype(str).str.extract(r"(\d{6})")[0].fillna("").str.zfill(6)
+        )
+        rows = normalized.loc[normalized["_symbol_key"].eq(str(symbol).zfill(6))]
+        if rows.empty:
+            bars.append(unavailable)
+            continue
+        row = rows.iloc[-1]
+        paused = row.get("is_paused", 0)
+        if pd.notna(paused) and float(paused) > 0:
+            bars.append(unavailable)
+            continue
+        prices = {
+            field: float(row[field]) if field in row and pd.notna(row[field]) else float("nan")
+            for field in fields
+        }
+        prices["date"] = date
+        if day_index == 0:
+            # Entry is executable by mask; incomplete same-day range must not erase the entry.
+            prices["bar_available"] = True
+            prices["close"] = prices["close"] if np.isfinite(prices["close"]) else float(entry_price)
+            bars.append(prices)
+            continue
+        if not all(np.isfinite(prices[field]) and prices[field] > 0 for field in fields):
+            bars.append(unavailable)
+            continue
+        prices["bar_available"] = True
+        bars.append(prices)
+    return bars
+
+
 def 提取每日候选(files: list[Path], 日期: list[str], 起始日: str, 结束日: str,
              模型: NonlinearModel, 目标净收益百分比: float, 成本基点: float) -> tuple[dict, dict]:
     """逐日构造T收盘特征，只保留每个信号日概率最高的前十个可执行标的。"""
@@ -121,62 +192,40 @@ def 提取每日候选(files: list[Path], 日期: list[str], 起始日: str, 结
         _, _, _, 路径完整 = build_targets(股票代码.tolist(), 未来日线)
         完整索引 = np.flatnonzero(路径完整)
         诊断["完整未来路径样本"] += int(len(完整索引))
-        if len(完整索引) == 0:
-            每日候选[当前日] = []
-            continue
 
-        入场日索引 = 未来日线[0].set_index("symbol")
+        入场日 = 未来日线[0]
+        入场日索引 = 入场日.set_index("symbol")
         开盘价 = pd.to_numeric(入场日索引["open"], errors="coerce").reindex(股票代码).to_numpy(dtype=float)
-        若有涨停价 = "high_limit" in 入场日索引.columns
-        if 若有涨停价:
+        if "high_limit" in 入场日索引.columns:
             涨停价 = pd.to_numeric(入场日索引["high_limit"], errors="coerce").reindex(股票代码).to_numpy(dtype=float)
         else:
             涨停价 = np.full(len(股票代码), np.nan)
-        if "is_paused" in 入场日索引.columns:
-            停牌标志 = pd.to_numeric(入场日索引["is_paused"], errors="coerce").reindex(股票代码).fillna(0).to_numpy(dtype=float)
-        else:
-            停牌标志 = np.zeros(len(股票代码), dtype=float)
-
         涨停价有效 = np.isfinite(涨停价) & (涨停价 > 0)
-        诊断["涨停价缺失排除数"] += int((路径完整 & ~涨停价有效).sum())
-        开盘可交易 = 涨停价有效 & np.isfinite(开盘价) & (开盘价 > 0) & (开盘价 < 涨停价 * (1.0 - 1e-6)) & (停牌标志 <= 0)
-        诊断["开盘涨停或停牌排除数"] += int((路径完整 & 涨停价有效 & ~开盘可交易).sum())
-        可执行索引 = np.flatnonzero(路径完整 & 开盘可交易)
-        诊断["可执行样本"] += int(len(可执行索引))
-        if len(可执行索引) == 0:
+        诊断["涨停价缺失排除数"] += int((~涨停价有效).sum())
+        选中索引, 开盘可交易 = select_executable_rank_indices(
+            概率, 股票代码, 入场日, 每日最多排名数
+        )
+        诊断["开盘涨停或停牌排除数"] += int((~开盘可交易 & 涨停价有效).sum())
+        诊断["可执行样本"] += int(开盘可交易.sum())
+        if len(选中索引) == 0:
             每日候选[当前日] = []
+            诊断["信号日期"] += 1
             continue
 
-        排序 = 可执行索引[np.argsort(-概率[可执行索引], kind="stable")[:每日最多排名数]]
-        未来索引 = [日.set_index("symbol") for 日 in 未来日线]
+        未来日期 = 日期[i + 1:i + MAX_FORWARD_SESSIONS + 1]
         候选行 = []
-        for 索引 in 排序:
+        for 索引 in 选中索引:
             代码 = 股票代码[索引]
-            某股路径 = []
-            完整 = True
-            for j, 未来表 in enumerate(未来索引):
-                if 代码 not in 未来表.index:
-                    完整 = False
-                    break
-                行 = 未来表.loc[代码]
-                if isinstance(行, pd.DataFrame):
-                    行 = 行.iloc[-1]
-                数值 = {}
-                for 字段 in ("open", "high", "low", "close"):
-                    数值[字段] = float(行[字段]) if 字段 in 行 and pd.notna(行[字段]) else float("nan")
-                if not all(np.isfinite(数值[k]) for k in ("high", "low", "close")):
-                    完整 = False
-                    break
-                数值["date"] = 日期[i + j + 1]
-                某股路径.append(数值)
-            if not 完整 or not 某股路径:
-                continue
+            入场价格 = float(开盘价[索引])
+            某股路径 = candidate_bar_path(代码, 未来日线, 未来日期, 入场价格)
+            if not 某股路径 or not 某股路径[0]["bar_available"]:
+                raise RuntimeError(f"可执行入场掩码与入场路径不一致: {当前日} {代码}")
             候选行.append({
                 "signal_date": 当前日,
                 "symbol": 代码,
                 "probability": float(概率[索引]),
                 "entry_date": 某股路径[0]["date"],
-                "entry_price": float(某股路径[0]["open"]),
+                "entry_price": 入场价格,
                 "bars": 某股路径,
             })
         每日候选[当前日] = 候选行
@@ -252,6 +301,17 @@ def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目�
                 仍持有.append(仓位)
                 continue
             当日行情 = 候选["bars"][已持有日]
+            if not 当日行情.get("bar_available", True):
+                # 停牌或数据缺口不能产生止盈/止损成交，按最后可见收盘价继续持仓估值。
+                仍持有.append(仓位)
+                continue
+            if 已持有日 == 0:
+                # T+1仅入场，不执行退出；若收盘价缺失，沿用入场价估值。
+                收盘价 = 当日行情.get("close")
+                if 收盘价 is not None and np.isfinite(收盘价) and 收盘价 > 0:
+                    仓位["last_close"] = float(收盘价)
+                仍持有.append(仓位)
+                continue
             退出原因, 净收益百分比, _ = 解析退出(
                 仓位["entry_price"], 当日行情["high"], 当日行情["low"], 当日行情["close"],
                 已持有日, 目标净收益百分比, 止损百分比, 成本基点,
@@ -336,6 +396,8 @@ def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目�
         "requested_entries": 申请入场数,
         "entered_trades": len(完成交易) + len(持仓),
         "completed_trades": len(完成交易),
+        "open_positions_at_end": len(持仓),
+        "open_position_symbols_at_end": sorted({str(p["candidate"]["symbol"]) for p in 持仓}),
         "skipped_for_capacity_or_cash": 跳过入场,
         "target_hit_rate_pct": round(止盈数 / len(完成交易) * 100.0, 4) if 完成交易 else None,
         "positive_trade_rate_pct": round(正收益数 / len(完成交易) * 100.0, 4) if 完成交易 else None,
@@ -349,6 +411,9 @@ def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目�
             "same_day_stop_first": True,
             "entry_at_upper_limit_blocked": True,
             "paused_entry_blocked": True,
+            "future_path_completeness_not_used_for_candidate_admission": True,
+            "missing_or_suspended_future_bars_do_not_create_fictitious_exit": True,
+            "unclosed_positions_remain_marked_at_last_available_close": True,
             "round_trip_cost_applied_to_each_completed_trade": True,
             "one_signal_day_topk_selection": True,
             "cash_constrained_no_leverage": True,

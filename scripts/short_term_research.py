@@ -47,9 +47,12 @@ def executable_entry_mask(symbols, entry_day: pd.DataFrame) -> np.ndarray:
     entry = pd.to_numeric(day["open"], errors="coerce").reindex(keys).to_numpy(dtype=np.float64)
     executable = np.isfinite(entry) & (entry > 0)
 
-    if ENTRY_LIMIT_UP_BLOCK and "high_limit" in day:
+    if ENTRY_LIMIT_UP_BLOCK:
+        if "high_limit" not in day:
+            return np.zeros(count, dtype=bool)
         high_limit = pd.to_numeric(day["high_limit"], errors="coerce").reindex(keys).to_numpy(dtype=np.float64)
-        blocked = np.isfinite(high_limit) & (entry >= high_limit * (1.0 - 1e-6))
+        valid_limit = np.isfinite(high_limit) & (high_limit > 0)
+        blocked = ~valid_limit | (entry >= high_limit * (1.0 - 1e-6))
         executable &= ~blocked
     if "is_paused" in day:
         paused = pd.to_numeric(day["is_paused"], errors="coerce").reindex(keys).fillna(0).to_numpy(dtype=np.float64)
@@ -251,9 +254,10 @@ def managed_trade(symbol: str, future_days: list[pd.DataFrame], round_trip_cost_
     paused = row.iloc[0].get("is_paused", 0)
     if pd.notna(paused) and float(paused) > 0: return None
     high_limit = row.iloc[0].get("high_limit", np.nan)
-    if ENTRY_LIMIT_UP_BLOCK and pd.notna(high_limit):
-        high_limit = float(high_limit)
-        if np.isfinite(high_limit) and entry >= high_limit * (1.0 - 1e-6):
+    if ENTRY_LIMIT_UP_BLOCK:
+        if pd.isna(high_limit) or not np.isfinite(float(high_limit)) or float(high_limit) <= 0:
+            return None
+        if entry >= float(high_limit) * (1.0 - 1e-6):
             return None
     target_gross_pct = WIN_THRESHOLD_PCT + round_trip_cost_bps / 100.0
     stop = entry*(1-STOP_PCT/100.0); target = entry*(1+target_gross_pct/100.0)
