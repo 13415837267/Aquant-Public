@@ -9,7 +9,8 @@ def _days(highs):
     previous=10.0
     for idx,high in enumerate(highs):
         output.append(pd.DataFrame([{
-            "symbol":"600000","open":10.0,"high":float(high),"low":9.9,"close":10.0
+            "symbol":"600000","open":10.0,"high":float(high),"low":9.9,"close":10.0,
+            "high_limit":20.0,"is_paused":0
         }]))
     return output
 
