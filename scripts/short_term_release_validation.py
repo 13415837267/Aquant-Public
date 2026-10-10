@@ -185,6 +185,11 @@ def append_progress(path: Path, event: str, **fields) -> None:
     print(f"[研究进度] {event} {json.dumps(fields, ensure_ascii=False)}", flush=True)
 
 
+def checkpoint_mismatches(checkpoint: dict, expected: dict) -> list[str]:
+    """Return incompatible checkpoint fields instead of mixing stale research state."""
+    return [key for key, value in expected.items() if checkpoint.get(key) != value]
+
+
 def load_research_state(path: Path):
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
@@ -260,9 +265,22 @@ def run(args):
         "checkpoint_days": RESEARCH_CHECKPOINT_DAYS,
     }
     if checkpoint:
-        for key, value in expected.items():
-            if checkpoint.get(key) != value:
-                raise RuntimeError(f"研究断点参数不一致: {key}")
+        mismatches = checkpoint_mismatches(checkpoint, expected)
+        if mismatches:
+            append_progress(
+                progress_file,
+                "断点不兼容，重新开始",
+                mismatch_keys=mismatches,
+                checkpoint_strategy_version=checkpoint.get("strategy_version"),
+                expected_strategy_version=version,
+                checkpoint_strategy_commit=checkpoint.get("strategy_commit"),
+                expected_strategy_commit=commit,
+            )
+            # Never combine features, buckets, or daily scores produced by a
+            # different strategy revision or research configuration.
+            checkpoint = None
+
+    if checkpoint:
         _state_from_jsonable(state, checkpoint["state"])
         buckets = checkpoint["buckets"]
         completed_dates = set(checkpoint.get("completed_dates", []))
