@@ -10,6 +10,7 @@ import argparse
 import importlib
 import time
 import json
+import hashlib
 import os
 import subprocess
 import sys
@@ -169,6 +170,32 @@ def research_root_from_args(args) -> Path:
     value = args.research_root or str(ROOT / "data" / "research" / "short_term_release_validation")
     return Path(value).resolve()
 
+RESEARCH_IMPLEMENTATION_PATHS = (
+    "scripts/short_term_release_validation.py",
+    "scripts/short_term_research.py",
+    "scripts/train_short_term_model.py",
+    "scripts/selection_factor_catalog.py",
+    "config/选股条件研究配置.json",
+    "requirements.txt",
+)
+
+
+def research_implementation_fingerprint(
+    root: Path = ROOT,
+    relative_paths: tuple[str, ...] = RESEARCH_IMPLEMENTATION_PATHS,
+) -> str:
+    """Hash the research implementation/config, excluding changing market data and run outputs."""
+    digest = hashlib.sha256()
+    for relative in relative_paths:
+        path = root / relative
+        if not path.is_file():
+            raise FileNotFoundError(f"研究实现指纹所需文件不存在: {relative}")
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\\0")
+    return digest.hexdigest()
+
 
 def write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -248,7 +275,9 @@ def run(args):
 
     state = FeatureState()
     buckets = {name: {"signal_days": 0, "candidate_days": 0, "forward_3d": [], "forward_5d": [], "trades": []} for name in windows}
-    research_root = research_root_from_args(args)
+    implementation_fingerprint = research_implementation_fingerprint()
+    base_research_root = research_root_from_args(args)
+    research_root = base_research_root / f"impl_{implementation_fingerprint[:12]}"
     state_file = research_root / "_RESEARCH_STATE.json"
     progress_file = research_root / "_PROGRESS.jsonl"
     completed_dates = set()
@@ -262,6 +291,7 @@ def run(args):
         "slippage_bps": args.slippage_bps,
         "strategy_version": version,
         "strategy_commit": commit,
+        "implementation_fingerprint": implementation_fingerprint,
         "checkpoint_days": RESEARCH_CHECKPOINT_DAYS,
     }
     if checkpoint:
@@ -275,11 +305,21 @@ def run(args):
                 expected_strategy_version=version,
                 checkpoint_strategy_commit=checkpoint.get("strategy_commit"),
                 expected_strategy_commit=commit,
+                checkpoint_implementation_fingerprint=checkpoint.get("implementation_fingerprint"),
+                expected_implementation_fingerprint=implementation_fingerprint,
+                implementation_scoped_root=str(research_root),
             )
             # Never combine features, buckets, or daily scores produced by a
             # different strategy revision or research configuration.
             checkpoint = None
 
+    append_progress(
+        progress_file,
+        "研究实现版本",
+        implementation_fingerprint=implementation_fingerprint,
+        base_research_root=str(base_research_root),
+        implementation_scoped_root=str(research_root),
+    )
     if checkpoint:
         _state_from_jsonable(state, checkpoint["state"])
         buckets = checkpoint["buckets"]

@@ -28,7 +28,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: "历史研究-main-v2"
+  group: "历史研究-main-v3"
   cancel-in-progress: false
 
 jobs:
@@ -107,7 +107,7 @@ jobs:
           AQUANT_CHECKPOINT_REPO_ROOT: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          python scripts/short_term_release_validation.py             --development-start 2018-01-05             --development-end 2024-12-20             --validation-start 2025-01-02             --validation-end 2025-12-31             --final-start 2026-01-05             --final-end 2026-09-30             --cost-bps 3             --slippage-bps 2             --output data/backtest/short_term_release_validation.json             --research-root data/research/short_term_release_validation
+          python scripts/short_term_release_validation.py             --development-start 2018-01-05             --development-end 2024-12-20             --validation-start 2025-01-02             --validation-end 2025-12-31             --final-start 2026-01-05             --final-end 2026-09-30             --cost-bps 3             --slippage-bps 2             --output data/backtest/short_term_release_validation_v2.json             --research-root data/research/short_term_release_validation
 
       - name: "保存研究检查点与日志"
         if: always()
@@ -116,7 +116,7 @@ jobs:
           name: "第一版历史研究检查点"
           path: |
             data/research/short_term_release_validation
-            data/backtest/short_term_release_validation.json
+            data/backtest/short_term_release_validation_v2.json
             data/backtest/path_aware_profit_3pct_training_latest.json
           if-no-files-found: warn
           retention-days: 30
@@ -128,7 +128,7 @@ jobs:
           import json
           from pathlib import Path
           contract = json.loads(Path("config/research_run_contract.json").read_text(encoding="utf-8"))
-          result = json.loads(Path("data/backtest/short_term_release_validation.json").read_text(encoding="utf-8"))
+          result = json.loads(Path("data/backtest/short_term_release_validation_v2.json").read_text(encoding="utf-8"))
           assert result["future_function"] is False
           assert result["entry"] == "T+1_open"
           assert result["max_holding_sessions"] == 5
@@ -153,7 +153,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/backtest/short_term_release_validation.json data/research_gate.json data/research/short_term_release_validation
+          git add data/backtest/short_term_release_validation_v2.json data/research_gate.json data/research/short_term_release_validation
           if git diff --cached --quiet; then
             echo "研究结果无变化，无需提交。"
           else
