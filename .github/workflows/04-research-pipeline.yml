@@ -3,6 +3,12 @@ name: "04 历史研究流水线"
 on:
   schedule:
     - cron: "0 12 * * 6"
+  push:
+    paths:
+      - ".github/workflows/04-research-pipeline.yml"
+      - "scripts/short_term_release_validation.py"
+      - "tests/test_short_term_release_validation.py"
+      - "config/research_run_contract.json"
   workflow_dispatch:
     inputs:
       resume_run_id:
