@@ -158,7 +158,7 @@ jobs:
             --argjson deleted_deployments "$deleted_deployments" \
             --argjson preserved_deployments "$preserved_deployments" \
             --argjson errors "$cleanup_errors" \
-            '{repository:$repository, baseline_run_id:($baseline_run_id|tonumber), cutoff_created_at:$cutoff_created_at, completed_at:$completed_at, deleted_actions:$deleted_actions, preserved_active_runs:$preserved_active_runs, deleted_deployments:$deleted_deployments, preserved_deployments:$preserved_deployments, errors:$errors}' \
+            '{repository:$repository, baseline_run_id:($baseline_run_id|tonumber), cutoff_created_at:$cutoff_created_at, completed_at:$completed_at, deleted_actions:$deleted_actions, preserved_active_runs:$preserved_active_runs, preserved_successful_runs:$preserved_successful_runs, deleted_deployments:$deleted_deployments, preserved_deployments:$preserved_deployments, errors:$errors}' \
             > "$manifest_path"
 
           git config user.name "github-actions[bot]"
