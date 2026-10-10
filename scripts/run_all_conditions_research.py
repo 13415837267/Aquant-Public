@@ -14,7 +14,15 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.research_checkpoint_runner import canonical_hash, file_sha256, history_data_fingerprint
+from scripts.research_checkpoint_runner import (
+    RESEARCH_DATA_CUTOFF,
+    canonical_hash,
+    file_sha256,
+    files_unchanged_since_commit,
+    history_changes_only_after_cutoff,
+    history_data_fingerprint,
+    history_data_fingerprint_at_commit,
+)
 from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config
 
 OUT_DIR = ROOT / "data" / "backtest"
@@ -22,7 +30,7 @@ STATE_DIR = ROOT / "data" / "research" / "all_conditions"
 MANIFEST_PATH = OUT_DIR / "all_conditions_research_manifest_latest.json"
 TIMEZONE = ZoneInfo("Asia/Shanghai")
 START_DATE = "2015-01-05"
-FINAL_DATE = "2026-09-30"
+FINAL_DATE = RESEARCH_DATA_CUTOFF
 
 STAGE_DEPENDENCIES = {
     "single_and_double_condition_rules": ["scripts/path_rule_mining.py", "scripts/short_term_research.py", "scripts/market_scope.py", "scripts/selection_factor_catalog.py", "config/选股条件研究配置.json"],
@@ -37,7 +45,7 @@ def stage_fingerprint(stage: dict, private_commit: str, history_digest: str, req
     key = stage["key"]
     dependencies = STAGE_DEPENDENCIES[key]
     return canonical_hash({
-        "schema_version": 2,
+        "schema_version": 3,
         "stage_key": key,
         "command": stage["command"][1:],
         "dependencies": {name: file_sha256(ROOT / name) for name in dependencies},
@@ -63,6 +71,64 @@ def stage_resume_reason(previous: dict, expected_fingerprint: str, output: Path)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return "结果文件不是有效JSON"
     return None
+
+
+def legacy_manifest_can_resume(
+    previous: dict,
+    private_commit: str,
+    requirements_digest: str,
+    stages: list[dict],
+    root: Path = ROOT,
+) -> bool:
+    """兼容旧版清单；只接受截止日后增量，且依赖与已成功结果均经过复核。"""
+    if previous.get("schema_version") != 2:
+        return False
+    if previous.get("period") != {"start": START_DATE, "final_end": FINAL_DATE}:
+        return False
+    if previous.get("private_strategy_commit") != (private_commit or None):
+        return False
+    fingerprints = previous.get("input_fingerprints")
+    if not isinstance(fingerprints, dict) or fingerprints.get("requirements") != requirements_digest:
+        return False
+    previous_commit = previous.get("public_commit")
+    if not isinstance(previous_commit, str):
+        return False
+    if not files_unchanged_since_commit(previous_commit, ["requirements.txt"], root):
+        return False
+    try:
+        if history_data_fingerprint_at_commit(previous_commit, root) != fingerprints.get("history_data"):
+            return False
+    except (OSError, subprocess.CalledProcessError, ValueError):
+        return False
+    if not history_changes_only_after_cutoff(previous_commit, FINAL_DATE, root):
+        return False
+
+    all_dependencies = sorted({
+        dependency
+        for dependency_names in STAGE_DEPENDENCIES.values()
+        for dependency in dependency_names
+    })
+    if not files_unchanged_since_commit(previous_commit, all_dependencies, root):
+        return False
+
+    previous_stages = previous.get("stages", {})
+    if not isinstance(previous_stages, dict):
+        return False
+    output_paths = {stage["key"]: stage["output"] for stage in stages}
+    for key, stage_result in previous_stages.items():
+        if stage_result.get("status") != "success":
+            continue
+        output_path = output_paths.get(key)
+        if output_path is None or not output_path.is_file():
+            return False
+        expected_digest = stage_result.get("output_sha256")
+        if not isinstance(expected_digest, str) or file_sha256(output_path) != expected_digest:
+            return False
+        try:
+            json.loads(output_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            return False
+    return True
 
 
 def summarize_stage_status(results: dict, stage_keys: list[str]) -> tuple[str, list[str], list[str]]:
@@ -228,7 +294,7 @@ def main() -> int:
     history_digest = history_data_fingerprint(ROOT)
     requirements_digest = file_sha256(ROOT / "requirements.txt")
     compatibility_key = canonical_hash({
-        "schema_version": 2,
+        "schema_version": 3,
         "period": {"start": START_DATE, "final_end": FINAL_DATE},
         "history_data_fingerprint": history_digest,
         "requirements_sha256": requirements_digest,
@@ -241,13 +307,31 @@ def main() -> int:
             previous = json.loads(manifest_path.read_text(encoding="utf-8"))
         except Exception:
             previous = {}
-    same_research = (
-        previous.get("schema_version") == 2
+    all_stages = build_stages(private_path, private_commit)
+    exact_research = (
+        previous.get("schema_version") == 3
         and previous.get("compatibility_key") == compatibility_key
     )
+    legacy_research = (
+        not exact_research
+        and legacy_manifest_can_resume(
+            previous, private_commit, requirements_digest, all_stages, ROOT
+        )
+    )
+    same_research = exact_research or legacy_research
     results = previous.get("stages", {}) if same_research else {}
+    if legacy_research:
+        for stage in all_stages:
+            prior_result = results.get(stage["key"])
+            if prior_result and prior_result.get("status") == "success":
+                prior_result["fingerprint"] = stage_fingerprint(
+                    stage, private_commit, history_digest, requirements_digest
+                )
+                prior_result["兼容恢复说明"] = (
+                    f"已核验研究截止日 {FINAL_DATE} 内的历史行情及分析依赖未变化"
+                )
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "status": "running",
         "method": "all_condition_and_model_research",
         "started_at": current_time(),
@@ -263,6 +347,10 @@ def main() -> int:
         },
         "period": {"start": START_DATE, "final_end": FINAL_DATE},
         "resume_source_matched": same_research,
+        "resume_compatibility": (
+            "旧检查点已验证兼容：仅有研究截止日后的增量行情变化"
+            if legacy_research else ("新指纹精确匹配" if exact_research else "没有可兼容的旧检查点")
+        ),
         "factor_configuration": {"active_stock_factors": active_stock_factors(), "active_market_factors": active_market_factors(), "settings": load_research_config()},
         "stages": results,
         "formal_production_changed": False,
@@ -271,7 +359,6 @@ def main() -> int:
     append_log(f"研究启动；公开提交={public_commit}；私有策略提交={private_commit or '未检出'}")
 
     failures = []
-    all_stages = build_stages(private_path, private_commit)
     all_stage_keys = [stage["key"] for stage in all_stages]
     stages_to_run = (
         [stage for stage in all_stages if stage["key"] == args.stage_key]
