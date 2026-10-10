@@ -22,7 +22,7 @@
   ],
   "year_count": 12,
   "trading_days": 2855,
-  "days_completed": 1,
+  "days_completed": 2,
   "files_by_year": {
     "2015": 244,
     "2016": 244,
@@ -45,27 +45,28 @@
   "universe_scope": "DATABASE_SHSZBJ_STOCKS",
   "bulk_limit": 6000,
   "completed_dates": [
+    "2026-10-09",
     "2026-10-08"
   ],
-  "rows_written": 5572,
+  "rows_written": 11145,
   "last_day": {
-    "date": "2026-10-08",
-    "rows": 5572,
-    "unique_symbols": 5572,
+    "date": "2026-10-09",
+    "rows": 5573,
+    "unique_symbols": 5573,
     "duplicates": 0,
     "wrong_date": 0,
     "null_close": 0,
     "markets": {
       ".SH": 2320,
       ".SZ": 2904,
-      ".BJ": 348
+      ".BJ": 349
     },
     "completeness": {
       "amount": 1.0,
       "amplitude_pct": 1.0,
-      "capitalization": 0.937545,
-      "circulating_cap": 0.937545,
-      "circulating_market_cap": 0.937545,
+      "capitalization": 0.937377,
+      "circulating_cap": 0.937377,
+      "circulating_market_cap": 0.937377,
       "close": 1.0,
       "date": 1.0,
       "factor": 1.0,
@@ -75,21 +76,21 @@
       "is_st": 1.0,
       "low": 1.0,
       "low_limit": 1.0,
-      "market_cap": 0.937545,
+      "market_cap": 0.937377,
       "open": 1.0,
-      "pb_ratio": 0.937545,
-      "pcf_ratio": 0.937545,
+      "pb_ratio": 0.937377,
+      "pcf_ratio": 0.937377,
       "pct_chg": 1.0,
-      "pe_ratio": 0.937545,
-      "pe_ratio_lyr": 0.937545,
+      "pe_ratio": 0.937377,
+      "pe_ratio_lyr": 0.937377,
       "pre_close": 1.0,
-      "ps_ratio": 0.937365,
+      "ps_ratio": 0.937197,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.934853,
+      "turnover_ratio": 0.934865,
       "volume": 1.0
     },
-    "valuation_rows": 5208
+    "valuation_rows": 5209
   },
-  "last_file": "data/history/2026/2026-10-08.csv.gz"
+  "last_file": "data/history/2026/2026-10-09.csv.gz"
 }
