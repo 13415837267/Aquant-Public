@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from scripts.short_term_research import managed_trade
+from scripts.short_term_research import executable_entry_mask, managed_trade
 from scripts.train_path_aware_model import path_targets
 from scripts.train_short_term_model import build_targets
 
@@ -79,3 +79,13 @@ def test_executable_entry_remains_in_both_label_sets():
     assert complete_3pct.tolist() == [True]
     assert labels_1pct.tolist() == [True]
     assert labels_3pct.tolist() == [True]
+
+
+
+def test_executable_entry_mask_matches_each_symbol_independently():
+    entry_day = pd.DataFrame([
+        {"symbol": "600000", "open": 20.0, "high_limit": 20.0},
+        {"symbol": "000001", "open": 10.0, "high_limit": 11.0},
+    ])
+
+    assert executable_entry_mask(["600000", "000001"], entry_day).tolist() == [False, True]
