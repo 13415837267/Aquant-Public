@@ -1,6 +1,15 @@
 name: "03 候选池生产"
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/03-candidate-production.yml"
+      - "scripts/production_model.py"
+      - "scripts/generate_research_candidates.py"
+      - "scripts/next_trading_day_plan.py"
+      - "config/production_release_v1.json"
+      - "data/models/production_v1.json"
   workflow_run:
     workflows: ["02 数据维护"]
     types: [completed]
@@ -34,8 +43,8 @@ jobs:
         id: check
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "手动生产请求：按指定信号日期或最近一个已完成交易日数据生成候选池。"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ]; then
+            echo "手动或生产代码更新请求：按指定信号日期或最近一个已完成交易日数据生成候选池。"
             echo "is_trading_day=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
