@@ -37,11 +37,11 @@ def executable_entry_mask(symbols, entry_day: pd.DataFrame) -> np.ndarray:
 
     keys = pd.Index(
         pd.Series(symbols, dtype="string").astype(str)
-        .str.extract(r"(\\d{6})")[0].fillna("").str.zfill(6)
+        .str.extract(r"(\d{6})")[0].fillna("").str.zfill(6)
     )
     day = entry_day.copy()
     day["_symbol_key"] = (
-        day["symbol"].astype(str).str.extract(r"(\\d{6})")[0].fillna("").str.zfill(6)
+        day["symbol"].astype(str).str.extract(r"(\d{6})")[0].fillna("").str.zfill(6)
     )
     day = day.drop_duplicates("_symbol_key", keep="last").set_index("_symbol_key")
     entry = pd.to_numeric(day["open"], errors="coerce").reindex(keys).to_numpy(dtype=np.float64)
