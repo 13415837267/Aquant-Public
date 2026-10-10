@@ -32,6 +32,8 @@ RESEARCH_CONFIG = load_research_config()
 概率阈值网格 = tuple(float(x) for x in RESEARCH_CONFIG["复利入场概率阈值网格"])
 阈值参数最低交易数 = RESEARCH_CONFIG["参数选择最低交易数"]
 阈值参数最大允许回撤百分比 = float(RESEARCH_CONFIG["参数选择最大允许回撤百分比"])
+目标累计收益百分比 = float(RESEARCH_CONFIG.get("复利目标累计收益百分比", 10_000.0))
+目标本金倍数 = 1.0 + 目标累计收益百分比 / 100.0
 
 
 def 解析模型(结果: dict) -> NonlinearModel:
@@ -288,6 +290,7 @@ def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目�
     累计收益 = (最终净值 / 初始资金 - 1.0) * 100.0
     交易日数 = len(曲线)
     年化复利 = ((最终净值 / 初始资金) ** (252.0 / max(交易日数, 1)) - 1.0) * 100.0 if 最终净值 > 0 else -100.0
+    目标所需年化复利 = (目标本金倍数 ** (252.0 / max(交易日数, 1)) - 1.0) * 100.0
     历史峰值 = 初始资金
     最大回撤 = 0.0
     for 行 in 曲线:
@@ -323,6 +326,10 @@ def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目�
         "final_equity": round(float(最终净值), 2),
         "compound_return_pct": round(float(累计收益), 4),
         "annualized_compound_return_pct": round(float(年化复利), 4),
+        "compound_target_return_pct": 目标累计收益百分比,
+        "compound_target_capital_multiple": round(目标本金倍数, 4),
+        "compound_target_required_annualized_pct": round(float(目标所需年化复利), 4),
+        "compound_target_reached": bool(最终净值 >= 初始资金 * 目标本金倍数),
         "max_drawdown_pct": round(float(最大回撤), 4),
         "sharpe_ratio": round(夏普, 4) if 夏普 is not None else None,
         "trading_days": 交易日数,
@@ -362,7 +369,9 @@ def 选择退出参数(验证网格: list[dict], minimum_trades: int, max_drawdo
         and row.get("max_drawdown_pct") is not None
         and float(row["max_drawdown_pct"]) >= max_drawdown_floor_pct
         and row.get("compound_return_pct") is not None
+        and float(row["compound_return_pct"]) > 0.0
         and row.get("annualized_compound_return_pct") is not None
+        and float(row["annualized_compound_return_pct"]) > 0.0
     ]
     if not eligible:
         return None
@@ -390,7 +399,9 @@ def 选择概率阈值(验证网格: list[dict], minimum_trades: int, max_drawdo
         and row.get("max_drawdown_pct") is not None
         and float(row["max_drawdown_pct"]) >= max_drawdown_floor_pct
         and row.get("compound_return_pct") is not None
+        and float(row["compound_return_pct"]) > 0.0
         and row.get("annualized_compound_return_pct") is not None
+        and float(row["annualized_compound_return_pct"]) > 0.0
     ]
     if not eligible:
         return None
@@ -407,6 +418,34 @@ def 选择概率阈值(验证网格: list[dict], minimum_trades: int, max_drawdo
         "验证集正收益候选" if float(chosen["compound_return_pct"]) > 0
         else "验证集未盈利，仅作为最终留出集研究对照"
     )
+    return chosen
+
+
+
+def 选择每日排名数(验证网格: list[dict], minimum_trades: int, max_drawdown_floor_pct: float) -> dict | None:
+    """只用验证集挑选每日持仓数；无正复利或样本/回撤不达标时拒绝选型。"""
+    eligible = [
+        row for row in 验证网格
+        if int(row.get("completed_trades") or 0) >= minimum_trades
+        and row.get("max_drawdown_pct") is not None
+        and float(row["max_drawdown_pct"]) >= max_drawdown_floor_pct
+        and row.get("compound_return_pct") is not None
+        and float(row["compound_return_pct"]) > 0.0
+        and row.get("annualized_compound_return_pct") is not None
+        and float(row["annualized_compound_return_pct"]) > 0.0
+    ]
+    if not eligible:
+        return None
+    chosen = max(
+        eligible,
+        key=lambda row: (
+            float(row["compound_return_pct"]),
+            float(row["annualized_compound_return_pct"]),
+            float(row["max_drawdown_pct"]),
+            int(row["completed_trades"]),
+        ),
+    ).copy()
+    chosen["selection_status"] = "验证集正复利候选"
     return chosen
 
 
@@ -460,7 +499,30 @@ def main() -> None:
         }
         所有区间结果[区间] = 区间组合
 
-    # 第二轮实验：固定基线退出规则，仅在验证集对入场概率阈值做敏感性分析。
+    # 每日Top-K先依据验证集实际复利择优，再冻结用于最终留出集。
+    排名数验证网格 = [
+        {
+            "top_k_per_day": int(k),
+            "completed_trades": int(结果.get("completed_trades") or 0),
+            "compound_return_pct": 结果.get("compound_return_pct"),
+            "annualized_compound_return_pct": 结果.get("annualized_compound_return_pct"),
+            "max_drawdown_pct": 结果.get("max_drawdown_pct"),
+            "sharpe_ratio": 结果.get("sharpe_ratio"),
+            "target_hit_rate_pct": 结果.get("target_hit_rate_pct"),
+        }
+        for k, 结果 in 所有区间结果["validation"]["daily_top_k"].items()
+    ]
+    排名数选择 = 选择每日排名数(
+        排名数验证网格,
+        minimum_trades=阈值参数最低交易数,
+        max_drawdown_floor_pct=阈值参数最大允许回撤百分比,
+    )
+    排名数最终留出集 = (
+        所有区间结果["final"]["daily_top_k"].get(str(排名数选择["top_k_per_day"]))
+        if 排名数选择 else None
+    )
+
+    # 第二轮实验：固定基线止盈止损，仅在验证集对入场概率阈值做敏感性分析。
     # 最终留出集不参与阈值选择，只用于评估验证集冻结的单一阈值。
     阈值敏感性网格 = []
     for 候选阈值 in 概率阈值网格:
@@ -534,7 +596,13 @@ def main() -> None:
         "status": "research_only",
         "method": "cash_constrained_compound_portfolio_simulation",
         "source_model_result": str(模型结果路径),
-        "objective": "maximize_compound_growth_subject_to_executable_T_plus_1_T_plus_2_rules",
+        "objective": "maximize_out_of_sample_compound_growth_subject_to_executable_T_plus_1_T_plus_2_rules",
+        "compound_growth_target": {
+            "target_return_pct": 目标累计收益百分比,
+            "target_capital_multiple": round(目标本金倍数, 4),
+            "selection_is_not_allowed_to_use_final_holdout": True,
+            "target_is_research_goal_not_a_guarantee": True,
+        },
         "parameters": {
             "net_win_threshold_pct": 目标净收益,
             "stop_loss_pct": 止损百分比,
@@ -546,6 +614,16 @@ def main() -> None:
         "splits": 研究结果["splits"],
         "validation": 所有区间结果["validation"],
         "final": 所有区间结果["final"],
+        "daily_rank_selection": {
+            "objective": "仅按验证集实际复利选择每日排名数；要求正复利、最低交易数与最大回撤满足约束，然后冻结参数并评估最终留出集",
+            "validation_min_completed_trades": 阈值参数最低交易数,
+            "validation_max_drawdown_floor_pct": 阈值参数最大允许回撤百分比,
+            "validation_grid": 排名数验证网格,
+            "selected_validation_policy": 排名数选择,
+            "selected_policy_final_holdout": 排名数最终留出集,
+            "final_holdout_used_for_selection": False,
+            "formal_production_changed": False,
+        },
         "entry_threshold_sensitivity": {
             "objective": "固定基线止盈止损，只在验证集选择入场概率阈值；最终留出集不参与参数选择",
             "baseline_target_net_profit_pct": 目标净收益,
@@ -582,6 +660,9 @@ def main() -> None:
             "cash_constrained_no_leverage": True,
             "positions_marked_to_market_each_close": True,
             "final_holdout_used_once_after_selection": True,
+            "top_k_selected_on_validation_only": True,
+            "validation_selection_requires_positive_compounding": True,
+            "compound_growth_target_is_not_guaranteed": True,
             "formal_production_changed": False,
         },
     }
@@ -592,7 +673,10 @@ def main() -> None:
         "status": 输出结果["status"],
         "validation_threshold": 输出结果["validation"]["threshold_strategy"],
         "final_threshold": 输出结果["final"]["threshold_strategy"],
-        "final_top_k": {k: {key: value for key, value in result.items() if key in ("compound_return_pct", "annualized_compound_return_pct", "max_drawdown_pct", "target_hit_rate_pct", "completed_trades")} for k, result in 输出结果["final"]["daily_top_k"].items()},
+        "final_top_k": {k: {key: value for key, value in result.items() if key in ("compound_return_pct", "annualized_compound_return_pct", "max_drawdown_pct", "target_hit_rate_pct", "completed_trades", "compound_target_reached")} for k, result in 输出结果["final"]["daily_top_k"].items()},
+        "selected_top_k_validation": 输出结果["daily_rank_selection"]["selected_validation_policy"],
+        "selected_top_k_final_holdout": {key: value for key, value in (输出结果["daily_rank_selection"]["selected_policy_final_holdout"] or {}).items() if key in ("compound_return_pct", "annualized_compound_return_pct", "max_drawdown_pct", "target_hit_rate_pct", "completed_trades", "compound_target_reached")},
+        "compound_growth_target": 输出结果["compound_growth_target"],
         "selected_probability_threshold": 输出结果["entry_threshold_sensitivity"]["selected_validation_threshold"],
         "selected_probability_threshold_final_holdout": 输出结果["entry_threshold_sensitivity"]["selected_threshold_final_holdout"],
         "selected_exit_policy": 输出结果["exit_policy_sensitivity"]["selected_validation_policy"],
