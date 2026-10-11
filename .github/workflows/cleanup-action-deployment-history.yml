@@ -1,4 +1,4 @@
-name: "维护历史 Action 与部署记录"
+name: "维护历史 Action 记录"
 
 on:
   push:
