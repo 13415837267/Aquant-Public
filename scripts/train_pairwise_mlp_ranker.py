@@ -18,6 +18,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.high_precision_profit_mining import (
+    FEATURES,
     MAX_FORWARD_SESSIONS,
     NET_WIN_THRESHOLD_PCT,
     RESEARCH_CONFIG,
@@ -181,6 +182,8 @@ def load_source(path: Path) -> dict:
     features = source.get("model", {}).get("features", [])
     if not features or features != linear.get("features"):
         raise ValueError("分类模型与线性排序模型的特征清单不一致")
+    if features != FEATURES:
+        raise ValueError("研究产物特征清单与当前训练代码不一致")
     return source
 
 
