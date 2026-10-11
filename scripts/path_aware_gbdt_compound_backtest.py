@@ -70,6 +70,20 @@ def rank_probability_candidates(
     return ranked[: int(top_k)], accepted
 
 
+def complete_signal_window_end(
+    dates: list[str], nominal_end: str, max_forward_sessions: int
+) -> str:
+    """将信号截止日限制在数据仍覆盖完整退出窗口的最后一个交易日。"""
+    if nominal_end not in dates:
+        raise ValueError(f"名义截止日不在交易日索引中：{nominal_end}")
+    if int(max_forward_sessions) < 1:
+        raise ValueError("最大前瞻交易日数必须为正整数")
+    last_complete_index = len(dates) - int(max_forward_sessions) - 1
+    if last_complete_index < 0:
+        raise ValueError("历史行情不足以覆盖一个完整退出窗口")
+    return min(nominal_end, dates[last_complete_index])
+
+
 def _build_model() -> HistGradientBoostingClassifier:
     """与路径感知研究基准使用相同的模型结构和训练参数。"""
     return HistGradientBoostingClassifier(
@@ -241,8 +255,9 @@ def main() -> None:
     missing = [date for date in required_dates if date not in set(dates)]
     if missing:
         raise SystemExit("历史行情缺少研究边界交易日：" + "、".join(missing))
-    if dates.index(FINAL_END) + MAX_FORWARD_SESSIONS >= len(dates):
-        raise SystemExit("最终留出区间之后的历史行情不足，无法完成最长持有窗口的退出模拟")
+    final_signal_end = complete_signal_window_end(dates, FINAL_END, MAX_FORWARD_SESSIONS)
+    if dates.index(final_signal_end) < dates.index(FINAL_START):
+        raise SystemExit("历史行情不足以覆盖最终留出区间内至少一个完整退出窗口")
 
     validation_start_index = dates.index(VALIDATION_START)
     final_start_index = dates.index(FINAL_START)
@@ -264,7 +279,7 @@ def main() -> None:
         固定概率阈值, 每日最多候选数,
     )
     final_holdout = _portfolio_window(
-        files, dates, model, FINAL_START, FINAL_END,
+        files, dates, model, FINAL_START, final_signal_end,
         固定概率阈值, 每日最多候选数,
     )
 
@@ -304,7 +319,9 @@ def main() -> None:
         "splits": {
             "validation": [VALIDATION_START, validation_safe_end],
             "validation_nominal_end": VALIDATION_END,
-            "final_holdout": [FINAL_START, FINAL_END],
+            "final_holdout": [FINAL_START, final_signal_end],
+            "final_nominal_end": FINAL_END,
+            "final_signal_end_truncated_for_complete_exit_window": final_signal_end < FINAL_END,
             "validation_exit_paths_end_before_final_holdout": True,
         },
         "validation": validation,
@@ -320,6 +337,7 @@ def main() -> None:
             "cash_constrained_no_leverage": True,
             "threshold_not_tuned_on_final_holdout": True,
             "final_holdout_result_is_supplemental_not_a_fresh_unseen_holdout": True,
+            "final_signal_window_requires_complete_forward_exit_bars": True,
             "formal_production_changed": False,
         },
         "elapsed_seconds": round(time.time() - started, 2),
