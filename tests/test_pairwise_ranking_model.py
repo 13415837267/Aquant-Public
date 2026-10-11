@@ -1,6 +1,27 @@
+import subprocess
+import sys
+from pathlib import Path
+
 import numpy as np
 
 from scripts.high_precision_profit_mining import PairwiseRankingModel
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_pairwise_cli_imports_when_started_outside_repository_root(tmp_path):
+    script_path = REPOSITORY_ROOT / "scripts" / "pairwise_rank_compound_backtest.py"
+    result = subprocess.run(
+        [sys.executable, str(script_path), "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "--model-result" in result.stdout
 
 
 def test_pairwise_update_improves_positive_negative_ordering():

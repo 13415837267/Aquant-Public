@@ -4,9 +4,14 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from scripts.compound_portfolio_backtest import (
     初始资金,
@@ -17,7 +22,6 @@ from scripts.compound_portfolio_backtest import (
 from scripts.selection_factor_catalog import load_research_config
 from scripts.short_term_research import history_files
 
-ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INPUT = ROOT / "data/backtest/high_precision_profit_mining_research_latest.json"
 DEFAULT_OUTPUT = ROOT / "data/backtest/pairwise_rank_compound_latest.json"
 CONFIG = load_research_config()
