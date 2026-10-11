@@ -11,7 +11,7 @@ preserved_successful='[]'
 preserved_other_completed='[]'
 cleanup_errors='[]'
 
-if ! runs_tsv="$(gh api --paginate "repos/$REPOSITORY/actions/runs?per_page=100" --jq '.workflow_runs[] | [.id, .created_at, .status, (.conclusion // ""), (.name // "")] | @tsv')"; then
+if ! runs_tsv="$(gh api --paginate "repos/$REPOSITORY/actions/runs?per_page=100" --jq '.workflow_runs[] | [.id, .created_at, .status, (.conclusion // "-"), (.name // "")] | @tsv')"; then
   echo "读取历史工作流运行失败。"
   exit 1
 fi
