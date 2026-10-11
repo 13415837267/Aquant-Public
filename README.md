@@ -168,6 +168,8 @@ https://13415837267.github.io/Aquant-Public/
 
 研究工件需包含 `data/backtest/pairwise_rank_compound_latest.json`，用于复核成对排序与分类模型的组合收益。
 
+下一轮增加非线性成对排序挑战模型：沿用分类基准的特征、隐藏层宽度、学习率、正则化、训练区间和严格交易标签，单独比较分类损失与逐日成对排序损失；结果未通过验证前不替换正式模型。
+
 当前正式第一版生产模型保持不变，不因研究任务自动替换。独立研究工作流为 `.github/workflows/06-model-research.yml`，每次研究从 `Aquant-Private/main` 当前策略源开始，执行高精度严格标签研究和路径感知梯度提升研究，并将结果作为 GitHub Actions 工件保存。
 
 研究目标重点从“只提高命中率”扩展到“命中率、平均净收益、收益分布和复利表现”共同评价；研究结果未通过独立验证与正式门禁前，不得写入 `data/models/production_v1.json`。
