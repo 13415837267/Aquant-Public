@@ -29,7 +29,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: "模型研究-main-v4"
+  # 恢复运行使用独立并发组，避免停滞的旧运行阻塞新研究。
+  group: "模型研究-main-v5"
   cancel-in-progress: false
 
 jobs:
