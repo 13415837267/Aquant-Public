@@ -5,7 +5,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scripts.path_aware_gbdt_compound_backtest import rank_probability_candidates
+from scripts.path_aware_gbdt_compound_backtest import (
+    complete_signal_window_end,
+    rank_probability_candidates,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -66,3 +69,18 @@ def test_probability_ranking_rejects_invalid_threshold_and_top_k():
         rank_probability_candidates(probabilities, executable, threshold=1.1, top_k=1)
     with pytest.raises(ValueError, match="正整数"):
         rank_probability_candidates(probabilities, executable, threshold=0.78, top_k=0)
+
+
+
+def test_final_signal_end_is_clamped_to_last_full_exit_window():
+    dates = [f"2026-01-{day:02d}" for day in range(1, 11)]
+
+    assert complete_signal_window_end(dates, dates[-1], max_forward_sessions=3) == dates[6]
+    assert complete_signal_window_end(dates, dates[4], max_forward_sessions=3) == dates[4]
+
+
+def test_final_signal_end_rejects_missing_nominal_date():
+    dates = [f"2026-01-{day:02d}" for day in range(1, 11)]
+
+    with pytest.raises(ValueError, match="不在交易日索引中"):
+        complete_signal_window_end(dates, "2026-02-01", max_forward_sessions=3)
