@@ -89,6 +89,9 @@ if ! git diff --cached --quiet; then
 fi
 
 echo "已清理失败、跳过或取消的 Action 记录数：$(jq 'length' <<< "$deleted_actions")"
+echo "其中失败：$(jq '[.[] | select(.conclusion == "failure")] | length' <<< "$deleted_actions")"
+echo "其中跳过：$(jq '[.[] | select(.conclusion == "skipped")] | length' <<< "$deleted_actions")"
+echo "其中取消：$(jq '[.[] | select(.conclusion == "cancelled")] | length' <<< "$deleted_actions")"
 echo "保留的运行中或排队中记录数：$(jq 'length' <<< "$preserved_active")"
 echo "保留的成功记录数：$(jq 'length' <<< "$preserved_successful")"
 echo "保留的其他已完成记录数：$(jq 'length' <<< "$preserved_other_completed")"
