@@ -19,15 +19,15 @@ fi
 while IFS=$'\t' read -r run_id created_at status conclusion run_name; do
   [[ -n "${run_id:-}" ]] || continue
 
-  # 只清理已完成且结论明确为失败或跳过的 Action 运行。
-  # 运行中、排队中、成功以及取消等其他结论都必须保留。
+  # 只清理已完成且结论为失败、跳过或取消的历史 Action 运行。
+  # 运行中、排队中和成功记录必须保留；其他结论也不在本轮清理范围。
   if [[ "$status" != "completed" ]]; then
     preserved_active="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg status "$status" --arg name "$run_name" '. + [{run_id:($id|tonumber), created_at:$created, status:$status, name:$name}]' <<< "$preserved_active")"
     echo "保留尚未完成的运行：$run_id（$status）"
     continue
   fi
 
-  if [[ "$conclusion" != "failure" && "$conclusion" != "skipped" ]]; then
+  if [[ "$conclusion" != "failure" && "$conclusion" != "skipped" && "$conclusion" != "cancelled" ]]; then
     if [[ "$conclusion" == "success" ]]; then
       preserved_successful="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg name "$run_name" '. + [{run_id:($id|tonumber), created_at:$created, name:$name}]' <<< "$preserved_successful")"
     else
@@ -88,7 +88,7 @@ if ! git diff --cached --quiet; then
   fi
 fi
 
-echo "已清理失败或跳过的 Action 记录数：$(jq 'length' <<< "$deleted_actions")"
+echo "已清理失败、跳过或取消的 Action 记录数：$(jq 'length' <<< "$deleted_actions")"
 echo "保留的运行中或排队中记录数：$(jq 'length' <<< "$preserved_active")"
 echo "保留的成功记录数：$(jq 'length' <<< "$preserved_successful")"
 echo "保留的其他已完成记录数：$(jq 'length' <<< "$preserved_other_completed")"
