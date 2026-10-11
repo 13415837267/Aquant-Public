@@ -425,6 +425,7 @@ jobs:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
             data/backtest/high_precision_compound_portfolio_latest.json
+            data/backtest/pairwise_rank_compound_latest.json
             data/backtest/path_rule_mining_research_latest.json
             data/backtest/path_regime_rule_mining_research_latest.json
             data/backtest/strict_path_strategy_score_mining_research_latest.json
