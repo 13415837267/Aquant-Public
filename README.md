@@ -44,11 +44,12 @@
 
 ## Action 历史记录清理
 
-GitHub Actions 历史记录由 `.github/workflows/cleanup-action-deployment-history.yml` 和 `scripts/cleanup_action_deployment_history.sh` 在云端维护。工作流在相关流程完成时自动运行，并支持手动触发。
+GitHub Actions 历史记录由 `.github/workflows/cleanup-action-deployment-history.yml` 和 `scripts/cleanup_action_deployment_history.sh` 在云端维护。工作流在相关流程完成时自动运行，清理脚本更新时也会自动启动专项清理。
 
-清理范围严格限定为**已完成且结论为“失败”或“跳过”**的历史 Action 运行，包含早于或晚于既有基准的无效记录。运行中、排队中的任务、成功运行、已取消及其他非目标结论均保留。该维护流程不删除 Deployment 记录、源代码、提交、行情数据、模型、候选快照或其他项目资产。
+清理范围是**已完成且结论为“失败”“跳过”或“取消”**的历史 Action 运行。将已取消运行纳入清理，是为清除连续提交或实验替换所遗留的无效尝试；审计清单会保留每条被删除记录的运行编号、时间、名称和原结论。运行中、排队中的任务与成功运行必须保留；其他结论不在本轮清理范围。
 
-每次维护均逐条记录删除结果、保留的活动运行、成功运行、其他结论和错误；审计清单以唯一运行编号保存于 `data/maintenance/action_deployment_cleanup/run-<运行编号>.json`。若平台权限或接口导致某条目标记录删除失败，工作流会记录错误并以失败状态结束，不会将未确认删除的记录写成已清理。
+清理只针对 GitHub Actions 运行记录，不删除 Deployment 记录、源代码、Git 提交、行情数据、模型、候选快照或其他项目资产。每次维护都会记录删除结果、保留的活动运行、成功运行、其他结论及错误，并以唯一运行编号保存审计清单至 `data/maintenance/action_deployment_cleanup/run-<运行编号>.json`。如平台接口导致目标记录删除失败，工作流会记录错误并以失败状态结束。
+
 ## 工作流架构
 
 当前主动工作流已整理为单一生产链与两个独立研究入口：
