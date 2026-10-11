@@ -46,6 +46,7 @@ jobs:
       - name: "检查历史数据与退出窗口覆盖"
         run: |
           python - <<'PY'
+          from scripts.path_aware_gbdt_compound_backtest import complete_signal_window_end
           from scripts.short_term_research import history_files
           from scripts.train_path_aware_gbdt import (
               FINAL_END,
@@ -62,14 +63,16 @@ jobs:
           missing = [date for date in required if date not in set(dates)]
           if missing:
               raise SystemExit(f"历史行情缺少必要边界交易日：{missing}")
-          if dates.index(FINAL_END) + MAX_FORWARD_SESSIONS >= len(dates):
-              raise SystemExit("最终留出期后历史行情不足，无法模拟完整退出窗口")
+          final_signal_end = complete_signal_window_end(dates, FINAL_END, MAX_FORWARD_SESSIONS)
+          if dates.index(final_signal_end) < dates.index(FINAL_START):
+              raise SystemExit("历史行情不足以覆盖最终留出区间内至少一个完整退出窗口")
           print("历史数据范围：", dates[0], "至", dates[-1])
           print("历史行情文件数：", len(files))
           print("训练截止日：", TRAIN_END)
           print("验证窗口：", VALIDATION_START, "至", VALIDATION_END)
-          print("最终留出窗口：", FINAL_START, "至", FINAL_END)
-          print("最终留出退出窗口覆盖：通过")
+          print("最终留出名义窗口：", FINAL_START, "至", FINAL_END)
+          print("最终留出实际信号窗口：", FINAL_START, "至", final_signal_end)
+          print("实际信号截止日之后的完整退出窗口覆盖：通过")
           PY
 
       - name: "执行固定阈值可执行复利回测"
