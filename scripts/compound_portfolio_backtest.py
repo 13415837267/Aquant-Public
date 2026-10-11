@@ -238,7 +238,8 @@ def 提取每日候选(files: list[Path], 日期: list[str], 起始日: str, 结
 
 def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目标净收益百分比: float,
          止损百分比: float, 成本基点: float, top_k: int = 1,
-         概率阈值: float | None = None) -> dict:
+         概率阈值: float | None = None, 窗口起始日期: str | None = None,
+         窗口结束日期: str | None = None) -> dict:
     """现金约束、最多持有5个交易日、固定槽位上限的日线复利模拟。"""
     需要持仓数 = MAX_FORWARD_SESSIONS * top_k if 模式 == "每日排名" else MAX_FORWARD_SESSIONS
     入场排程: dict[str, list[dict]] = defaultdict(list)
@@ -263,8 +264,19 @@ def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目�
         }
 
     日期索引 = {d: i for i, d in enumerate(全部日期)}
+    if 窗口起始日期 is not None and 窗口起始日期 not in 日期索引:
+        raise ValueError(f"组合测量起始日不在交易日索引中：{窗口起始日期}")
+    if 窗口结束日期 is not None and 窗口结束日期 not in 日期索引:
+        raise ValueError(f"组合测量结束日不在交易日索引中：{窗口结束日期}")
     开始索引 = min(日期索引[d] for d in 入场排程)
     结束索引 = max(日期索引[候选["bars"][-1]["date"]] for 行列 in 入场排程.values() for 候选 in 行列)
+    # 研究阈值比较必须把没有信号、资金闲置的日期计入测量区间，避免年化收益和夏普比率被缩短周期抬高。
+    if 窗口起始日期 is not None:
+        开始索引 = min(开始索引, 日期索引[窗口起始日期])
+    if 窗口结束日期 is not None:
+        结束索引 = max(结束索引, 日期索引[窗口结束日期])
+    if 开始索引 > 结束索引:
+        raise ValueError("组合测量窗口无效：起始日晚于结束日")
     现金 = 初始资金
     持仓 = []
     曲线 = []

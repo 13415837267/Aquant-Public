@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/09-path-aware-compound-review.yml"
       - "scripts/path_aware_gbdt_compound_backtest.py"
+      - "scripts/compound_portfolio_backtest.py"
       - "tests/test_path_aware_gbdt_compound_backtest.py"
 
 permissions:
@@ -17,7 +18,7 @@ concurrency:
 
 jobs:
   review:
-    name: "云端固定阈值可执行回测"
+    name: "云端验证集阈值复利筛选"
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -75,7 +76,7 @@ jobs:
           print("实际信号截止日之后的完整退出窗口覆盖：通过")
           PY
 
-      - name: "执行固定阈值可执行复利回测"
+      - name: "执行验证集阈值筛选与单次留出复核"
         run: |
           set -euo pipefail
           python scripts/path_aware_gbdt_compound_backtest.py \
