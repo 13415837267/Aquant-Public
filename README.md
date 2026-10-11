@@ -42,10 +42,13 @@
 
 正式模型 `data/models/production_v1.json` 的权重固定对应 **17 个基础个股量价因子 + 2 个市场因子**。研究配置可继续增加技术因子，但生产推理必须通过 `scripts/production_model.py` 的固定特征构造函数生成输入，不得读取研究层动态扩展后的完整特征列表。质量检查会校验正式模型特征清单与权重维度，防止研究层变更误伤每日候选生产。
 
-## Action 与 Deployment 审计基线
+## Action 历史记录清理
 
-GitHub 平台端的 Actions 与 Deployment 历史记录通过专用云端维护流程管理。执行入口为 `.github/workflows/cleanup-action-deployment-history.yml`，脚本为 `scripts/cleanup_action_deployment_history.sh`。默认清理保留基准已更新为完整成功的模型研究运行 `38036111501`；维护流程保留该基准、基准之后的新记录和执行中的任务，并为每个部署环境保留当前部署基线。处理明细以 `data/maintenance/action_deployment_cleanup/` 下的 JSON 文件留存，保持必要的审计追溯。
+GitHub Actions 历史记录由 `.github/workflows/cleanup-action-deployment-history.yml` 和 `scripts/cleanup_action_deployment_history.sh` 在云端维护。工作流在相关流程完成时自动运行，并支持手动触发。
 
+清理范围严格限定为**已完成且结论为“失败”或“跳过”**的历史 Action 运行，包含早于或晚于既有基准的无效记录。运行中、排队中的任务、成功运行、已取消及其他非目标结论均保留。该维护流程不删除 Deployment 记录、源代码、提交、行情数据、模型、候选快照或其他项目资产。
+
+每次维护均逐条记录删除结果、保留的活动运行、成功运行、其他结论和错误；审计清单以唯一运行编号保存于 `data/maintenance/action_deployment_cleanup/run-<运行编号>.json`。若平台权限或接口导致某条目标记录删除失败，工作流会记录错误并以失败状态结束，不会将未确认删除的记录写成已清理。
 ## 工作流架构
 
 当前主动工作流已整理为单一生产链与两个独立研究入口：
