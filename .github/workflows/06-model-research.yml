@@ -29,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: "模型研究-main-v3"
+  group: "模型研究-main-v4"
   cancel-in-progress: false
 
 jobs:
@@ -105,7 +105,6 @@ jobs:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
             data/backtest/high_precision_compound_portfolio_latest.json
-            data/backtest/pairwise_rank_compound_latest.json
             data/backtest/path_rule_mining_research_latest.json
             data/backtest/path_regime_rule_mining_research_latest.json
             data/backtest/strict_path_strategy_score_mining_research_latest.json
@@ -119,6 +118,16 @@ jobs:
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             aquant-research-checkpoints-v1-${{ runner.os }}-
+
+      - name: "恢复成对排序专属检查点"
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/backtest/pairwise_rank_compound_latest.json
+            data/research/workflow_stages/pairwise_rank_compound.json
+          key: aquant-pairwise-rank-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            aquant-pairwise-rank-v1-${{ runner.os }}-
 
       - name: "记录研究基线"
         run: |
@@ -161,10 +170,22 @@ jobs:
           --command python scripts/compound_portfolio_backtest.py --model-result data/backtest/high_precision_profit_mining_research_latest.json --output data/backtest/high_precision_compound_portfolio_latest.json
 
       - name: "比较每日成对排序与分类模型的可执行复利"
+        id: pairwise_comparison
         run: >-
-          python scripts/pairwise_rank_compound_backtest.py
-          --model-result data/backtest/high_precision_profit_mining_research_latest.json
+          python scripts/research_checkpoint_runner.py --key pairwise_rank_compound
           --output data/backtest/pairwise_rank_compound_latest.json
+          --inputs data/backtest/high_precision_profit_mining_research_latest.json
+          --dependencies scripts/research_checkpoint_runner.py scripts/pairwise_rank_compound_backtest.py scripts/compound_portfolio_backtest.py scripts/high_precision_profit_mining.py scripts/train_short_term_model.py scripts/short_term_research.py scripts/market_scope.py scripts/selection_factor_catalog.py config/选股条件研究配置.json
+          --command python scripts/pairwise_rank_compound_backtest.py --model-result data/backtest/high_precision_profit_mining_research_latest.json --output data/backtest/pairwise_rank_compound_latest.json
+
+      - name: "保存成对排序成功检查点"
+        if: ${{ steps.pairwise_comparison.outcome == 'success' }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/backtest/pairwise_rank_compound_latest.json
+            data/research/workflow_stages/pairwise_rank_compound.json
+          key: aquant-pairwise-rank-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-02-pairwise
 
       - name: "持久化检查点：复利评估"
         if: ${{ always() }}

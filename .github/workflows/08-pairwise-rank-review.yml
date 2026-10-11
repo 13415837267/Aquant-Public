@@ -1,0 +1,105 @@
+name: "08 成对排序定向复核"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/08-pairwise-rank-review.yml"
+      - "scripts/pairwise_rank_compound_backtest.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "成对排序定向复核-main-v1"
+  cancel-in-progress: false
+
+jobs:
+  pairwise-review:
+    name: "云端成对排序定向复核"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: "检出公开仓库"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "设置Python环境"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: "安装研究依赖"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: "恢复高精度模型研究缓存"
+        uses: actions/cache/restore@v4
+        with:
+          # 必须与06工作流现存共享缓存的路径清单一致，以兼容已有检查点。
+          path: |
+            data/backtest/high_precision_profit_mining_research_latest.json
+            data/backtest/high_precision_compound_portfolio_latest.json
+            data/backtest/path_rule_mining_research_latest.json
+            data/backtest/path_regime_rule_mining_research_latest.json
+            data/backtest/strict_path_strategy_score_mining_research_latest.json
+            data/backtest/feature_training_research_latest.json
+            data/backtest/executable_path_profit_training_research_latest.json
+            data/backtest/all_conditions_research_manifest_latest.json
+            data/backtest/path_aware_gbdt_research_latest.json
+            data/backtest/path_aware_gbdt_train2024_fixed078.json
+            data/research/workflow_stages/
+            data/research/all_conditions/
+          key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            aquant-research-checkpoints-v1-${{ runner.os }}-
+
+      - name: "检查复核输入"
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("data/backtest/high_precision_profit_mining_research_latest.json")
+          if not path.is_file():
+              raise SystemExit("未找到可复用的高精度研究缓存；请先完成06模型研究工作流。")
+          result = json.loads(path.read_text(encoding="utf-8"))
+          if result.get("status") != "research_only":
+              raise SystemExit("输入产物状态不符合研究专用契约。")
+          if result.get("audit", {}).get("formal_production_changed") is not False:
+              raise SystemExit("输入产物缺少正式生产未被修改的审计声明。")
+          if result.get("audit", {}).get("final_holdout_used_once_after_selection") is not True:
+              raise SystemExit("输入产物缺少最终留出集使用审计声明。")
+          pairwise = result.get("pairwise_ranker", {})
+          if pairwise.get("audit", {}).get("threshold_tuning_used") is not False:
+              raise SystemExit("输入产物缺少无阈值调参的成对排序模型。")
+          print("输入状态：", result.get("status"))
+          print("训练区间：", result.get("splits", {}).get("train"))
+          print("验证区间：", result.get("splits", {}).get("validation"))
+          print("最终留出区间：", result.get("splits", {}).get("final"))
+          print("成对训练样本：", pairwise.get("training", {}).get("samples"))
+          print("训练正负样本对：", pairwise.get("training", {}).get("pairs_seen"))
+          PY
+
+      - name: "复跑每日Top2可执行复利对照"
+        run: |
+          set -euo pipefail
+          mkdir -p data/backtest
+          python scripts/pairwise_rank_compound_backtest.py \
+            --model-result data/backtest/high_precision_profit_mining_research_latest.json \
+            --output data/backtest/pairwise_rank_compound_latest.json \
+            2>&1 | tee data/backtest/pairwise_rank_compound_cloud.log
+
+      - name: "上传复核日志与结果"
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: "成对排序定向复核-${{ github.run_id }}"
+          path: |
+            data/backtest/pairwise_rank_compound_cloud.log
+            data/backtest/pairwise_rank_compound_latest.json
+          if-no-files-found: warn
+          retention-days: 14
