@@ -1,6 +1,9 @@
 name: "维护历史 Action 记录"
 
 on:
+  push:
+    paths:
+      - "scripts/cleanup_action_deployment_history.sh"
   workflow_run:
     workflows:
       - "01 Python质量检查"
