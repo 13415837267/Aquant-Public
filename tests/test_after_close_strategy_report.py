@@ -70,6 +70,12 @@ def model_report(
         "selection_policy": {
             "minimum_completed_trades": 100,
             "maximum_drawdown_floor_pct": -30.0,
+            "top_k_per_signal_day": 2,
+            "initial_equity": 100000.0,
+            "net_target_pct": 1.0,
+            "stop_loss_pct": 3.0,
+            "round_trip_cost_bps": 10.0,
+            "cash_constrained_no_leverage": True,
         },
         "splits": {
             "validation": ["2023-01-03", "2024-12-20"],
@@ -103,6 +109,12 @@ def model_report(
                 "annualized_compound_return_pct": 1.0,
                 "max_drawdown_pct": -22.0,
                 "final_equity": 102000.0,
+                "selection_policy": {
+                    "signal": "T日收盘",
+                    "entry": "T+1开盘",
+                    "earliest_exit": "T+2",
+                    "maximum_holding_sessions": 5,
+                },
             },
             "fresh_unseen_holdout": False,
         },

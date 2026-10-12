@@ -314,13 +314,19 @@ def build_report(
     frozen_final = frozen_rule.get("final_supplemental_portfolio") or {}
     policy = rule_portfolio.get("selection_policy") or {}
     model_policy = model.get("selection_policy") or {}
+    model_final_portfolio = (model.get("final_holdout") or {}).get("portfolio") or {}
+    model_execution_policy = model_final_portfolio.get("selection_policy") or {}
 
     same_mechanics = bool(
-        int(policy.get("top_k_per_signal_day", -1)) == int(model_policy.get("top_k_per_signal_day", -2))
+        _integer(policy.get("top_k_per_signal_day")) == _integer(model_policy.get("top_k_per_signal_day"))
+        and _number(policy.get("initial_equity")) == _number(model_policy.get("initial_equity"))
         and _number(policy.get("net_target_pct")) == _number(model_policy.get("net_target_pct"))
         and _number(policy.get("stop_loss_pct")) == _number(model_policy.get("stop_loss_pct"))
         and _number(policy.get("round_trip_cost_bps")) == _number(model_policy.get("round_trip_cost_bps"))
-        and _integer(policy.get("maximum_holding_sessions")) == _integer(model_policy.get("maximum_holding_sessions"))
+        and _integer(policy.get("maximum_holding_sessions")) == _integer(model_execution_policy.get("maximum_holding_sessions"))
+        and model_execution_policy.get("signal") == "T日收盘"
+        and model_execution_policy.get("entry") == "T+1开盘"
+        and model_execution_policy.get("earliest_exit") == "T+2"
         and policy.get("cash_constrained_no_leverage") is True
         and model_policy.get("cash_constrained_no_leverage") is True
     )
