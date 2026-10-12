@@ -58,7 +58,7 @@ jobs:
       - name: "尝试复用已审计的基准研究工件"
         id: baseline_artifact
         continue-on-error: true
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: "短线模型研究结果"
           path: research-seed
