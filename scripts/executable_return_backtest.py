@@ -85,7 +85,7 @@ def evaluate_policy(
     end: str,
 ) -> dict:
     if policy == "每日强制Top1":
-        return 运行组合(
+        metrics = 运行组合(
             candidates,
             dates,
             "每日排名",
@@ -96,9 +96,10 @@ def evaluate_policy(
             窗口起始日期=start,
             窗口结束日期=end,
         )
-    if policy == "预测净收益为正才入场":
+        metrics["predicted_net_return_threshold_pct"] = None
+    elif policy == "预测净收益为正才入场":
         # 零点是经济盈亏平衡条件，不通过验证/留出集搜索阈值网格。
-        return 运行组合(
+        metrics = 运行组合(
             candidates,
             dates,
             "概率阈值",
@@ -110,8 +111,14 @@ def evaluate_policy(
             窗口起始日期=start,
             窗口结束日期=end,
         )
-    raise ValueError(f"未知的研究策略：{policy}")
+        metrics["predicted_net_return_threshold_pct"] = 0.0
+    else:
+        raise ValueError(f"未知的研究策略：{policy}")
 
+    # 回测引擎旧参数名是“概率阈值”；结果层改为明确的经济含义，避免误读为分类概率。
+    metrics["selection_mode"] = policy
+    metrics["probability_threshold"] = None
+    return metrics
 
 def gate_result(metrics: dict) -> dict:
     hit = metrics.get("target_hit_rate_pct")
