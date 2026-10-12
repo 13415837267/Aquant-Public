@@ -10,8 +10,8 @@ permissions:
   actions: write
 
 concurrency:
-  group: "一次性强制取消旧模型研究-main"
-  cancel-in-progress: false
+  group: "模型研究-main-v7"
+  cancel-in-progress: true
 
 jobs:
   cancel:
