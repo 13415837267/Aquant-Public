@@ -1,0 +1,75 @@
+name: "一次性强制取消旧模型研究"
+
+on:
+  push:
+    paths:
+      - ".github/workflows/90-cancel-obsolete-model-research.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+concurrency:
+  group: "一次性强制取消旧模型研究-main"
+  cancel-in-progress: false
+
+jobs:
+  cancel:
+    name: "强制终止已确认过时的研究运行"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: "强制取消并逐条确认旧运行状态"
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_ids=(38198312054 38198407141)
+
+          for run_id in "${target_ids[@]}"; do
+            if ! run_info="$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '[.id, .name, .status] | @tsv' 2>/dev/null)"; then
+              echo "目标运行已不存在：$run_id"
+              continue
+            fi
+
+            IFS=$'\t' read -r actual_id actual_name actual_status <<< "$run_info"
+            if [[ "$actual_name" != "06 模型研究" ]]; then
+              echo "拒绝处理运行 $run_id：工作流名称不匹配。"
+              exit 1
+            fi
+            if [[ "$actual_status" == "completed" ]]; then
+              echo "目标运行已结束：$run_id"
+              continue
+            fi
+
+            gh api --method POST "repos/$REPOSITORY/actions/runs/$run_id/force-cancel" >/dev/null
+            echo "已发送强制取消请求：$run_id（原状态：$actual_status）"
+          done
+
+          poll_interval_seconds=5
+          poll_max_attempts=60
+          for run_id in "${target_ids[@]}"; do
+            if ! gh api "repos/$REPOSITORY/actions/runs/$run_id" >/dev/null 2>&1; then
+              echo "目标运行已删除或不存在：$run_id"
+              continue
+            fi
+
+            current_status="unknown"
+            current_conclusion="-"
+            for ((attempt=1; attempt<=poll_max_attempts; attempt++)); do
+              run_info="$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '[.status, (.conclusion // "-")] | @tsv' 2>/dev/null || printf 'unknown\t-')"
+              IFS=$'\t' read -r current_status current_conclusion <<< "$run_info"
+              if [[ "$current_status" == "completed" ]]; then
+                echo "已确认旧运行结束：$run_id（结论：$current_conclusion）"
+                break
+              fi
+              sleep "$poll_interval_seconds"
+            done
+
+            if [[ "$current_status" != "completed" ]]; then
+              echo "强制取消后仍未结束：$run_id（状态：$current_status）"
+              exit 1
+            fi
+          done
