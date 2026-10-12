@@ -3,6 +3,9 @@ name: "06 模型研究"
 # 完整历史研究只允许有明确目的时手动启动；代码更新不应反复触发整条长流程。
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/06-model-research.yml"
 
 permissions:
   contents: read
@@ -10,10 +13,11 @@ permissions:
 concurrency:
   # 恢复运行使用独立并发组，避免停滞的旧运行阻塞新研究。
   group: "模型研究-main-v7"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   research:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     name: "云端短线模型研究"
     runs-on: ubuntu-24.04
     timeout-minutes: 360
