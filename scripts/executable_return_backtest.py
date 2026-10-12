@@ -3,9 +3,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from scripts.compound_portfolio_backtest import (
     解析模型,
@@ -151,9 +156,12 @@ def select_validation_policy(validation_results: dict[str, dict]) -> dict:
         chosen = max(
             pool,
             key=lambda row: (
-                float(row["metrics"].get("compound_return_pct") or -1e9),
-                float(row["metrics"].get("max_drawdown_pct") or -100.0),
-                float(row["metrics"].get("target_hit_rate_pct") or -1.0),
+                float(row["metrics"]["compound_return_pct"])
+                if row["metrics"].get("compound_return_pct") is not None else -1e9,
+                float(row["metrics"]["max_drawdown_pct"])
+                if row["metrics"].get("max_drawdown_pct") is not None else -100.0,
+                float(row["metrics"]["target_hit_rate_pct"])
+                if row["metrics"].get("target_hit_rate_pct") is not None else -1.0,
             ),
         )
         status = "仅选择验证期最优诊断方案；未满足全部门槛，不允许晋级生产"
