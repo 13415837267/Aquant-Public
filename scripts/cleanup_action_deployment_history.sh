@@ -16,7 +16,7 @@ cleanup_errors='[]'
 cancel_poll_interval_seconds="\${CANCEL_POLL_INTERVAL_SECONDS:-5}"
 cancel_poll_max_attempts="\${CANCEL_POLL_MAX_ATTEMPTS:-60}"
 if [[ -n "\${CANCEL_OBSOLETE_RUN_IDS:-}" ]]; then
-  for run_id in $CANCEL_OBSOLETE_RUN_IDS; do
+  for run_id in ${CANCEL_OBSOLETE_RUN_IDS:-}; do
     if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
       cleanup_errors="$(jq -c --arg id "$run_id" '. + [{kind:"cancel_run", id:$id, reason:"运行编号格式无效"}]' <<< "$cleanup_errors")"
       echo "取消旧运行失败：运行编号格式无效。"
