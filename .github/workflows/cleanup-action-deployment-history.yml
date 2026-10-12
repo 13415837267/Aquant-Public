@@ -35,9 +35,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      CANCEL_OBSOLETE_RUN_IDS: "38198312054 38198407141"
-      CANCEL_POLL_INTERVAL_SECONDS: "5"
-      CANCEL_POLL_MAX_ATTEMPTS: "60"
     steps:
       - name: "检出当前主分支"
         uses: actions/checkout@v7
