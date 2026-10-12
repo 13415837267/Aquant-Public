@@ -111,7 +111,7 @@ jobs:
 
       - name: "保存研究检查点与日志"
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: "第一版历史研究检查点"
           path: |

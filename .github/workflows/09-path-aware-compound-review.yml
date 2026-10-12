@@ -84,7 +84,7 @@ jobs:
 
       - name: "上传定向复核结果"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: "路径感知模型可执行复利复核-${{ github.run_id }}"
           path: data/backtest/path_aware_gbdt_compound_latest.json

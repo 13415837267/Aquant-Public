@@ -57,7 +57,7 @@ jobs:
         run: npm run build
 
       - name: "上传网页构建产物"
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./out
 
@@ -71,4 +71,4 @@ jobs:
     steps:
       - name: "部署到GitHub Pages"
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

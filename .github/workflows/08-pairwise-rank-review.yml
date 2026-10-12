@@ -37,7 +37,7 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: "恢复高精度模型研究缓存"
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           # 必须与06工作流现存共享缓存的路径清单一致，以兼容已有检查点。
           path: |
@@ -95,7 +95,7 @@ jobs:
 
       - name: "上传复核日志与结果"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: "成对排序定向复核-${{ github.run_id }}"
           path: |

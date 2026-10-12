@@ -80,7 +80,7 @@ jobs:
           fetch-depth: 1
 
       - name: "恢复最近兼容研究检查点"
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
@@ -100,7 +100,7 @@ jobs:
             aquant-research-checkpoints-v1-${{ runner.os }}-
 
       - name: "恢复成对排序专属检查点"
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             data/backtest/pairwise_rank_compound_latest.json
@@ -110,7 +110,7 @@ jobs:
             aquant-pairwise-rank-v1-${{ runner.os }}-
 
       - name: "恢复非线性成对排序专属检查点"
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             data/backtest/pairwise_mlp_ranker_research_latest.json
@@ -134,7 +134,7 @@ jobs:
 
       - name: "持久化检查点：高精度研究"
         if: ${{ always() }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
@@ -171,7 +171,7 @@ jobs:
 
       - name: "保存非线性成对排序成功检查点"
         if: ${{ steps.pairwise_mlp_training.outcome == 'success' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/pairwise_mlp_ranker_research_latest.json
@@ -190,7 +190,7 @@ jobs:
 
       - name: "保存成对排序成功检查点"
         if: ${{ steps.pairwise_comparison.outcome == 'success' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/pairwise_rank_compound_latest.json
@@ -199,7 +199,7 @@ jobs:
 
       - name: "持久化检查点：复利评估"
         if: ${{ always() }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
@@ -222,7 +222,7 @@ jobs:
 
       - name: "持久化检查点：单因子与双条件组合挖掘"
         if: ${{ always() }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
@@ -245,7 +245,7 @@ jobs:
 
       - name: "持久化检查点：市场状态与三条件组合挖掘"
         if: ${{ always() }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
@@ -268,7 +268,7 @@ jobs:
 
       - name: "持久化检查点：正式策略评分阈值挖掘"
         if: ${{ always() }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
@@ -291,7 +291,7 @@ jobs:
 
       - name: "持久化检查点：短线净收益百分之一模型训练"
         if: ${{ always() }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
@@ -314,7 +314,7 @@ jobs:
 
       - name: "持久化检查点：可执行净收益百分之三路径模型训练"
         if: ${{ always() }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
@@ -345,7 +345,7 @@ jobs:
 
       - name: "持久化检查点：路径感知模型"
         if: ${{ always() }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
@@ -372,7 +372,7 @@ jobs:
 
       - name: "持久化检查点：扩展训练窗口实验"
         if: ${{ always() }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/backtest/high_precision_profit_mining_research_latest.json
@@ -432,7 +432,7 @@ jobs:
 
       - name: "保存研究产物"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: "短线模型研究结果"
           path: |

@@ -47,7 +47,7 @@ jobs:
           python -m pytest -q tests/test_uptrend_stock_attribution.py
 
       - name: "恢复兼容的历史分析断点"
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: data/research/checkpoints/uptrend_stock_attribution.pkl
           key: aquant-uptrend-attribution-v1-${{ github.run_id }}-${{ github.run_attempt }}
@@ -61,14 +61,14 @@ jobs:
 
       - name: "失败或取消时保存检查点"
         if: ${{ failure() || cancelled() }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: data/research/checkpoints/uptrend_stock_attribution.pkl
           key: aquant-uptrend-attribution-v1-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: "保存上涨样本归因结果"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: "上涨样本筛选与归因分析结果"
           path: data/backtest/uptrend_stock_attribution_latest.json
