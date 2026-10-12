@@ -5,15 +5,15 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 
-# 以下版本的 action.yml 已核验为 Node.js 24；网页工件上传 v5 内部调用
-# upload-artifact v7.0.0。
+# 以下版本的 action.yml 已核验为 Node.js 24；工件下载已升级到 v8，避免
+# v7 日志中 @actions/artifact 旧依赖触发 Buffer() 弃用警告。
 APPROVED_NODE24_ACTIONS = {
     "actions/checkout": "v7",
     "actions/setup-python": "v7",
     "actions/setup-node": "v7",
     "actions/cache/restore": "v5",
     "actions/cache/save": "v5",
-    "actions/download-artifact": "v7",
+    "actions/download-artifact": "v8",
     "actions/upload-artifact": "v7",
     "actions/upload-pages-artifact": "v5",
     "actions/deploy-pages": "v5",
