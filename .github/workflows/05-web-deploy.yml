@@ -5,12 +5,6 @@ on:
     branches: [main]
     paths:
       - "app/**"
-      - "data/candidates.json"
-      - "data/next_trading_day_plan.json"
-      - "data/production_status.json"
-      - "data/research_trial_status.json"
-      - "data/research_status.json"
-      - "data/trading_day_status.json"
       - "public/**"
       - "package.json"
       - "package-lock.json"
@@ -37,9 +31,73 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  verify_snapshot:
+    name: "验证候选快照是否为今日正式结果"
+    if: ${{ github.event_name == 'workflow_run' }}
+    runs-on: ubuntu-24.04
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: "检出最新公开仓库"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "校验交易日状态与候选日期"
+        id: check
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          tz = ZoneInfo("Asia/Shanghai")
+          today = datetime.now(tz).date().isoformat()
+          status_path = Path("data/trading_day_status.json")
+          candidates_path = Path("data/candidates.json")
+          plan_path = Path("data/next_trading_day_plan.json")
+
+          ready = False
+          reasons = []
+          if not status_path.exists() or not candidates_path.exists() or not plan_path.exists():
+              reasons.append("缺少交易日状态、候选快照或下一交易日计划文件。")
+          else:
+              status = json.loads(status_path.read_text(encoding="utf-8"))
+              candidates = json.loads(candidates_path.read_text(encoding="utf-8"))
+              plan = json.loads(plan_path.read_text(encoding="utf-8"))
+              checked_at = datetime.fromisoformat(status["checked_at"])
+              checked_date = checked_at.astimezone(tz).date().isoformat()
+              candidate_date = str(candidates.get("as_of", ""))[:10]
+              plan_signal_date = str(plan.get("signal_date", ""))
+              if not status.get("is_trading_day"):
+                  reasons.append("最新交易日状态为非交易日，不部署旧候选快照。")
+              if checked_date != today:
+                  reasons.append(f"交易日状态不是今日检查结果：状态日期={checked_date}，当前日期={today}。")
+              if candidates.get("status") != "ready":
+                  reasons.append("候选快照状态不是 ready。")
+              if candidate_date != today:
+                  reasons.append(f"候选快照日期={candidate_date}，不等于今日={today}。")
+              if plan_signal_date != today:
+                  reasons.append(f"下一交易日计划信号日期={plan_signal_date}，不等于今日={today}。")
+              ready = not reasons
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"ready={str(ready).lower()}\n")
+          for reason in reasons:
+              print(reason)
+          if ready:
+              print(f"正式候选快照、交易日状态和计划均对应 {today}，允许部署网页。")
+          else:
+              print("本次不部署；待今日候选生产成功后由工作流再次触发。")
+          PY
+
   build:
     name: "构建第一版系统网页"
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    needs: verify_snapshot
+    if: ${{ always() && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && needs.verify_snapshot.result == 'success' && needs.verify_snapshot.outputs.ready == 'true')) }}
     runs-on: ubuntu-24.04
     steps:
       - name: "检出公开仓库"
@@ -64,6 +122,7 @@ jobs:
   deploy:
     name: "部署第一版系统网页"
     needs: build
+    if: ${{ needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
