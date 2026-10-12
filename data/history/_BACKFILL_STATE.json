@@ -22,7 +22,7 @@
   ],
   "year_count": 12,
   "trading_days": 2855,
-  "days_completed": 2,
+  "days_completed": 3,
   "files_by_year": {
     "2015": 244,
     "2016": 244,
@@ -45,12 +45,13 @@
   "universe_scope": "DATABASE_SHSZBJ_STOCKS",
   "bulk_limit": 6000,
   "completed_dates": [
+    "2026-10-12",
     "2026-10-09",
     "2026-10-08"
   ],
-  "rows_written": 11145,
+  "rows_written": 16718,
   "last_day": {
-    "date": "2026-10-09",
+    "date": "2026-10-12",
     "rows": 5573,
     "unique_symbols": 5573,
     "duplicates": 0,
@@ -87,10 +88,10 @@
       "ps_ratio": 0.937197,
       "symbol": 1.0,
       "turnover_pct": 1.0,
-      "turnover_ratio": 0.934865,
+      "turnover_ratio": 0.935223,
       "volume": 1.0
     },
-    "valuation_rows": 5209
+    "valuation_rows": 5211
   },
-  "last_file": "data/history/2026/2026-10-09.csv.gz"
+  "last_file": "data/history/2026/2026-10-12.csv.gz"
 }
