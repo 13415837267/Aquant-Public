@@ -39,7 +39,7 @@ if [[ -n "${CANCEL_OBSOLETE_RUN_IDS:-}" ]]; then
       continue
     fi
 
-    if ! gh api --method POST "repos/$REPOSITORY/actions/runs/$run_id/cancel" >/dev/null 2>&1; then
+    if ! gh api --method POST "repos/$REPOSITORY/actions/runs/$run_id/force-cancel" >/dev/null 2>&1; then
       current_status="$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '.status' 2>/dev/null || printf 'unknown')"
       if [[ "$current_status" != "completed" ]]; then
         cleanup_errors="$(jq -c --arg id "$run_id" --arg status "$current_status" '. + [{kind:"cancel_run", id:$id, reason:("取消请求失败，当前状态：" + $status)}]' <<< "$cleanup_errors")"
