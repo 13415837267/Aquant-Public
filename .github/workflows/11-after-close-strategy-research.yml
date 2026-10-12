@@ -33,7 +33,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: "盘后选股策略统一研究-main-v1"
+  group: "盘后选股策略统一研究-main-v2"
   # 新提交优先，取消仍在运行的旧版本研究，避免过期训练阻塞最新验证。
   cancel-in-progress: true
 
