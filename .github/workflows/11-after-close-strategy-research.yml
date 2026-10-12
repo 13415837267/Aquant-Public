@@ -27,6 +27,7 @@ on:
       - "tests/test_after_close_strategy_report.py"
       - "tests/test_after_close_rule_compound_backtest.py"
       - "tests/test_workflow_action_runtimes.py"
+      - "tests/test_path_rule_mining.py"
 
 permissions:
   contents: read

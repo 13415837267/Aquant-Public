@@ -263,9 +263,26 @@ def summarize_selected(acc, rule_specs):
     return rows
 
 
-def iter_split(files, start, end, state):
+def max_signal_index(
+    end_index: int,
+    total_sessions: int,
+    horizon_sessions: int,
+    allow_forward_after_end: bool = False,
+) -> int:
+    """返回可用信号截止索引，确保训练和验证标签不越过各自分割边界。"""
+    if total_sessions < 1 or horizon_sessions < 1:
+        raise ValueError("交易日总数和前瞻期限必须为正数")
+    data_limit = total_sessions - int(horizon_sessions) - 1
+    split_limit = int(end_index) if allow_forward_after_end else int(end_index) - int(horizon_sessions)
+    return min(data_limit, split_limit)
+
+
+def iter_split(files, start, end, state, allow_forward_after_end=False):
     dates = [p.name[:10] for p in files]
     start_i, end_i = dates.index(start), dates.index(end)
+    last_signal_i = max_signal_index(
+        end_i, len(files), MAX_FORWARD_SESSIONS, allow_forward_after_end
+    )
     cache = {}
 
     def get(i):
@@ -275,7 +292,7 @@ def iter_split(files, start, end, state):
             del cache[next(iter(cache))]
         return cache[i]
 
-    for i in range(max(0, start_i - FEATURE_WARMUP_SESSIONS), end_i + 1):
+    for i in range(max(0, start_i - FEATURE_WARMUP_SESSIONS), min(end_i, last_signal_i) + 1):
         date = dates[i]
         frame = state.build(get(i))
         if date < start or date > end:
@@ -321,7 +338,7 @@ def scan_pairs(files, start, end, atomic_indices, pair_indices):
     rule_specs = [("pair", pair) for pair in pair_indices]
     acc = new_accumulator(len(rule_specs))
     processed = samples = 0
-    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state):
+    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state, allow_forward_after_end=allow_forward_after_end):
         base_masks = atomic_masks(x, atomic_indices)
         local_index = {rule_idx: pos for pos, rule_idx in enumerate(atomic_indices)}
         masks = np.empty((len(x), len(pair_indices)), dtype=np.uint8)
@@ -335,7 +352,7 @@ def scan_pairs(files, start, end, atomic_indices, pair_indices):
     return rule_specs, acc, processed, samples
 
 
-def scan_selected(files, start, end, atomic_indices, pair_indices):
+def scan_selected(files, start, end, atomic_indices, pair_indices, allow_forward_after_end=False):
     rule_specs = [("atomic", (idx,)) for idx in atomic_indices] + [("pair", pair) for pair in pair_indices]
     state = FeatureState()
     acc = new_accumulator(len(rule_specs))
@@ -432,7 +449,8 @@ def main():
     final_pairs = [indices for typ, indices in selected_specs if typ == "pair"]
 
     final_specs, final_acc, final_days, final_samples = scan_selected(
-        files, FINAL_START, args.final_end, final_atomic, final_pairs
+        files, FINAL_START, args.final_end, final_atomic, final_pairs,
+        allow_forward_after_end=True,
     )
     final_rows = summarize_selected(final_acc, final_specs)
     final_map = {tuple(row["rule_indices"]): row for row in final_rows}
@@ -536,6 +554,8 @@ def main():
             "rule_discovery_split": "train",
             "rule_selection_split": "validation",
             "final_holdout_split": "final",
+            "train_and_validation_label_windows_stay_inside_split": True,
+            "final_signal_window_truncated_to_available_complete_exit_bars": True,
             "formal_production_changed": False,
         },
         "elapsed_seconds": round(time.time() - started, 2),
