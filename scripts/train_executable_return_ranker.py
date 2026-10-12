@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import pickle
 import subprocess
 import sys
 import time
@@ -235,16 +237,75 @@ def load_source(path: Path) -> dict:
     return source
 
 
-def train(source: dict, model: ExecutableReturnMLPRegressor, files: list[Path]) -> dict:
+def _checkpoint_signature(source: dict, files: list[Path]) -> str:
+    """断点兼容签名覆盖训练代码、标签/特征依赖、配置及本次历史数据内容。"""
+    dependency_paths = [
+        ROOT / "scripts/train_executable_return_ranker.py",
+        ROOT / "scripts/high_precision_profit_mining.py",
+        ROOT / "scripts/train_short_term_model.py",
+        ROOT / "scripts/short_term_research.py",
+        ROOT / "scripts/market_scope.py",
+        ROOT / "scripts/selection_factor_catalog.py",
+        ROOT / "scripts/compound_portfolio_backtest.py",
+        ROOT / "config/选股条件研究配置.json",
+    ]
+    digest = hashlib.sha256()
+    for path in dependency_paths:
+        if not path.is_file():
+            raise FileNotFoundError(f"断点签名依赖缺失：{path}")
+        digest.update(path.relative_to(ROOT).as_posix().encode("utf-8"))
+        with path.open("rb") as handle:
+            while chunk := handle.read(1024 * 1024):
+                digest.update(chunk)
+
+    # 对历史行情做内容指纹；若同名数据被改写，旧断点不得混用。
+    for path in files:
+        digest.update(path.name.encode("utf-8"))
+        with path.open("rb") as handle:
+            while chunk := handle.read(1024 * 1024):
+                digest.update(chunk)
+
+    metadata = {
+        "signature_version": 2,
+        "splits": source["splits"],
+        "features": source["model"]["features"],
+        "net_target_pct": NET_TARGET_PCT,
+        "stop_loss_pct": STOP_LOSS_PCT,
+        "round_trip_cost_bps": ROUND_TRIP_COST_BPS,
+        "max_forward_sessions": MAX_FORWARD_SESSIONS,
+        "target_scale_pct": TARGET_SCALE_PCT,
+        "hidden_units": HIDDEN_UNITS,
+        "learning_rate": LEARNING_RATE,
+        "l2": L2,
+        "seed": RANDOM_SEED,
+        "history_dates": [files[0].name, files[-1].name, len(files)],
+        "dependency_and_data_sha256": digest.hexdigest(),
+    }
+    return hashlib.sha256(
+        json.dumps(metadata, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+
+def train(
+    source: dict,
+    model: ExecutableReturnMLPRegressor,
+    files: list[Path],
+    checkpoint_path: Path | None = None,
+    checkpoint_every_days: int = 100,
+) -> dict:
     dates = [path.name[:10] for path in files]
     train_start, train_end = source["splits"]["train"]
     validation_start = source["splits"]["validation"][0]
     if any(value not in dates for value in (train_start, train_end, validation_start)):
         raise ValueError("训练或验证边界不在现有历史行情覆盖内")
+    if checkpoint_every_days < 1:
+        raise ValueError("断点保存周期必须是正整数")
 
     start_index = dates.index(train_start)
     end_index = dates.index(train_end)
     validation_index = dates.index(validation_start)
+    initial_index = max(0, start_index - FEATURE_WARMUP_SESSIONS)
+    signature = _checkpoint_signature(source, files)
     cache: dict[int, pd.DataFrame] = {}
 
     def get_daily(index: int) -> pd.DataFrame:
@@ -255,67 +316,148 @@ def train(source: dict, model: ExecutableReturnMLPRegressor, files: list[Path]) 
         return cache[index]
 
     state = FeatureState()
+    next_index = initial_index
     processed_days = 0
     sample_count = 0
     clip_count = 0
-    realized_returns: list[float] = []
+    return_sum = 0.0
+    positive_count = 0
+    strict_target_count = 0
     daily_losses: list[float] = []
+    accumulated_seconds = 0.0
+    checkpoint_was_complete = False
+
+    if checkpoint_path is not None and checkpoint_path.is_file():
+        try:
+            with checkpoint_path.open("rb") as handle:
+                saved = pickle.load(handle)
+        except (OSError, pickle.UnpicklingError, EOFError) as error:
+            raise RuntimeError(f"研究断点无法读取，禁止静默从头重训：{error}") from error
+        if not isinstance(saved, dict) or saved.get("signature") != signature:
+            raise RuntimeError("研究断点与当前训练代码、配置或历史行情不兼容；为避免错用旧权重，已停止训练")
+        saved_model = saved["model"]
+        model.w1 = np.asarray(saved_model["w1"], dtype=np.float64)
+        model.b1 = np.asarray(saved_model["b1"], dtype=np.float64)
+        model.w2 = np.asarray(saved_model["w2"], dtype=np.float64)
+        model.b2 = float(saved_model["b2"])
+        model.updates = int(saved_model["updates"])
+        if model.w1.shape != (len(source["model"]["features"]), model.hidden_units):
+            raise RuntimeError("研究断点中的模型维度与当前特征不匹配")
+        state = saved["feature_state"]
+        next_index = int(saved["next_index"])
+        processed_days = int(saved["processed_days"])
+        sample_count = int(saved["sample_count"])
+        clip_count = int(saved["clip_count"])
+        return_sum = float(saved["return_sum"])
+        positive_count = int(saved["positive_count"])
+        strict_target_count = int(saved["strict_target_count"])
+        daily_losses = [float(value) for value in saved["daily_losses"]][-50:]
+        accumulated_seconds = float(saved["accumulated_seconds"])
+        checkpoint_was_complete = bool(saved.get("complete", False))
+        if next_index < initial_index or next_index > end_index + 1:
+            raise RuntimeError("研究断点的下一个交易日位置超出训练窗口")
+        print(
+            f"[执行净收益回归] 已恢复断点：完成训练日={processed_days}，"
+            f"样本={sample_count}，下一个位置={next_index}，完整断点={checkpoint_was_complete}",
+            flush=True,
+        )
+
     start_time = time.time()
 
-    for index in range(max(0, start_index - FEATURE_WARMUP_SESSIONS), end_index + 1):
-        frame = state.build(get_daily(index))
-        signal_date = dates[index]
-        if signal_date < train_start or signal_date > train_end:
-            continue
-        if frame.empty or index + MAX_FORWARD_SESSIONS >= len(files):
-            continue
-        if not label_window_precedes_boundary(index, MAX_FORWARD_SESSIONS, validation_index):
-            continue
+    def save_checkpoint(next_day_index: int, complete: bool = False) -> None:
+        if checkpoint_path is None:
+            return
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "signature": signature,
+            "complete": complete,
+            "next_index": next_day_index,
+            "processed_days": processed_days,
+            "sample_count": sample_count,
+            "clip_count": clip_count,
+            "return_sum": return_sum,
+            "positive_count": positive_count,
+            "strict_target_count": strict_target_count,
+            "daily_losses": daily_losses[-50:],
+            "accumulated_seconds": accumulated_seconds + (time.time() - start_time),
+            "feature_state": state,
+            "model": {
+                "w1": model.w1,
+                "b1": model.b1,
+                "w2": model.w2,
+                "b2": model.b2,
+                "updates": model.updates,
+            },
+        }
+        temporary_path = checkpoint_path.with_suffix(checkpoint_path.suffix + ".tmp")
+        with temporary_path.open("wb") as handle:
+            pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            handle.flush()
+        temporary_path.replace(checkpoint_path)
 
-        future_days = [
-            get_daily(index + offset)
-            for offset in range(1, MAX_FORWARD_SESSIONS + 1)
-        ]
-        symbols = frame["symbol"].astype(str).str.zfill(6).tolist()
-        all_features = make_features(frame)
-        net_returns, usable = build_executable_net_returns(symbols, future_days)
-        keep = np.flatnonzero(usable)
-        if len(keep) == 0:
-            continue
+    if not checkpoint_was_complete:
+        for index in range(next_index, end_index + 1):
+            frame = state.build(get_daily(index))
+            signal_date = dates[index]
+            if signal_date < train_start or signal_date > train_end:
+                continue
+            if frame.empty or index + MAX_FORWARD_SESSIONS >= len(files):
+                continue
+            if not label_window_precedes_boundary(index, MAX_FORWARD_SESSIONS, validation_index):
+                continue
 
-        features = all_features[keep]
-        targets = net_returns[keep]
-        daily_losses.append(model.update(features, targets))
-        processed_days += 1
-        sample_count += int(len(targets))
-        clip_count += int(np.count_nonzero(np.abs(targets) > TARGET_SCALE_PCT))
-        realized_returns.extend(targets.tolist())
+            future_days = [
+                get_daily(index + offset)
+                for offset in range(1, MAX_FORWARD_SESSIONS + 1)
+            ]
+            symbols = frame["symbol"].astype(str).str.zfill(6).tolist()
+            all_features = make_features(frame)
+            net_returns, usable = build_executable_net_returns(symbols, future_days)
+            keep = np.flatnonzero(usable)
+            if len(keep) == 0:
+                continue
 
-        if processed_days % 50 == 0:
-            print(
-                f"[执行净收益回归] 已处理交易日={processed_days}，样本={sample_count}，"
-                f"训练日均方损失={float(np.mean(daily_losses[-50:])):.5f}",
-                flush=True,
-            )
+            features = all_features[keep]
+            targets = net_returns[keep]
+            loss = model.update(features, targets)
+            daily_losses.append(loss)
+            daily_losses = daily_losses[-50:]
+            processed_days += 1
+            sample_count += int(len(targets))
+            clip_count += int(np.count_nonzero(np.abs(targets) > TARGET_SCALE_PCT))
+            return_sum += float(np.sum(targets))
+            positive_count += int(np.count_nonzero(targets > 0.0))
+            strict_target_count += int(np.count_nonzero(targets >= NET_TARGET_PCT))
+
+            if processed_days % checkpoint_every_days == 0:
+                save_checkpoint(index + 1)
+                print(
+                    f"[执行净收益回归] 已保存断点：训练日={processed_days}，样本={sample_count}，"
+                    f"最近{len(daily_losses)}日均方损失={float(np.mean(daily_losses)):.5f}",
+                    flush=True,
+                )
 
     if processed_days == 0 or sample_count == 0:
         raise RuntimeError("净收益回归训练窗口没有生成有效样本")
 
-    returns = np.asarray(realized_returns, dtype=np.float64)
+    accumulated_seconds += time.time() - start_time
+    save_checkpoint(end_index + 1, complete=True)
     return {
         "start": train_start,
         "end": train_end,
         "processed_days": processed_days,
         "samples": sample_count,
         "daily_model_updates": model.updates,
-        "realized_net_return_mean_pct": float(returns.mean()),
-        "realized_net_return_median_pct": float(np.median(returns)),
-        "realized_positive_rate_pct": float(np.mean(returns > 0.0) * 100.0),
-        "strict_target_hit_rate_pct": float(np.mean(returns >= NET_TARGET_PCT) * 100.0),
-        "target_clip_limit_pct": TARGET_SCALE_PCT,
+        "realized_net_return_mean_pct": return_sum / sample_count,
+        "realized_positive_rate_pct": positive_count / sample_count * 100.0,
+        "strict_target_hit_rate_pct": strict_target_count / sample_count * 100.0,
+        "target_scale_pct": TARGET_SCALE_PCT,
         "target_clipped_samples": clip_count,
-        "mean_last_50_daily_losses": float(np.mean(daily_losses[-50:])),
-        "elapsed_seconds": round(time.time() - start_time, 2),
+        "mean_last_50_daily_losses": float(np.mean(daily_losses)) if daily_losses else None,
+        "elapsed_seconds": round(accumulated_seconds, 2),
+        "resumed_from_checkpoint": bool(checkpoint_path and checkpoint_path.is_file()),
+        "checkpoint_signature": signature,
+        "checkpoint_path": str(checkpoint_path.relative_to(ROOT)) if checkpoint_path else None,
     }
 
 
@@ -328,6 +470,15 @@ def main() -> int:
     parser.add_argument(
         "--output",
         default="data/backtest/executable_return_ranker_research_latest.json",
+    )
+    parser.add_argument(
+        "--checkpoint-path",
+        default="data/research/checkpoints/executable_return_ranker.pkl",
+    )
+    parser.add_argument(
+        "--checkpoint-every-days",
+        type=int,
+        default=100,
     )
     args = parser.parse_args()
     input_path = Path(args.model_result).resolve()
@@ -343,7 +494,13 @@ def main() -> int:
         l2=L2,
         seed=RANDOM_SEED,
     )
-    training = train(source, model, history_files())
+    training = train(
+        source,
+        model,
+        history_files(),
+        checkpoint_path=Path(args.checkpoint_path).resolve(),
+        checkpoint_every_days=args.checkpoint_every_days,
+    )
     public_commit = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
     ).strip()
@@ -383,6 +540,8 @@ def main() -> int:
             "validation_used_for_training": False,
             "final_holdout_used_for_training_or_selection": False,
             "no_probability_threshold_grid_search": True,
+            "checkpoint_signature_covers_training_code_config_and_history_data": True,
+            "training_checkpoint_saved_atomically_and_resumable": True,
             "formal_production_changed": False,
         },
     }
