@@ -27,7 +27,50 @@ if [[ -n "${CANCEL_OBSOLETE_RUN_IDS:-}" ]]; then
       echo "指定旧运行已不存在，无需再次取消：$run_id"
       continue
     fi
-    IFS="$(gh api --paginate "repos/$REPOSITORY/actions/runs?per_page=100" --jq '.workflow_runs[] | [.id, .created_at, .status, (.conclusion // "-"), (.name // "")] | @tsv')"; then
+    IFS=$'\t' read -r actual_id actual_name actual_status actual_conclusion <<< "$run_info"
+
+    if [[ "$actual_name" != "06 模型研究" ]]; then
+      cleanup_errors="$(jq -c --arg id "$run_id" --arg name "$actual_name" '. + [{kind:"cancel_run", id:$id, reason:("目标名称不匹配：" + $name)}]' <<< "$cleanup_errors")"
+      echo "拒绝取消运行 $run_id：工作流名称不符合预期。"
+      continue
+    fi
+    if [[ "$actual_status" == "completed" ]]; then
+      echo "指定旧运行已结束：$run_id（\${actual_conclusion}）"
+      continue
+    fi
+
+    if ! gh api --method POST "repos/$REPOSITORY/actions/runs/$run_id/cancel" >/dev/null 2>&1; then
+      current_status="$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '.status' 2>/dev/null || printf 'unknown')"
+      if [[ "$current_status" != "completed" ]]; then
+        cleanup_errors="$(jq -c --arg id "$run_id" --arg status "$current_status" '. + [{kind:"cancel_run", id:$id, reason:("取消请求失败，当前状态：" + $status)}]' <<< "$cleanup_errors")"
+        echo "取消旧运行失败：$run_id（当前状态：$current_status）"
+        continue
+      fi
+    fi
+
+    attempt=0
+    current_status="$actual_status"
+    while [[ "$attempt" -lt "$cancel_poll_max_attempts" ]]; do
+      attempt=$((attempt + 1))
+      current_status="$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '.status' 2>/dev/null || printf 'unknown')"
+      if [[ "$current_status" == "completed" ]]; then
+        final_conclusion="$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '.conclusion // "-"' 2>/dev/null || printf 'unknown')"
+        cancelled_obsolete_runs="$(jq -c --arg id "$run_id" --arg name "$actual_name" --arg prior_status "$actual_status" --arg conclusion "$final_conclusion" '. + [{run_id:($id|tonumber), name:$name, prior_status:$prior_status, conclusion:$conclusion}]' <<< "$cancelled_obsolete_runs")"
+        echo "旧研究运行已结束：$run_id（结论：$final_conclusion）"
+        break
+      fi
+      sleep "$cancel_poll_interval_seconds"
+    done
+
+    if [[ "$current_status" != "completed" ]]; then
+      cleanup_errors="$(jq -c --arg id "$run_id" --arg status "$current_status" '. + [{kind:"cancel_run", id:$id, reason:("等待取消完成超时，当前状态：" + $status)}]' <<< "$cleanup_errors")"
+      echo "等待旧运行取消完成超时：$run_id"
+    fi
+  done
+fi
+
+# 取消请求完成后重新读取运行列表，再依据状态逐条决定是否删除记录。
+if ! runs_tsv="$(gh api --paginate "repos/$REPOSITORY/actions/runs?per_page=100" --jq '.workflow_runs[] | [.id, .created_at, .status, (.conclusion // "-"), (.name // "")] | @tsv')"; then
   echo "读取历史工作流运行失败。"
   exit 1
 fi
