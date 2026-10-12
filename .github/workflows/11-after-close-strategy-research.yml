@@ -1,0 +1,212 @@
+name: "11 盘后选股策略统一研究"
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/11-after-close-strategy-research.yml"
+      - "scripts/after_close_strategy_report.py"
+      - "scripts/path_rule_mining.py"
+      - "scripts/path_aware_gbdt_compound_backtest.py"
+      - "scripts/compound_portfolio_backtest.py"
+      - "scripts/train_path_aware_gbdt.py"
+      - "scripts/train_short_term_model.py"
+      - "scripts/short_term_research.py"
+      - "scripts/selection_factor_catalog.py"
+      - "config/选股条件研究配置.json"
+      - "tests/test_after_close_strategy_report.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "盘后选股策略统一研究-main-v1"
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: "研究前质量与口径检查"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    steps:
+      - name: "检出代码与历史行情"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "设置 Python 3.11"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: "安装固定研究依赖"
+        run: python -m pip install -r requirements.txt
+
+      - name: "检查语法与完整测试"
+        run: |
+          set -euo pipefail
+          python -m compileall -q scripts tests
+          python -m pytest -q
+
+      - name: "核验历史区间与标签契约"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from scripts.short_term_research import history_files
+          from scripts.selection_factor_catalog import load_research_config
+
+          files = history_files()
+          dates = {path.name[:10] for path in files}
+          required = (
+              "2015-01-05",
+              "2022-12-30",
+              "2023-01-03",
+              "2024-12-31",
+              "2025-01-02",
+              "2026-09-30",
+          )
+          missing = [date for date in required if date not in dates]
+          if missing:
+              raise SystemExit(f"历史行情缺少必要边界：{missing}")
+          config = load_research_config()
+          assert float(config["短线目标净收益百分比"]) == 1.0
+          assert float(config["止损幅度百分比"]) == 3.0
+          assert float(config["往返交易成本基点"]) == 10.0
+          assert int(config["最大前瞻交易日数"]) == 5
+          assert int(config["最早允许退出日序号"]) == 2
+          assert config["开盘涨停禁止入场"] is True
+          print("历史行情文件数：", len(files))
+          print("历史数据范围：", min(dates), "至", max(dates))
+          print("统一目标：净收益 +1% 先于 -3% 止损，T+1 开盘入场，T+2 起允许退出")
+          print("交易成本基准：往返 10 bps；正式生产策略保持不变")
+          PY
+
+  rule_strategy:
+    name: "盘后可解释条件挖掘"
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    steps:
+      - name: "检出代码与历史行情"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "设置 Python 3.11"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: "安装固定研究依赖"
+        run: python -m pip install -r requirements.txt
+
+      - name: "发现期挖掘、验证期冻结、最终期补充复核"
+        run: |
+          set -euo pipefail
+          mkdir -p data/backtest
+          python scripts/path_rule_mining.py \
+            --start 2015-01-05 \
+            --final-end 2026-09-30 \
+            --output data/backtest/after_close_rule_mining.json
+
+      - name: "保存规则研究结果"
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "rule-research"
+          path: data/backtest/after_close_rule_mining.json
+          if-no-files-found: error
+          retention-days: 30
+
+  model_strategy:
+    name: "模型筛选与现金约束组合回测"
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    steps:
+      - name: "检出代码与历史行情"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "设置 Python 3.11"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: "安装固定研究依赖"
+        run: python -m pip install -r requirements.txt
+
+      - name: "训练路径感知模型并按验证集复利选阈值"
+        run: |
+          set -euo pipefail
+          mkdir -p data/backtest
+          python scripts/path_aware_gbdt_compound_backtest.py \
+            --output data/backtest/after_close_model_compound.json
+
+      - name: "保存模型组合结果"
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "model-compound"
+          path: data/backtest/after_close_model_compound.json
+          if-no-files-found: error
+          retention-days: 30
+
+  comparison_report:
+    name: "生成统一研究结论与晋级审计"
+    needs:
+      - rule_strategy
+      - model_strategy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: "检出报告脚本"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            scripts/after_close_strategy_report.py
+
+      - name: "设置 Python 3.11"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: "下载规则研究与模型组合产物"
+        uses: actions/download-artifact@v7
+        with:
+          name: "rule-research"
+          path: data/artifacts/rules
+
+      - name: "下载模型组合产物"
+        uses: actions/download-artifact@v7
+        with:
+          name: "model-compound"
+          path: data/artifacts/model
+
+      - name: "汇总规则、实际组合收益与研究门槛"
+        run: |
+          set -euo pipefail
+          python scripts/after_close_strategy_report.py \
+            --rules data/artifacts/rules/after_close_rule_mining.json \
+            --model data/artifacts/model/after_close_model_compound.json \
+            --output data/backtest/after_close_strategy_comparison_latest.json
+
+      - name: "保存统一对照报告"
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "after-close-strategy-comparison"
+          path: data/backtest/after_close_strategy_comparison_latest.json
+          if-no-files-found: error
+          retention-days: 30
