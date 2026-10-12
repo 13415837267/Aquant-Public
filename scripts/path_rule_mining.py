@@ -338,7 +338,7 @@ def scan_pairs(files, start, end, atomic_indices, pair_indices):
     rule_specs = [("pair", pair) for pair in pair_indices]
     acc = new_accumulator(len(rule_specs))
     processed = samples = 0
-    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state, allow_forward_after_end=allow_forward_after_end):
+    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state):
         base_masks = atomic_masks(x, atomic_indices)
         local_index = {rule_idx: pos for pos, rule_idx in enumerate(atomic_indices)}
         masks = np.empty((len(x), len(pair_indices)), dtype=np.uint8)
@@ -358,7 +358,7 @@ def scan_selected(files, start, end, atomic_indices, pair_indices, allow_forward
     acc = new_accumulator(len(rule_specs))
     processed = samples = 0
     atomic_pos = {idx: pos for pos, idx in enumerate(atomic_indices)}
-    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state):
+    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state, allow_forward_after_end=allow_forward_after_end):
         base_masks = atomic_masks(x, atomic_indices)
         masks = np.empty((len(x), len(rule_specs)), dtype=np.uint8)
         for pos, idx in enumerate(atomic_indices):
