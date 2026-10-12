@@ -109,6 +109,10 @@ def model_report(
                 "annualized_compound_return_pct": 1.0,
                 "max_drawdown_pct": -22.0,
                 "final_equity": 102000.0,
+                "target_hit_rate_pct": 72.5,
+                "positive_trade_rate_pct": 74.0,
+                "mean_trade_net_return_pct": 0.29,
+                "sharpe_ratio": 0.68,
                 "selection_policy": {
                     "signal": "T日收盘",
                     "entry": "T+1开盘",
@@ -225,6 +229,10 @@ class AfterCloseStrategyReportTests(unittest.TestCase):
         self.assertTrue(report["same_execution_mechanics"])
         self.assertTrue(report["rule_strategy"]["validation_release_gate_passed"])
         self.assertFalse(report["portfolio_comparison"]["final_supplemental"]["fresh_unseen_holdout"])
+        self.assertEqual(
+            report["portfolio_comparison"]["final_supplemental"]["model"]["target_hit_rate_pct"],
+            72.5,
+        )
 
     def test_frozen_rule_portfolio_gate_rejects_negative_or_small_results(self):
         from scripts.after_close_strategy_report import summarize_rule_portfolio
