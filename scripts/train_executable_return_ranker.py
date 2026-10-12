@@ -41,7 +41,7 @@ RANDOM_SEED = 42
 def _normalized_index(day: pd.DataFrame) -> pd.DataFrame:
     """生成稳定的六位证券代码索引，兼容历史数据中的带交易所前缀代码。"""
     if day.empty or "symbol" not in day.columns:
-        return pd.DataFrame().set_index(pd.Index([], name="_symbol_key"))
+        return pd.DataFrame(index=pd.Index([], name="_symbol_key"))
     normalized = day.copy()
     normalized["_symbol_key"] = (
         normalized["symbol"].astype(str).str.extract(r"(\d{6})")[0].fillna("").str.zfill(6)
@@ -97,7 +97,10 @@ def build_executable_net_returns(
         raise ValueError("未来行情长度与配置中的最大持有交易日不一致")
 
     indexed_days = [_normalized_index(day) for day in future_days]
-    normalized_symbols = [str(symbol).zfill(6)[-6:] for symbol in symbols]
+    normalized_symbols = []
+    for symbol in symbols:
+        digits = "".join(character for character in str(symbol) if character.isdigit())
+        normalized_symbols.append(digits[-6:].zfill(6) if digits else "")
     entry_day = indexed_days[0]
 
     for index in np.flatnonzero(complete):
