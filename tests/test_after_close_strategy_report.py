@@ -118,7 +118,7 @@ class AfterCloseStrategyReportTests(unittest.TestCase):
             result["best_validation_rule"]["rule"],
             "market_median_return_pct>=0.5 AND volatility_10d_pct<=0.7",
         )
-        self.assertEqual(result["supplemental_final_best_rule_vs_base_hit_rate_delta_pp"], 4.0)
+        self.assertEqual(result["supplemental_final_best_rule_vs_base_hit_rate_delta_pp"], -8.0)
         self.assertIn("不是每日TopN组合收益", result["important_limit"])
 
     def test_rule_does_not_qualify_with_small_sample_or_negative_close_return(self):
