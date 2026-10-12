@@ -1,35 +1,8 @@
 name: "06 模型研究"
 
-# 研究条件、特征与模型脚本变化时，在GitHub云端重新训练和验证。
+# 完整历史研究只允许有明确目的时手动启动；代码更新不应反复触发整条长流程。
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/06-model-research.yml"
-      - "config/选股条件研究配置.json"
-      - "scripts/selection_factor_catalog.py"
-      - "scripts/high_precision_profit_mining.py"
-      - "scripts/train_path_aware_gbdt.py"
-      - "scripts/train_short_term_model.py"
-      - "scripts/train_executable_path_model.py"
-      - "scripts/short_term_research.py"
-      - "scripts/train_path_aware_model.py"
-      - "scripts/path_rule_mining.py"
-      - "scripts/path_regime_rule_mining.py"
-      - "scripts/strict_path_strategy_score_mining.py"
-      - "scripts/pack_all_condition_results.py"
-      - "scripts/compound_portfolio_backtest.py"
-      - "scripts/run_all_conditions_research.py"
-      - "scripts/research_checkpoint_runner.py"
-      - "requirements.txt"
-      - "scripts/pairwise_rank_compound_backtest.py"
-      - "scripts/train_pairwise_mlp_ranker.py"
-      - "scripts/pairwise_mlp_compound_backtest.py"
-      - "scripts/train_executable_return_ranker.py"
-      - "scripts/executable_return_backtest.py"
-      - "tests/test_pairwise_ranking_model.py"
-      - "tests/test_pairwise_mlp_ranker.py"
-      - "tests/test_executable_return_ranker.py"
 
 permissions:
   contents: read
@@ -120,8 +93,6 @@ jobs:
             data/backtest/all_conditions_research_manifest_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
             data/research/workflow_stages/
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -176,8 +147,6 @@ jobs:
             data/backtest/all_conditions_research_manifest_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
             data/research/workflow_stages/
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-01-high-precision
@@ -228,26 +197,6 @@ jobs:
             data/research/workflow_stages/pairwise_rank_compound.json
           key: aquant-pairwise-rank-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-02-pairwise
 
-      - name: "执行或恢复直接可执行净收益回归训练"
-        id: executable_return_training
-        if: ${{ always() }}
-        run: >-
-          python scripts/research_checkpoint_runner.py --key executable_return_ranker
-          --output data/backtest/executable_return_ranker_research_latest.json
-          --inputs data/backtest/high_precision_profit_mining_research_latest.json
-          --dependencies scripts/train_executable_return_ranker.py scripts/high_precision_profit_mining.py scripts/train_short_term_model.py scripts/short_term_research.py scripts/market_scope.py scripts/selection_factor_catalog.py scripts/compound_portfolio_backtest.py config/选股条件研究配置.json
-          --command python scripts/train_executable_return_ranker.py --model-result data/backtest/high_precision_profit_mining_research_latest.json --output data/backtest/executable_return_ranker_research_latest.json
-
-      - name: "验证直接净收益模型的经济空仓规则"
-        id: executable_return_backtest
-        if: ${{ always() }}
-        run: >-
-          python scripts/research_checkpoint_runner.py --key executable_return_backtest
-          --output data/backtest/executable_return_backtest_latest.json
-          --inputs data/backtest/high_precision_profit_mining_research_latest.json data/backtest/executable_return_ranker_research_latest.json
-          --dependencies scripts/executable_return_backtest.py scripts/train_executable_return_ranker.py scripts/compound_portfolio_backtest.py scripts/high_precision_profit_mining.py scripts/train_short_term_model.py scripts/short_term_research.py scripts/market_scope.py scripts/selection_factor_catalog.py config/选股条件研究配置.json
-          --command python scripts/executable_return_backtest.py --model-result data/backtest/high_precision_profit_mining_research_latest.json --ranker-result data/backtest/executable_return_ranker_research_latest.json --output data/backtest/executable_return_backtest_latest.json
-
       - name: "持久化检查点：复利评估"
         if: ${{ always() }}
         uses: actions/cache/save@v4
@@ -263,8 +212,6 @@ jobs:
             data/backtest/all_conditions_research_manifest_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
             data/research/workflow_stages/
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-02-compound
@@ -288,8 +235,6 @@ jobs:
             data/backtest/all_conditions_research_manifest_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
             data/research/workflow_stages/
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-03-single-double
@@ -313,8 +258,6 @@ jobs:
             data/backtest/all_conditions_research_manifest_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
             data/research/workflow_stages/
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-04-market-regime
@@ -338,8 +281,6 @@ jobs:
             data/backtest/all_conditions_research_manifest_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
             data/research/workflow_stages/
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-05-strategy-score
@@ -363,8 +304,6 @@ jobs:
             data/backtest/all_conditions_research_manifest_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
             data/research/workflow_stages/
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-06-short-term-model
@@ -388,8 +327,6 @@ jobs:
             data/backtest/all_conditions_research_manifest_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
             data/research/workflow_stages/
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-07-executable-path-model
@@ -421,8 +358,6 @@ jobs:
             data/backtest/all_conditions_research_manifest_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
             data/research/workflow_stages/
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-08-gbdt
@@ -450,8 +385,6 @@ jobs:
             data/backtest/all_conditions_research_manifest_latest.json
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
             data/research/workflow_stages/
             data/research/all_conditions/
           key: aquant-research-checkpoints-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}-09-gbdt-fixed078
@@ -468,8 +401,6 @@ jobs:
               Path("data/backtest/high_precision_compound_portfolio_latest.json"),
               Path("data/backtest/pairwise_mlp_ranker_research_latest.json"),
               Path("data/backtest/pairwise_rank_compound_latest.json"),
-              Path("data/backtest/executable_return_ranker_research_latest.json"),
-              Path("data/backtest/executable_return_backtest_latest.json"),
               Path("data/backtest/path_rule_mining_research_latest.json"),
               Path("data/backtest/path_regime_rule_mining_research_latest.json"),
               Path("data/backtest/strict_path_strategy_score_mining_research_latest.json"),
@@ -519,7 +450,6 @@ jobs:
             data/research/workflow_stages/**
             data/backtest/path_aware_gbdt_research_latest.json
             data/backtest/path_aware_gbdt_train2024_fixed078.json
-            data/backtest/executable_return_ranker_research_latest.json
-            data/backtest/executable_return_backtest_latest.json
           if-no-files-found: warn
           retention-days: 30
+
