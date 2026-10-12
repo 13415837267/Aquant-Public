@@ -110,6 +110,70 @@ def model_report(
     }
 
 
+def rule_portfolio_report(
+    validation_trades: int = 120,
+    validation_return: float = 4.0,
+    validation_drawdown: float = -12.0,
+    final_return: float = 2.5,
+) -> dict:
+    validation = {
+        "status": "ready",
+        "completed_trades": validation_trades,
+        "compound_return_pct": validation_return,
+        "annualized_compound_return_pct": validation_return / 2.0,
+        "max_drawdown_pct": validation_drawdown,
+        "target_hit_rate_pct": 73.0,
+        "final_equity": 104000.0,
+        "measurement_window": ["2023-01-03", "2024-12-24"],
+        "signal_window": ["2023-01-03", "2024-12-17"],
+    }
+    final = {
+        "status": "ready",
+        "completed_trades": 100,
+        "compound_return_pct": final_return,
+        "annualized_compound_return_pct": final_return / 1.8,
+        "max_drawdown_pct": -8.0,
+        "target_hit_rate_pct": 72.0,
+        "final_equity": 102500.0,
+        "measurement_window": ["2025-01-02", "2026-10-09"],
+        "signal_window": ["2025-01-02", "2026-09-24"],
+    }
+    return {
+        "schema_version": 1,
+        "status": "research_only",
+        "method": "training_frozen_rule_cash_constrained_portfolio",
+        "training_selected_rule": {
+            "rule_type": "pair",
+            "rule_label": "market_median_return_pct>=0.5 AND atr_14_pct<=0.3",
+            "rules": [
+                {"feature": "market_median_return_pct", "op": ">=", "threshold": 0.5, "scale": "pct"},
+                {"feature": "atr_14_pct", "op": "<=", "threshold": 0.3, "scale": "rank"},
+            ],
+            "training_samples": 20000,
+            "training_path_win_1pct_rate_pct": 73.0,
+            "training_wilson_lower_pct": 72.0,
+            "selection_method": "training only",
+        },
+        "selection_policy": {
+            "top_k_per_signal_day": 2,
+            "initial_equity": 100000.0,
+            "net_target_pct": 1.0,
+            "stop_loss_pct": 3.0,
+            "round_trip_cost_bps": 10.0,
+            "maximum_holding_sessions": 5,
+            "cash_constrained_no_leverage": True,
+        },
+        "validation_portfolio": validation,
+        "final_supplemental_portfolio": final,
+        "audit": {
+            "rule_selected_from_training_only": True,
+            "validation_used_only_to_evaluate_frozen_rule": True,
+            "final_window_is_not_fresh_unseen_holdout": True,
+            "formal_production_changed": False,
+        },
+    }
+
+
 class AfterCloseStrategyReportTests(unittest.TestCase):
     def test_rule_qualification_uses_validation_only(self):
         result = summarize_rules(rule_report(validation_rate=81.0, final_rate=60.0))
@@ -140,12 +204,22 @@ class AfterCloseStrategyReportTests(unittest.TestCase):
         )
 
     def test_combined_report_never_promotes_or_changes_production(self):
-        report = build_report(rule_report(), model_report())
+        report = build_report(rule_report(), model_report(), rule_portfolio_report())
         self.assertEqual(report["status"], "research_only")
         self.assertFalse(report["decision"]["formal_production_changed"])
         self.assertFalse(report["decision"]["promotion_allowed"])
         self.assertFalse(report["model_strategy"]["final_supplemental_is_fresh_unseen_holdout"])
-        self.assertIn("口径不同", report["decision"]["reason"])
+        self.assertIn("选择偏差", report["decision"]["reason"])
+        self.assertTrue(report["same_execution_mechanics"])
+        self.assertTrue(report["rule_strategy"]["validation_release_gate_passed"])
+        self.assertFalse(report["portfolio_comparison"]["final_supplemental"]["fresh_unseen_holdout"])
+
+    def test_frozen_rule_portfolio_gate_rejects_negative_or_small_results(self):
+        from scripts.after_close_strategy_report import summarize_rule_portfolio
+        self.assertTrue(summarize_rule_portfolio(rule_portfolio_report())["validation_release_gate_passed"])
+        self.assertFalse(summarize_rule_portfolio(rule_portfolio_report(validation_trades=99))["validation_release_gate_passed"])
+        self.assertFalse(summarize_rule_portfolio(rule_portfolio_report(validation_return=-1.0))["validation_release_gate_passed"])
+        self.assertFalse(summarize_rule_portfolio(rule_portfolio_report(validation_drawdown=-35.0))["validation_release_gate_passed"])
 
     def test_incompatible_methods_are_rejected(self):
         rules = rule_report()

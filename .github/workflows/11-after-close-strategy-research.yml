@@ -14,6 +14,9 @@ on:
       - ".github/workflows/11-after-close-strategy-research.yml"
       - "scripts/after_close_strategy_report.py"
       - "scripts/path_rule_mining.py"
+      - "scripts/after_close_rule_compound_backtest.py"
+      - "docs/盘后选股统一组合研究.md"
+      - "README.md"
       - "scripts/path_aware_gbdt_compound_backtest.py"
       - "scripts/compound_portfolio_backtest.py"
       - "scripts/train_path_aware_gbdt.py"
@@ -129,6 +132,50 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  rule_portfolio_strategy:
+    name: "训练期冻结规则的现金约束组合回测"
+    needs: rule_strategy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    steps:
+      - name: "检出公开仓库代码与历史行情"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: "设置 Python 3.11"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: "安装固定研究依赖"
+        run: python -m pip install -r requirements.txt
+
+      - name: "下载训练期规则挖掘结果"
+        uses: actions/download-artifact@v8
+        with:
+          name: "rule-research"
+          path: data/artifacts/rules
+
+      - name: "按冻结规则运行同口径Top2组合回测"
+        run: |
+          set -euo pipefail
+          mkdir -p data/backtest
+          python scripts/after_close_rule_compound_backtest.py \
+            --rules data/artifacts/rules/after_close_rule_mining.json \
+            --output data/backtest/after_close_rule_compound.json
+
+      - name: "保存规则组合回测结果"
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "rule-portfolio"
+          path: data/backtest/after_close_rule_compound.json
+          if-no-files-found: error
+          retention-days: 30
+
   model_strategy:
     name: "模型筛选与现金约束组合回测"
     needs: quality
@@ -170,6 +217,7 @@ jobs:
     name: "生成统一研究结论与晋级审计"
     needs:
       - rule_strategy
+      - rule_portfolio_strategy
       - model_strategy
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -188,16 +236,22 @@ jobs:
           python-version: "3.11"
 
       - name: "下载规则研究与模型组合产物"
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: "rule-research"
           path: data/artifacts/rules
 
       - name: "下载模型组合产物"
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: "model-compound"
           path: data/artifacts/model
+
+      - name: "下载规则组合回测产物"
+        uses: actions/download-artifact@v8
+        with:
+          name: "rule-portfolio"
+          path: data/artifacts/rule-portfolio
 
       - name: "汇总规则、实际组合收益与研究门槛"
         run: |
@@ -205,6 +259,7 @@ jobs:
           python scripts/after_close_strategy_report.py \
             --rules data/artifacts/rules/after_close_rule_mining.json \
             --model data/artifacts/model/after_close_model_compound.json \
+            --rule-portfolio data/artifacts/rule-portfolio/after_close_rule_compound.json \
             --output data/backtest/after_close_strategy_comparison_latest.json
 
       - name: "保存统一对照报告"

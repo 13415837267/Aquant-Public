@@ -237,13 +237,97 @@ def summarize_model(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def build_report(rules: dict[str, Any], model: dict[str, Any]) -> dict[str, Any]:
-    rule_summary = summarize_rules(rules)
-    model_summary = summarize_model(model)
+def summarize_rule_portfolio(data: dict[str, Any]) -> dict[str, Any]:
+    if data.get("method") != "training_frozen_rule_cash_constrained_portfolio":
+        raise ValueError("规则组合结果的方法标识不匹配")
+    rule = data.get("training_selected_rule") or {}
+    validation = data.get("validation_portfolio") or {}
+    final = data.get("final_supplemental_portfolio") or {}
+    policy = data.get("selection_policy") or {}
+    minimum_trades = _integer(policy.get("minimum_completed_trades")) or MIN_PORTFOLIO_TRADES
+
+    validation_return = _number(validation.get("compound_return_pct"))
+    validation_annualized = _number(validation.get("annualized_compound_return_pct"))
+    validation_drawdown = _number(validation.get("max_drawdown_pct"))
+    validation_trades = _integer(validation.get("completed_trades")) or 0
+    validation_gate = bool(
+        validation.get("status") == "ready"
+        and validation_trades >= minimum_trades
+        and validation_return is not None
+        and validation_return > 0
+        and validation_annualized is not None
+        and validation_annualized > 0
+        and validation_drawdown is not None
+        and validation_drawdown >= MAX_DRAWDOWN_FLOOR_PCT
+    )
+
+    keys = (
+        "status", "requested_entries", "entered_trades", "completed_trades",
+        "compound_return_pct", "annualized_compound_return_pct", "max_drawdown_pct",
+        "target_hit_rate_pct", "positive_trade_rate_pct", "mean_trade_net_return_pct",
+        "final_equity", "sharpe_ratio", "open_positions_at_end", "skipped_for_capacity_or_cash",
+        "measurement_window", "signal_window", "selection_status",
+    )
+    validation_summary = {key: validation.get(key) for key in keys if key in validation}
+    final_summary = {key: final.get(key) for key in keys if key in final}
     return {
-        "schema_version": 1,
         "status": "research_only",
-        "title": "盘后选股策略：规则挖掘与模型组合对照",
+        "method": data.get("method"),
+        "training_selected_rule": {
+            key: rule.get(key)
+            for key in (
+                "rule_type", "rule_label", "rules", "training_samples",
+                "training_path_win_1pct_rate_pct", "training_wilson_lower_pct", "selection_method",
+            )
+            if key in rule
+        },
+        "rule_frozen_before_validation": bool((data.get("audit") or {}).get("rule_selected_from_training_only")),
+        "validation_portfolio": validation_summary,
+        "validation_release_gate_passed": validation_gate,
+        "final_supplemental_portfolio": final_summary,
+        "final_supplemental_is_fresh_unseen_holdout": False,
+        "audit": data.get("audit") or {},
+    }
+
+
+def _comparison_metrics(portfolio: dict[str, Any] | None) -> dict[str, Any]:
+    portfolio = portfolio if isinstance(portfolio, dict) else {}
+    keys = (
+        "status", "completed_trades", "compound_return_pct", "annualized_compound_return_pct",
+        "max_drawdown_pct", "target_hit_rate_pct", "positive_trade_rate_pct",
+        "mean_trade_net_return_pct", "final_equity", "sharpe_ratio",
+    )
+    return {key: portfolio.get(key) for key in keys if key in portfolio}
+
+
+def build_report(
+    rules: dict[str, Any],
+    model: dict[str, Any],
+    rule_portfolio: dict[str, Any],
+) -> dict[str, Any]:
+    rule_mining = summarize_rules(rules)
+    frozen_rule = summarize_rule_portfolio(rule_portfolio)
+    model_summary = summarize_model(model)
+    model_validation = model_summary.get("validation_selected_operating_point") or {}
+    model_final = model_summary.get("final_supplemental_portfolio") or {}
+    frozen_validation = frozen_rule.get("validation_portfolio") or {}
+    frozen_final = frozen_rule.get("final_supplemental_portfolio") or {}
+    policy = rule_portfolio.get("selection_policy") or {}
+    model_policy = model.get("selection_policy") or {}
+
+    same_mechanics = bool(
+        int(policy.get("top_k_per_signal_day", -1)) == int(model_policy.get("top_k_per_signal_day", -2))
+        and _number(policy.get("net_target_pct")) == _number(model_policy.get("net_target_pct"))
+        and _number(policy.get("stop_loss_pct")) == _number(model_policy.get("stop_loss_pct"))
+        and _number(policy.get("round_trip_cost_bps")) == _number(model_policy.get("round_trip_cost_bps"))
+        and _integer(policy.get("maximum_holding_sessions")) == _integer(model_policy.get("maximum_holding_sessions"))
+        and policy.get("cash_constrained_no_leverage") is True
+        and model_policy.get("cash_constrained_no_leverage") is True
+    )
+    return {
+        "schema_version": 2,
+        "status": "research_only",
+        "title": "盘后选股策略：同口径规则与模型组合对照",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "objective": {
             "signal": "T日收盘后",
@@ -253,21 +337,42 @@ def build_report(rules: dict[str, Any], model: dict[str, Any]) -> dict[str, Any]
             "target_net_profit_pct": 1.0,
             "stop_loss_pct": 3.0,
             "round_trip_cost_bps": 10.0,
+            "top_k_per_signal_day": 2,
+            "cash_constrained_no_leverage": True,
             "limit_up_or_paused_entry_blocked": True,
         },
-        "rule_strategy": rule_summary,
+        "rule_mining": rule_mining,
+        "rule_strategy": frozen_rule,
         "model_strategy": model_summary,
+        "same_execution_mechanics": same_mechanics,
+        "portfolio_comparison": {
+            "validation": {
+                "rule": _comparison_metrics(frozen_validation),
+                "model": _comparison_metrics(model_validation),
+                "model_validation_is_used_for_threshold_selection": True,
+                "rule_validation_is_used_only_for_evaluation": True,
+                "note": "模型验证收益所对应的概率阈值由同一验证期选择，具有参数选择乐观偏差；规则条件在训练期冻结。",
+            },
+            "final_supplemental": {
+                "rule": _comparison_metrics(frozen_final),
+                "model": _comparison_metrics(model_final),
+                "fresh_unseen_holdout": False,
+                "note": "双方使用相同信号区间、Top2、目标收益、止损、成本和现金约束；最终区间已被此前研究查看，只能作为补充对照。",
+            },
+        },
         "decision": {
             "formal_production_changed": False,
             "promotion_allowed": False,
             "reason": (
-                "本次历史最终评估区间已被之前研究使用；规则结果为股票级别统计，"
-                "模型结果为组合回测，口径不同，不能据此宣布胜出。"
-                "只有统一组合口径、验证集收益与回撤合格，并完成真正前瞻验证后，才可考虑晋级。"
+                "当前仍未达到正式策略80%命中率门槛；最终历史区间并非全新留出。"
+                "本次将训练期冻结规则与模型放在同一Top2现金约束组合口径下比较，"
+                "但模型阈值依据验证期选出，其验证收益存在选择偏差。"
+                "研究结果不得自动替换正式模型或启用自动下单。"
             ),
             "next_step": (
-                "以验证期冻结的规则生成每日可执行TopN候选，并采用与模型相同的资金、"
-                "成本、止盈止损与持仓约束进行现金约束组合回测。"
+                "优先比较冻结规则与模型在最终补充期的交易样本、复利、最大回撤和年度稳定性；"
+                "确认胜负后冻结唯一候选版本，启动不改参数的前瞻模拟记录，"
+                "积累真正未参与选参的新交易数据后再审核正式晋级。"
             ),
         },
     }
@@ -277,12 +382,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="汇总盘后规则策略和模型组合的统一研究审计报告")
     parser.add_argument("--rules", required=True, help="path_rule_mining.py 的结果 JSON")
     parser.add_argument("--model", required=True, help="path_aware_gbdt_compound_backtest.py 的结果 JSON")
+    parser.add_argument("--rule-portfolio", required=True, help="训练期冻结规则的可执行组合回测结果 JSON")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     args = parser.parse_args()
 
     rules = _load(Path(args.rules), "规则")
     model = _load(Path(args.model), "模型组合")
-    report = build_report(rules, model)
+    rule_portfolio = _load(Path(args.rule_portfolio), "规则组合")
+    report = build_report(rules, model, rule_portfolio)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
@@ -297,6 +404,9 @@ def main() -> None:
             (report["rule_strategy"].get("best_validation_rule") or {}).get("rule")
         ),
         "model_validation_gate_passed": report["model_strategy"]["validation_release_gate_passed"],
+        "rule_portfolio_validation_gate_passed": report["rule_strategy"]["validation_release_gate_passed"],
+        "same_execution_mechanics": report["same_execution_mechanics"],
+        "training_selected_rule": report["rule_strategy"]["training_selected_rule"].get("rule_label"),
         "final_supplemental_is_fresh_unseen_holdout": False,
         "output": str(output),
     }, ensure_ascii=False), flush=True)
