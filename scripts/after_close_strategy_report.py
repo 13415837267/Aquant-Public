@@ -29,6 +29,17 @@ def _integer(value: Any) -> int | None:
     return int(result) if result is not None else None
 
 
+def _clean_json(value: Any) -> Any:
+    """Replace non-finite floating-point values before strict JSON serialization."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {str(key): _clean_json(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_clean_json(item) for item in value]
+    return value
+
+
 def _load(path: Path, label: str) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -275,7 +286,7 @@ def main() -> None:
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+        json.dumps(_clean_json(report), ensure_ascii=False, indent=2, allow_nan=False) + "\n",
         encoding="utf-8",
     )
     print(json.dumps({
