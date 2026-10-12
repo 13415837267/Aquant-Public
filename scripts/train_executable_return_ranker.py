@@ -326,6 +326,7 @@ def train(
     daily_losses: list[float] = []
     accumulated_seconds = 0.0
     checkpoint_was_complete = False
+    resumed_from_checkpoint = False
 
     if checkpoint_path is not None and checkpoint_path.is_file():
         try:
@@ -354,6 +355,7 @@ def train(
         daily_losses = [float(value) for value in saved["daily_losses"]][-50:]
         accumulated_seconds = float(saved["accumulated_seconds"])
         checkpoint_was_complete = bool(saved.get("complete", False))
+        resumed_from_checkpoint = True
         if next_index < initial_index or next_index > end_index + 1:
             raise RuntimeError("研究断点的下一个交易日位置超出训练窗口")
         print(
@@ -440,7 +442,7 @@ def train(
     if processed_days == 0 or sample_count == 0:
         raise RuntimeError("净收益回归训练窗口没有生成有效样本")
 
-    accumulated_seconds += time.time() - start_time
+    total_elapsed_seconds = accumulated_seconds + (time.time() - start_time)
     save_checkpoint(end_index + 1, complete=True)
     return {
         "start": train_start,
@@ -454,8 +456,8 @@ def train(
         "target_scale_pct": TARGET_SCALE_PCT,
         "target_clipped_samples": clip_count,
         "mean_last_50_daily_losses": float(np.mean(daily_losses)) if daily_losses else None,
-        "elapsed_seconds": round(accumulated_seconds, 2),
-        "resumed_from_checkpoint": bool(checkpoint_path and checkpoint_path.is_file()),
+        "elapsed_seconds": round(total_elapsed_seconds, 2),
+        "resumed_from_checkpoint": resumed_from_checkpoint,
         "checkpoint_signature": signature,
         "checkpoint_path": str(checkpoint_path.relative_to(ROOT)) if checkpoint_path else None,
     }
