@@ -58,7 +58,7 @@ def test_gap_up_target_uses_open_fill_and_transaction_costs():
     assert result["resolved"] is True
     assert result["reason"] == "止盈"
     assert result["exit_price"] == 104
-    assert result["net_return_pct"] == 3.9
+    assert np.isclose(result["net_return_pct"], 3.9, rtol=0.0, atol=1e-10)
 
 
 def test_suspended_future_path_is_not_given_a_fake_exit():
