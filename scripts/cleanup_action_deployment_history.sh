@@ -35,7 +35,7 @@ if [[ -n "${CANCEL_OBSOLETE_RUN_IDS:-}" ]]; then
       continue
     fi
     if [[ "$actual_status" == "completed" ]]; then
-      echo "指定旧运行已结束：$run_id（\${actual_conclusion}）"
+      echo "指定旧运行已结束：$run_id（$actual_conclusion）"
       continue
     fi
 
