@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "scripts/cleanup_action_deployment_history.sh"
+      - ".github/workflows/cleanup-action-deployment-history.yml"
   workflow_run:
     workflows:
       - "01 Python质量检查"
@@ -12,6 +13,7 @@ on:
       - "04 历史研究流水线"
       - "05 网页自动部署"
       - "06 模型研究"
+      - "07 可执行净收益研究"
       - "07 历史候选回放"
       - "08 成对排序定向复核"
       - "09 路径感知模型可执行复利复核"
