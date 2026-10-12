@@ -329,40 +329,55 @@ def train(
     resumed_from_checkpoint = False
 
     if checkpoint_path is not None and checkpoint_path.is_file():
+        saved = None
         try:
             with checkpoint_path.open("rb") as handle:
                 saved = pickle.load(handle)
         except (OSError, pickle.UnpicklingError, EOFError) as error:
-            raise RuntimeError(f"研究断点无法读取，禁止静默从头重训：{error}") from error
-        if not isinstance(saved, dict) or saved.get("signature") != signature:
-            raise RuntimeError("研究断点与当前训练代码、配置或历史行情不兼容；为避免错用旧权重，已停止训练")
-        saved_model = saved["model"]
-        model.w1 = np.asarray(saved_model["w1"], dtype=np.float64)
-        model.b1 = np.asarray(saved_model["b1"], dtype=np.float64)
-        model.w2 = np.asarray(saved_model["w2"], dtype=np.float64)
-        model.b2 = float(saved_model["b2"])
-        model.updates = int(saved_model["updates"])
-        if model.w1.shape != (len(source["model"]["features"]), model.hidden_units):
-            raise RuntimeError("研究断点中的模型维度与当前特征不匹配")
-        state = saved["feature_state"]
-        next_index = int(saved["next_index"])
-        processed_days = int(saved["processed_days"])
-        sample_count = int(saved["sample_count"])
-        clip_count = int(saved["clip_count"])
-        return_sum = float(saved["return_sum"])
-        positive_count = int(saved["positive_count"])
-        strict_target_count = int(saved["strict_target_count"])
-        daily_losses = [float(value) for value in saved["daily_losses"]][-50:]
-        accumulated_seconds = float(saved["accumulated_seconds"])
-        checkpoint_was_complete = bool(saved.get("complete", False))
-        resumed_from_checkpoint = True
-        if next_index < initial_index or next_index > end_index + 1:
-            raise RuntimeError("研究断点的下一个交易日位置超出训练窗口")
-        print(
-            f"[执行净收益回归] 已恢复断点：完成训练日={processed_days}，"
-            f"样本={sample_count}，下一个位置={next_index}，完整断点={checkpoint_was_complete}",
-            flush=True,
-        )
+            print(
+                f"[执行净收益回归] 断点损坏，已作废并从训练起点重算：{error}",
+                flush=True,
+            )
+            checkpoint_path.unlink(missing_ok=True)
+
+        if saved is not None and (
+            not isinstance(saved, dict) or saved.get("signature") != signature
+        ):
+            print(
+                "[执行净收益回归] 断点与当前代码、配置或历史数据不兼容，已作废并重新训练",
+                flush=True,
+            )
+            checkpoint_path.unlink(missing_ok=True)
+            saved = None
+
+        if saved is not None:
+            saved_model = saved["model"]
+            model.w1 = np.asarray(saved_model["w1"], dtype=np.float64)
+            model.b1 = np.asarray(saved_model["b1"], dtype=np.float64)
+            model.w2 = np.asarray(saved_model["w2"], dtype=np.float64)
+            model.b2 = float(saved_model["b2"])
+            model.updates = int(saved_model["updates"])
+            if model.w1.shape != (len(source["model"]["features"]), model.hidden_units):
+                raise RuntimeError("研究断点中的模型维度与当前特征不匹配")
+            state = saved["feature_state"]
+            next_index = int(saved["next_index"])
+            processed_days = int(saved["processed_days"])
+            sample_count = int(saved["sample_count"])
+            clip_count = int(saved["clip_count"])
+            return_sum = float(saved["return_sum"])
+            positive_count = int(saved["positive_count"])
+            strict_target_count = int(saved["strict_target_count"])
+            daily_losses = [float(value) for value in saved["daily_losses"]][-50:]
+            accumulated_seconds = float(saved["accumulated_seconds"])
+            checkpoint_was_complete = bool(saved.get("complete", False))
+            resumed_from_checkpoint = True
+            if next_index < initial_index or next_index > end_index + 1:
+                raise RuntimeError("研究断点的下一个交易日位置超出训练窗口")
+            print(
+                f"[执行净收益回归] 已恢复断点：完成训练日={processed_days}，"
+                f"样本={sample_count}，下一个位置={next_index}，完整断点={checkpoint_was_complete}",
+                flush=True,
+            )
 
     start_time = time.time()
 
