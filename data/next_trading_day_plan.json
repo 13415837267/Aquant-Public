@@ -1,50 +1,50 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-10-12T19:51:06.875044+08:00",
+  "generated_at": "2026-10-13T20:57:05.645081+08:00",
   "timezone": "Asia/Shanghai",
-  "next_trading_day": "2026-10-13",
-  "signal_date": "2026-10-12",
-  "data_cutoff": "2026-10-12",
+  "next_trading_day": "2026-10-14",
+  "signal_date": "2026-10-13",
+  "data_cutoff": "2026-10-13",
   "status": "research_plan",
   "production_release": false,
-  "title": "2026年10月13日下一交易日计划",
-  "summary": "2026-10-12 收盘候选快照直接作为 2026-10-13 开盘执行计划。候选身份、排序、分数与精度概率全部逐项继承 data/candidates.json，不重新选股、不重新打分，不读取执行日或之后的行情数据，因此不存在未来函数。",
+  "title": "2026年10月14日下一交易日计划",
+  "summary": "2026-10-13 收盘候选快照直接作为 2026-10-14 开盘执行计划。候选身份、排序、分数与精度概率全部逐项继承 data/candidates.json，不重新选股、不重新打分，不读取执行日或之后的行情数据，因此不存在未来函数。",
   "strategy_version": "近期训练窗口研究版",
   "strategy_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
   "candidate_policy": "top_2_by_recent_window_model_probability_threshold_0.60",
   "market": {
-    "breadth_pct": 24.585,
-    "median_return_pct": -1.683,
-    "regime": "risk_off"
+    "breadth_pct": 54.447,
+    "median_return_pct": 0.255,
+    "regime": "neutral"
   },
   "candidate_count": 2,
   "candidates": [
     {
       "rank": 1,
-      "symbol": "600761",
-      "name": "XD安徽合",
-      "price": 15.16,
-      "score": 66.715,
-      "precision_probability": 0.667151,
+      "symbol": "605055",
+      "name": "迎丰股份",
+      "price": 8.69,
+      "score": 66.52,
+      "precision_probability": 0.665202,
       "admission_tier": "model_threshold_060_top2",
-      "signal_date": "2026-10-12",
-      "execution_date": "2026-10-13",
-      "earliest_exit_date": "2026-10-14",
+      "signal_date": "2026-10-13",
+      "execution_date": "2026-10-14",
+      "earliest_exit_date": "2026-10-15",
       "net_win_threshold_pct": 1.0,
       "stop_loss_pct": 3.0,
       "flags": []
     },
     {
       "rank": 2,
-      "symbol": "605298",
-      "name": "必得科技",
-      "price": 41.3,
-      "score": 66.566,
-      "precision_probability": 0.665659,
+      "symbol": "002387",
+      "name": "维信诺",
+      "price": 6.52,
+      "score": 66.35,
+      "precision_probability": 0.663495,
       "admission_tier": "model_threshold_060_top2",
-      "signal_date": "2026-10-12",
-      "execution_date": "2026-10-13",
-      "earliest_exit_date": "2026-10-14",
+      "signal_date": "2026-10-13",
+      "execution_date": "2026-10-14",
+      "earliest_exit_date": "2026-10-15",
       "net_win_threshold_pct": 1.0,
       "stop_loss_pct": 3.0,
       "flags": []
@@ -52,20 +52,20 @@
   ],
   "steps": [
     {
-      "time": "2026-10-13 盘前",
-      "action": "仅核对计划候选与开盘前可执行性及统一硬风控；不使用 2026-10-13 收盘以后产生的行情数据。"
+      "time": "2026-10-14 盘前",
+      "action": "仅核对计划候选与开盘前可执行性及统一硬风控；不使用 2026-10-14 收盘以后产生的行情数据。"
     },
     {
-      "time": "2026-10-13 开盘",
-      "action": "若仅作为研究/模拟执行，按 2026-10-12 收盘形成的信号对应 T+1 开盘执行；正式生产门禁未通过时禁止实盘。"
+      "time": "2026-10-14 开盘",
+      "action": "若仅作为研究/模拟执行，按 2026-10-13 收盘形成的信号对应 T+1 开盘执行；正式生产门禁未通过时禁止实盘。"
     },
     {
-      "time": "2026-10-13 收盘后",
-      "action": "把 2026-10-13 作为新的 T 日，以该日收盘及此前数据重新生成下一交易日计划。"
+      "time": "2026-10-14 收盘后",
+      "action": "把 2026-10-14 作为新的 T 日，以该日收盘及此前数据重新生成下一交易日计划。"
     },
     {
-      "time": "2026-10-14 起",
-      "action": "对 2026-10-13 新信号严格执行 T+2 最早卖出规则；最长持有 5 个完整交易日。"
+      "time": "2026-10-15 起",
+      "action": "对 2026-10-14 新信号严格执行 T+2 最早卖出规则；最长持有 5 个完整交易日。"
     }
   ],
   "hard_rules": [
@@ -77,7 +77,7 @@
   ],
   "source_snapshot": {
     "path": "data/candidates.json",
-    "as_of": "2026-10-12T18:00:00+08:00",
+    "as_of": "2026-10-13T18:00:00+08:00",
     "strategy_version": "近期训练窗口研究版",
     "strategy_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592"
   }
