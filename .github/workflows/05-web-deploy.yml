@@ -45,8 +45,15 @@ jobs:
 
       - name: "校验交易日状态与候选日期"
         id: check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
           set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_run" ] && [ "$UPSTREAM_CONCLUSION" != "success" ]; then
+            echo "上游候选生产未成功，拒绝部署网页。" >&2
+            exit 1
+          fi
           python - <<'PY'
           import json
           import os
