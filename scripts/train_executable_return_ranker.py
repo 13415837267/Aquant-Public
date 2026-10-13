@@ -24,6 +24,7 @@ from scripts.short_term_research import (
     FeatureState,
     history_files,
     label_window_precedes_boundary,
+    executable_entry_mask,
     read_daily,
 )
 from scripts.train_short_term_model import FEATURES, build_targets, make_features
@@ -98,6 +99,9 @@ def build_executable_net_returns(
     if len(future_days) != MAX_FORWARD_SESSIONS:
         raise ValueError("未来行情长度与配置中的最大持有交易日不一致")
 
+    # 训练标签必须与组合回测使用相同的T+1开盘可执行门禁。
+    # 开盘涨停、停牌或涨停价缺失的样本不能作为“可买入交易”训练标签。
+    executable_entries = executable_entry_mask(symbols, future_days[0])
     indexed_days = [_normalized_index(day) for day in future_days]
     normalized_symbols = []
     for symbol in symbols:
@@ -105,7 +109,7 @@ def build_executable_net_returns(
         normalized_symbols.append(digits[-6:].zfill(6) if digits else "")
     entry_day = indexed_days[0]
 
-    for index in np.flatnonzero(complete):
+    for index in np.flatnonzero(complete & executable_entries):
         symbol = normalized_symbols[index]
         if symbol not in entry_day.index:
             continue
@@ -134,7 +138,7 @@ def build_executable_net_returns(
         if result is not None and np.isfinite(result):
             returns[index] = result
 
-    usable = complete & np.isfinite(returns)
+    usable = complete & executable_entries & np.isfinite(returns)
     return returns, usable
 
 

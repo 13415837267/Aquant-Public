@@ -2,8 +2,10 @@ import numpy as np
 
 from scripts.train_executable_return_ranker import (
     ExecutableReturnMLPRegressor,
+    build_executable_net_returns,
     simulate_executable_net_return,
 )
+import scripts.train_executable_return_ranker as return_ranker
 
 
 def _bar(open_price, high, low, close):
@@ -76,3 +78,50 @@ def test_target_gap_uses_open_price_when_better_than_target():
     result = simulate_executable_net_return(10.0, bars)
     assert result is not None
     assert abs(result - 1.9) < 1e-6
+
+
+def test_training_labels_exclude_unexecutable_t_plus_one_entries(monkeypatch):
+    symbols = ["000001", "000002"]
+    monkeypatch.setattr(
+        return_ranker,
+        "build_targets",
+        lambda _symbols, _future_days: (
+            np.zeros(2, dtype=np.uint8),
+            np.zeros(2, dtype=np.float64),
+            np.zeros(2, dtype=np.float64),
+            np.ones(2, dtype=bool),
+        ),
+    )
+    future_days = []
+    for day_index in range(5):
+        future_days.append(
+            __import__("pandas").DataFrame(
+                [
+                    {
+                        "symbol": "000001",
+                        "open": 11.0 if day_index == 0 else 10.0,
+                        "high": 11.2,
+                        "low": 9.8,
+                        "close": 10.5,
+                        "high_limit": 11.0,
+                        "is_paused": 0,
+                    },
+                    {
+                        "symbol": "000002",
+                        "open": 10.0,
+                        "high": 10.2,
+                        "low": 9.8,
+                        "close": 10.0,
+                        "high_limit": 11.0,
+                        "is_paused": 0,
+                    },
+                ]
+            )
+        )
+
+    returns, usable = build_executable_net_returns(symbols, future_days)
+
+    assert not usable[0]
+    assert np.isnan(returns[0])
+    assert usable[1]
+    assert np.isfinite(returns[1])
