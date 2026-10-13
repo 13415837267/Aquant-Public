@@ -549,7 +549,10 @@ def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
     print(f"质量检查日期：{', '.join(recent)}")
     results = []
     for trade_date in recent:
-        raw = request_bulk_day(api, trade_date)
+        if verified_current_day == trade_date and verified_current_daily is not None:
+            raw = verified_current_daily.copy()
+        else:
+            raw = request_bulk_day(api, trade_date)
         market = filter_historical_stock_rows(raw)
         valuation = request_valuation_day(api, trade_date)
         combined = merge_daily_valuation(market, valuation)
@@ -597,6 +600,11 @@ def save_state(state: dict) -> None:
         json.dumps(state, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+
+def merge_verified_trading_day(trade_days: list[str], verified_date: str) -> list[str]:
+    """仅在对应日期已取得有效实际日线数据后，将其补入交易日序列。"""
+    return sorted(set(trade_days) | {verified_date}, reverse=True)
 
 
 def backfill_daily(end_date: date | None = None) -> None:
@@ -648,6 +656,28 @@ def backfill_daily(end_date: date | None = None) -> None:
         start=target_start.strftime("%Y%m%d"),
         end=calendar_end.strftime("%Y%m%d"),
     )
+
+    # 交易日历偶尔晚于实际行情发布。18:00后若今天未出现在日历中，
+    # 必须以实际日线接口验证；只有取得非空、已规范化行情才能补入今天。
+    verified_current_day: str | None = None
+    verified_current_daily: pd.DataFrame | None = None
+    current_day = requested_end.isoformat()
+    if (
+        end_date is None
+        and now_bj.hour >= 18
+        and requested_end >= target_start
+        and current_day not in trade_days
+    ):
+        try:
+            current_daily = request_bulk_day(api, current_day)
+            if current_daily is not None and not current_daily.empty:
+                verified_current_day = current_day
+                verified_current_daily = current_daily
+                trade_days = merge_verified_trading_day(trade_days, current_day)
+                print(f"交易日历尚未包含今日，但已取得有效日线行情：补入 {current_day}")
+        except Exception as exc:
+            print(f"当日日线补充校验未通过，保留交易日历结果：{type(exc).__name__}: {exc}")
+
     if not trade_days:
         raise RuntimeError(
             f"没有需要增量更新的交易日：已有最新完整数据={latest_existing}, 目标结束日期={calendar_end}"
@@ -662,6 +692,9 @@ def backfill_daily(end_date: date | None = None) -> None:
         start=target_start.strftime("%Y%m%d"),
         end=today.strftime("%Y%m%d"),
     )
+    # 第二次读取日历时仍可能缺少刚通过实际行情验证的日期，因此再次保留该确认结果。
+    if verified_current_day == today.isoformat() and verified_current_day not in trade_days:
+        trade_days = merge_verified_trading_day(trade_days, verified_current_day)
     print(
         f"增量范围：已有最新完整数据={latest_existing or '无'}，"
         f"本次只处理 {target_start} -> {today}"
