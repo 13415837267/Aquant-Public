@@ -87,6 +87,16 @@ GitHub Actions 历史记录由 `.github/workflows/cleanup-action-deployment-hist
 
 所有正式运行和验证均在 GitHub Actions 云端完成。
 
+## 外部公开策略评估
+
+新增独立目录 `research/external_strategy_tests/`，用于统一测试已搜索到的公开策略。该模块复用公开仓库现有历史行情和日线特征，在统一的T日收盘信号、T+1开盘入场、T+2起退出、交易成本与持仓约束下比较累计收益、年化复利、最大回撤、夏普及严格净收益目标胜率。
+
+当前模块包含三组可运行研究：公开短线选股规则近似复现、趋势回调缩量代理规则、20日动量基线。无法用现有日线公平还原的策略会登记具体数据缺口与复现限制，不混入可运行策略排名。
+
+专用工作流：`.github/workflows/12-external-strategy-tests.yml`。代码提交后自动执行模块质量检查；完整历史评估通过 **Actions →「12 外部策略历史评估」→ Run workflow** 手动启动，结果以工件保存。研究模块不改动第一版正式模型、不接入正式候选池、不自动下单，也不会重复下载已有历史数据。
+
+评估细节见 [外部策略评估模块说明](research/external_strategy_tests/README.md)。
+
 ## 短线研究
 
 `scripts/short_term_research.py` 使用历史日线进行 T 收盘信号、T+1 开盘执行、最长 5 日持有的研究，并输出：
