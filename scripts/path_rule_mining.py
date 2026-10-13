@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
-from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, market_thresholds, raw_market_feature
+from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, market_thresholds, raw_market_feature, RESEARCH_ABLATION_FAMILIES
 
 OUT_DIR = ROOT / "data" / "backtest"
 
@@ -49,6 +49,11 @@ MAX_ATOMIC_CANDIDATES = RESEARCH_CONFIG["最大原子条件候选数"]
 MAX_PAIR_CANDIDATES = RESEARCH_CONFIG["最大双条件候选数"]
 TOP_OUTPUT_RULES = RESEARCH_CONFIG["最多输出条件数"]
 TARGET_WIN_RATE_PCT = float(RESEARCH_CONFIG["目标命中率百分比"])
+
+# 单族候选数随既有原子条件预算动态变化，避免新增分散的魔法数字。
+ABLATION_CANDIDATES_PER_FAMILY = max(
+    1, MAX_ATOMIC_CANDIDATES // max(len(RESEARCH_ABLATION_FAMILIES), 1)
+)
 
 
 def percentile_rank(series):
@@ -255,6 +260,128 @@ def summarize_atomic(acc):
     return rows
 
 
+def _training_candidate_key(row):
+    """统一使用训练期统计对原子条件排序。"""
+    def value(name):
+        try:
+            number = float(row.get(name))
+        except (TypeError, ValueError):
+            return -math.inf
+        return number if math.isfinite(number) else -math.inf
+
+    return (
+        value("wilson_lower_pct"),
+        value("path_win_1pct_rate_pct"),
+        value("samples"),
+    )
+
+
+def _balanced_atomic_candidates(
+    rows,
+    limit,
+    *,
+    excluded_features=frozenset(),
+    stock_only=False,
+):
+    """按特征轮转取训练期候选，避免全局排序让少数特征占满名额。"""
+    if limit < 1:
+        return []
+
+    by_feature = {}
+    for row in rows:
+        conditions = row.get("rules")
+        if not isinstance(conditions, list) or len(conditions) != 1:
+            continue
+        condition = conditions[0]
+        feature = condition.get("feature")
+        if not isinstance(feature, str) or feature in excluded_features:
+            continue
+        if stock_only and (
+            condition.get("scale") != "rank" or feature not in STOCK_FEATURES
+        ):
+            continue
+        by_feature.setdefault(feature, []).append(row)
+
+    for candidates in by_feature.values():
+        candidates.sort(key=_training_candidate_key, reverse=True)
+
+    selected = []
+    feature_names = sorted(by_feature)
+    depth = 0
+    while len(selected) < limit:
+        found = False
+        for feature in feature_names:
+            candidates = by_feature[feature]
+            if depth >= len(candidates):
+                continue
+            selected.append(candidates[depth])
+            found = True
+            if len(selected) >= limit:
+                break
+        if not found:
+            break
+        depth += 1
+    return selected
+
+
+def build_factor_ablation_candidate_pairs(
+    train_atomic_rows,
+    *,
+    target_limit=None,
+    control_limit=None,
+):
+    """仅用训练期原子指标，为每个因子族构造目标条件×个股控制条件。"""
+    target_limit = (
+        ABLATION_CANDIDATES_PER_FAMILY if target_limit is None else int(target_limit)
+    )
+    control_limit = (
+        ABLATION_CANDIDATES_PER_FAMILY if control_limit is None else int(control_limit)
+    )
+    candidate_specs = []
+    summary = {}
+
+    for family, target_features in RESEARCH_ABLATION_FAMILIES.items():
+        targets = _balanced_atomic_candidates(
+            [
+                row for row in train_atomic_rows
+                if row.get("rules")
+                and row["rules"][0].get("feature") in target_features
+            ],
+            target_limit,
+        )
+        controls = _balanced_atomic_candidates(
+            train_atomic_rows,
+            control_limit,
+            excluded_features=target_features,
+            stock_only=True,
+        )
+
+        family_specs = []
+        for target in targets:
+            target_condition = target["rules"][0]
+            target_index = int(target["rule_indices"][0])
+            for control in controls:
+                control_condition = control["rules"][0]
+                control_index = int(control["rule_indices"][0])
+                if target_condition["feature"] == control_condition["feature"]:
+                    continue
+                family_specs.append({
+                    "target_family": family,
+                    # 保留方向：目标因子在首位，第二项是消融后仍保留的个股控制条件。
+                    "rule_indices": [target_index, control_index],
+                })
+
+        candidate_specs.extend(family_specs)
+        summary[family] = {
+            "target_conditions_selected": len(targets),
+            "stock_control_conditions_selected": len(controls),
+            "pair_candidates": len(family_specs),
+            "qualified_training_pairs": 0,
+        }
+
+    return candidate_specs, summary
+
+
 def summarize_selected(acc, rule_specs):
     rows = []
     for pos, (rule_type, indices) in enumerate(rule_specs):
@@ -404,25 +531,61 @@ def main():
     if not atomic_indices:
         raise RuntimeError("没有满足训练样本门槛的原子条件")
 
-    candidate_pairs = [
+    # 保持主规则挖掘的全局 Top 候选范围不变；另建按因子族平衡的训练期消融候选。
+    general_candidate_pairs = [
         (left, right)
         for pos, left in enumerate(atomic_indices)
         for right in atomic_indices[pos + 1:]
     ]
+    factor_pair_specs, factor_pair_summary = build_factor_ablation_candidate_pairs(train_atomic)
+    factor_pair_indices = [
+        tuple(spec["rule_indices"]) for spec in factor_pair_specs
+    ]
+    pair_scan_indices = list(dict.fromkeys([
+        *general_candidate_pairs,
+        *factor_pair_indices,
+    ]))
+    training_scan_atomic_indices = sorted({
+        *atomic_indices,
+        *(index for pair in pair_scan_indices for index in pair),
+    })
     _, train_pair_acc, train_pair_days, _ = scan_pairs(
-        files, args.start, TRAIN_END, atomic_indices, candidate_pairs
+        files, args.start, TRAIN_END, training_scan_atomic_indices, pair_scan_indices
     )
+
+    pair_rows_by_indices = {}
+    for pos, pair in enumerate(pair_scan_indices):
+        if int(train_pair_acc["samples"][pos]) < MIN_TRAIN_RULE_SAMPLES:
+            continue
+        pair_rows_by_indices[tuple(pair)] = rule_row("pair", pair, train_pair_acc, pos)
+
+    # 主规则继续只从原先全局 Top 原子配对选取，保持规则组合基准可比。
     train_pairs_all = [
-        rule_row("pair", pair, train_pair_acc, pos)
-        for pos, pair in enumerate(candidate_pairs)
-        if int(train_pair_acc["samples"][pos]) >= MIN_TRAIN_RULE_SAMPLES
+        pair_rows_by_indices[pair]
+        for pair in general_candidate_pairs
+        if pair in pair_rows_by_indices
     ]
     train_pairs_all.sort(
-        key=lambda r: (r["wilson_lower_pct"], r["path_win_1pct_rate_pct"], r["samples"]),
+        key=lambda row: (row["wilson_lower_pct"], row["path_win_1pct_rate_pct"], row["samples"]),
         reverse=True,
     )
     top_pairs = train_pairs_all[:MAX_PAIR_CANDIDATES]
-    pair_indices = [tuple(r["rule_indices"]) for r in top_pairs]
+    pair_indices = [tuple(row["rule_indices"]) for row in top_pairs]
+
+    train_factor_ablation_pairs = []
+    for spec in factor_pair_specs:
+        pair = tuple(spec["rule_indices"])
+        row = pair_rows_by_indices.get(pair)
+        if row is None:
+            continue
+        train_factor_ablation_pairs.append({**row, "target_family": spec["target_family"]})
+        factor_pair_summary[spec["target_family"]]["qualified_training_pairs"] += 1
+    train_factor_ablation_pairs.sort(key=lambda row: (
+        row["target_family"],
+        -float(row["wilson_lower_pct"]),
+        -float(row["path_win_1pct_rate_pct"]),
+        -int(row["samples"]),
+    ))
 
     validation_specs, validation_acc, validation_days, validation_samples = scan_selected(
         files, VALIDATION_START, VALIDATION_END, atomic_indices, pair_indices
@@ -515,6 +678,7 @@ def main():
             "min_validation_rule_samples": MIN_VALIDATION_RULE_SAMPLES,
             "max_atomic_candidates": MAX_ATOMIC_CANDIDATES,
             "max_pair_candidates": MAX_PAIR_CANDIDATES,
+            "factor_ablation_candidates_per_family": ABLATION_CANDIDATES_PER_FAMILY,
             "top_output_rules": TOP_OUTPUT_RULES,
             "target_win_rate_pct": TARGET_WIN_RATE_PCT,
             "rank_thresholds": list(RANK_THRESHOLDS),
@@ -541,6 +705,8 @@ def main():
         "train_top_atomic": train_atomic[:TOP_OUTPUT_RULES],
         # 为训练期匹配消融保留完整候选池；验证期展示数量仍由 TOP_OUTPUT_RULES 控制。
         "train_top_pairs": top_pairs,
+        "factor_ablation_candidate_summary": factor_pair_summary,
+        "train_factor_ablation_pairs": train_factor_ablation_pairs,
         "validation_top_rules": selected,
         "validation_qualified_rules_ge_80pct": validation_qualified,
         "selected_rules": selected_output,
@@ -552,6 +718,7 @@ def main():
             "entry_is_T_plus_1_open": True,
             "limit_up_entry_blocked": ENTRY_LIMIT_UP_BLOCK,
             "final_holdout_used_only_after_validation_selection": True,
+            "factor_ablation_candidates_selected_from_training_only": True,
             "rule_discovery_split": "train",
             "rule_selection_split": "validation",
             "final_holdout_split": "final",

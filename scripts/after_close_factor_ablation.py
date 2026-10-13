@@ -29,6 +29,7 @@ from scripts.path_rule_mining import (
     FINAL_START,
     MAX_FORWARD_SESSIONS,
     STOCK_FEATURES,
+    RESEARCH_ABLATION_FAMILIES,
     VALIDATION_START,
     history_files,
 )
@@ -36,34 +37,7 @@ from scripts.selection_factor_catalog import load_research_config
 
 TRAIN_END = "2022-12-30"
 MIN_TRAIN_SAMPLES = int(load_research_config()["最少训练条件样本数"])
-FAMILIES = {
-    "ATR与日内振幅": {"atr_14_pct", "range_pct"},
-    "隔夜收益": {
-        "overnight_1d_pct",
-        "overnight_3d_pct",
-        "overnight_5d_pct",
-        "overnight_10d_pct",
-    },
-    "市场广度": {"market_breadth_pct"},
-    "短期反转": {
-        "return_1d_pct",
-        "return_3d_pct",
-        "return_5d_pct",
-        "intraday_return_pct",
-    },
-    "趋势突破": {
-        "breakout_20d_pct",
-        "breakout_60d_pct",
-        "distance_from_high_20d_pct",
-    },
-    "量能过滤": {
-        "volume_ratio_5d",
-        "volume_ratio_10d",
-        "volume_ratio_20d",
-        "amount_ratio_5d",
-        "amount_ratio_20d",
-    },
-}
+FAMILIES = RESEARCH_ABLATION_FAMILIES;
 
 
 def _number(row: dict[str, Any], key: str) -> float:
@@ -85,15 +59,23 @@ def select_ablation_candidates(data: dict[str, Any]) -> dict[str, dict[str, Any]
     """仅根据训练期双条件候选挑规则；验证和补充期结果不参与选规则。"""
     if data.get("status") != "research_only":
         raise ValueError("输入必须是 research_only 规则挖掘结果")
-    train_pairs = data.get("train_top_pairs")
-    if not isinstance(train_pairs, list):
-        raise ValueError("规则挖掘结果缺少 train_top_pairs 数组")
+    uses_family_candidates = "train_factor_ablation_pairs" in data
+    if uses_family_candidates:
+        train_pairs = data.get("train_factor_ablation_pairs")
+        if not isinstance(train_pairs, list):
+            raise ValueError("规则挖掘结果的 train_factor_ablation_pairs 必须是数组")
+    else:
+        train_pairs = data.get("train_top_pairs")
+        if not isinstance(train_pairs, list):
+            raise ValueError("规则挖掘结果缺少训练期双条件候选数组")
 
     selected: dict[str, dict[str, Any]] = {}
     for family, features in FAMILIES.items():
         candidates = []
         for row in train_pairs:
             if not isinstance(row, dict):
+                continue
+            if uses_family_candidates and row.get("target_family") != family:
                 continue
             rules = row.get("rules")
             samples = row.get("samples")
@@ -226,7 +208,7 @@ def run_ablation(data: dict[str, Any]) -> dict[str, Any]:
         "families": {},
         "skipped_families": sorted(set(FAMILIES) - set(selected)),
         "skipped_reason": (
-            "相应训练期前列双条件中没有满足样本量且移除目标因子后仍保留个股筛选条件的规则。"
+            "按因子族分层生成的训练期目标条件×个股控制条件候选中，没有规则达到样本量要求或保留有效个股控制条件。"
             if len(selected) < len(FAMILIES) else None
         ),
         "final_supplemental_is_fresh_unseen_holdout": False,

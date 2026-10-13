@@ -111,7 +111,12 @@ class FactorAblationSelectionTests(unittest.TestCase):
         )
         selected = select_ablation_candidates({
             "status": "research_only",
-            "train_top_pairs": [reversal, breakout, volume],
+            "train_top_pairs": [],
+            "train_factor_ablation_pairs": [
+                {**reversal, "target_family": "短期反转"},
+                {**breakout, "target_family": "趋势突破"},
+                {**volume, "target_family": "量能过滤"},
+            ],
         })
         self.assertEqual(selected["短期反转"]["training_pair_label"], "return1-plus-close-strength")
         self.assertEqual(selected["趋势突破"]["training_pair_label"], "breakout20-plus-close-strength")
