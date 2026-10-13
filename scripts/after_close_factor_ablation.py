@@ -45,6 +45,25 @@ FAMILIES = {
         "overnight_10d_pct",
     },
     "市场广度": {"market_breadth_pct"},
+    "短期反转": {
+        "return_1d_pct",
+        "return_3d_pct",
+        "return_5d_pct",
+        "intraday_return_pct",
+    },
+    "趋势突破": {
+        "breakout_20d_pct",
+        "breakout_60d_pct",
+        "distance_from_high_20d_pct",
+    },
+    "量能与收盘强度": {
+        "volume_ratio_5d",
+        "volume_ratio_10d",
+        "volume_ratio_20d",
+        "amount_ratio_5d",
+        "amount_ratio_20d",
+        "close_strength",
+    },
 }
 
 

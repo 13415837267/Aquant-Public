@@ -539,7 +539,8 @@ def main():
             },
         },
         "train_top_atomic": train_atomic[:TOP_OUTPUT_RULES],
-        "train_top_pairs": top_pairs[:TOP_OUTPUT_RULES],
+        # 为训练期匹配消融保留完整候选池；验证期展示数量仍由 TOP_OUTPUT_RULES 控制。
+        "train_top_pairs": top_pairs,
         "validation_top_rules": selected,
         "validation_qualified_rules_ge_80pct": validation_qualified,
         "selected_rules": selected_output,

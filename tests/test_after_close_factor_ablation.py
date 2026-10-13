@@ -93,6 +93,31 @@ class FactorAblationSelectionTests(unittest.TestCase):
         }
         self.assertEqual(select_ablation_candidates(data), {})
 
+    def test_selects_reversal_breakout_and_volume_families_from_training_pairs(self):
+        reversal = pair(
+            "return1-plus-close-strength",
+            [condition("return_1d_pct", threshold=0.2), condition("close_strength", threshold=0.3)],
+            samples=22_000, wilson=65.0, rate=67.0,
+        )
+        breakout = pair(
+            "breakout20-plus-close-strength",
+            [condition("breakout_20d_pct", threshold=0.7), condition("close_strength", threshold=0.6)],
+            samples=23_000, wilson=64.0, rate=66.0,
+        )
+        volume = pair(
+            "volume-ratio-plus-close-strength",
+            [condition("volume_ratio_5d", threshold=0.7), condition("close_strength", threshold=0.6)],
+            samples=24_000, wilson=63.0, rate=65.0,
+        )
+        selected = select_ablation_candidates({
+            "status": "research_only",
+            "train_top_pairs": [reversal, breakout, volume],
+        })
+        self.assertEqual(selected["短期反转"]["training_pair_label"], "return1-plus-close-strength")
+        self.assertEqual(selected["趋势突破"]["training_pair_label"], "breakout20-plus-close-strength")
+        self.assertEqual(selected["量能与收盘强度"]["training_pair_label"], "volume-ratio-plus-close-strength")
+        self.assertEqual(selected["短期反转"]["ablation"], [condition("close_strength", threshold=0.3)])
+
     def test_requires_research_only_input_and_training_pairs(self):
         with self.assertRaises(ValueError):
             select_ablation_candidates({"status": "ready", "train_top_pairs": []})
