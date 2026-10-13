@@ -79,20 +79,30 @@ jobs:
 
           reason = ""
           eligible = False
+          today = now.date().isoformat()
+          history_dates = sorted(
+              path.name[:10]
+              for path in Path("data/history").glob("*/*.csv.gz")
+              if len(path.name) >= 10
+              and path.name[4:5] == "-"
+              and path.name[7:8] == "-"
+          )
+          latest_history_date = history_dates[-1] if history_dates else ""
           if checked_date != now.date():
               reason = f"交易日状态不是今日检查结果（状态日期={checked_date}，当前日期={now.date()}），等待下一次补跑。"
           elif not bool(status.get("is_trading_day")):
               reason = "上游状态明确标记为非交易日，本次不生成新候选。"
+          elif latest_history_date != today:
+              reason = f"历史行情尚未覆盖今日（最新历史日期={latest_history_date or '无'}，今日={today}），禁止生成旧日期候选。"
           else:
               candidates = json.loads(candidates_path.read_text(encoding="utf-8")) if candidates_path.exists() else {}
               as_of = str(candidates.get("as_of", ""))
               candidate_date = as_of[:10]
-              today = now.date().isoformat()
               if candidate_date >= today:
                   reason = f"正式候选快照已覆盖今日（候选日期={candidate_date}），跳过重复生产。"
               else:
                   eligible = True
-                  reason = f"今日为交易日，当前正式候选日期={candidate_date}，允许生成最新候选。"
+                  reason = f"今日行情已落库，当前正式候选日期={candidate_date}，允许生成最新候选。"
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"is_trading_day={str(eligible).lower()}\n")
