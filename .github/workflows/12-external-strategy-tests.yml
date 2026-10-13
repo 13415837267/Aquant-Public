@@ -73,7 +73,7 @@ jobs:
 
   historical-evaluation:
     name: "完整历史策略对照"
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '启动外部策略历史评估')) }}
     needs: quality
     runs-on: ubuntu-24.04
     timeout-minutes: 360
@@ -82,9 +82,9 @@ jobs:
       GIT_CONFIG_COUNT: "1"
       GIT_CONFIG_KEY_0: "init.defaultBranch"
       GIT_CONFIG_VALUE_0: "main"
-      EVALUATION_PERIOD: ${{ inputs.period }}
-      COMMISSION_BPS: ${{ inputs.commission_bps_per_side }}
-      SLIPPAGE_BPS: ${{ inputs.slippage_bps_per_side }}
+      EVALUATION_PERIOD: ${{ inputs.period || 'all' }}
+      COMMISSION_BPS: ${{ inputs.commission_bps_per_side || '3' }}
+      SLIPPAGE_BPS: ${{ inputs.slippage_bps_per_side || '2' }}
     steps:
       - name: "检出公开仓库及现有历史数据"
         uses: actions/checkout@v7
