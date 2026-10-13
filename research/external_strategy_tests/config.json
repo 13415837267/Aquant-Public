@@ -1,0 +1,85 @@
+{
+  "config_version": 1,
+  "annualization_trading_days": 252,
+  "initial_equity": 1.0,
+  "max_concurrent_positions": 2,
+  "default_commission_bps_per_side": 3.0,
+  "default_slippage_bps_per_side": 2.0,
+  "evaluation_periods": [
+    {
+      "id": "development",
+      "label": "开发期",
+      "start": "2015-01-05",
+      "end": "2022-12-30"
+    },
+    {
+      "id": "validation",
+      "label": "验证期",
+      "start": "2023-01-03",
+      "end": "2024-12-31"
+    },
+    {
+      "id": "supplementary",
+      "label": "历史补充期",
+      "start": "2025-01-02",
+      "end": "2026-09-30"
+    }
+  ],
+  "strategy_rules": {
+    "public_picker_approx": {
+      "turnover_min_pct": 5.0,
+      "turnover_max_pct": 25.0,
+      "recent_limit_up_count_min": 1.0,
+      "volume_ratio_5d_min": 1.0,
+      "amount_20d_min": 50000000.0
+    },
+    "khunter_pullback_proxy": {
+      "ma20_vs_ma60_min_pct": 0.0,
+      "close_vs_ma20_min_pct": 0.0,
+      "close_vs_ma5_min_pct": -4.0,
+      "close_vs_ma5_max_pct": 1.5,
+      "distance_from_high_20d_min_pct": -12.0,
+      "distance_from_high_20d_max_pct": -2.0,
+      "volume_ratio_5d_max": 0.9,
+      "turnover_min_pct": 3.0,
+      "turnover_max_pct": 25.0,
+      "target_pullback_pct": -6.0
+    },
+    "momentum20_baseline": {
+      "return_20d_min_pct": 0.0,
+      "close_vs_ma20_min_pct": 0.0,
+      "ma20_vs_ma60_min_pct": 0.0,
+      "volatility_10d_min_pct": 0.1
+    }
+  },
+  "non_reproducible_sources": [
+    {
+      "id": "khunter_leader_strategy",
+      "name": "KHunter 龙头打板策略",
+      "url": "https://github.com/ling-0729/KHunter",
+      "status": "blocked",
+      "reason": "需要涨停列表和封板时刻等字段；当前日线文件无法还原分钟级封板时间。"
+    },
+    {
+      "id": "transformer_alpha_factor_chinese",
+      "name": "Transformer 多因子策略",
+      "url": "https://github.com/gtj-sustech/Transformer-alpha-factor-Chinese",
+      "status": "needs_audit",
+      "reason": "公开摘要与报告数字口径不一致，披露报告只有34个交易日；需先核对原始模型、输入数据和评估脚本。"
+    },
+    {
+      "id": "three_dimensional_stock_picker",
+      "name": "三维选股系统",
+      "url": "https://github.com/kingchen24/three-dimensional-strategy-to-pick-stocks",
+      "status": "blocked",
+      "reason": "需要资金流和板块热度等当前统一日线资产不完整提供的字段。"
+    },
+    {
+      "id": "quant_dashboard",
+      "name": "Quant Dashboard",
+      "url": "https://github.com/Providence825/quant-dashboard",
+      "status": "needs_audit",
+      "reason": "公开输出对应不同策略和时间段，缺少可统一复现的A股组合定义与审计材料。"
+    }
+  ]
+}
