@@ -2,7 +2,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from scripts.backfill_history import daily_file_has_basic_schema, history_file_date
+from scripts.backfill_history import (
+    daily_file_has_basic_schema,
+    history_file_date,
+    merge_verified_trading_day,
+)
 
 
 def test_history_file_date_parses_gzip_suffix():
@@ -32,3 +36,25 @@ def test_daily_file_has_basic_schema_does_not_require_valuation(tmp_path):
     ok, rows = daily_file_has_basic_schema(path)
     assert ok is True
     assert rows == 1
+
+
+
+def test_merge_verified_trading_day_keeps_current_date_missing_from_calendar():
+    calendar_dates = ["2026-10-12", "2026-10-09", "2026-10-08"]
+
+    merged = merge_verified_trading_day(calendar_dates, "2026-10-13")
+
+    assert merged == [
+        "2026-10-13",
+        "2026-10-12",
+        "2026-10-09",
+        "2026-10-08",
+    ]
+
+
+def test_merge_verified_trading_day_deduplicates_verified_date():
+    calendar_dates = ["2026-10-13", "2026-10-12"]
+
+    merged = merge_verified_trading_day(calendar_dates, "2026-10-13")
+
+    assert merged == ["2026-10-13", "2026-10-12"]
