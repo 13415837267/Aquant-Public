@@ -56,13 +56,12 @@ FAMILIES = {
         "breakout_60d_pct",
         "distance_from_high_20d_pct",
     },
-    "量能与收盘强度": {
+    "量能过滤": {
         "volume_ratio_5d",
         "volume_ratio_10d",
         "volume_ratio_20d",
         "amount_ratio_5d",
         "amount_ratio_20d",
-        "close_strength",
     },
 }
 

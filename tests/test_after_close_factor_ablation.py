@@ -115,7 +115,7 @@ class FactorAblationSelectionTests(unittest.TestCase):
         })
         self.assertEqual(selected["短期反转"]["training_pair_label"], "return1-plus-close-strength")
         self.assertEqual(selected["趋势突破"]["training_pair_label"], "breakout20-plus-close-strength")
-        self.assertEqual(selected["量能与收盘强度"]["training_pair_label"], "volume-ratio-plus-close-strength")
+        self.assertEqual(selected["量能过滤"]["training_pair_label"], "volume-ratio-plus-close-strength")
         self.assertEqual(selected["短期反转"]["ablation"], [condition("close_strength", threshold=0.3)])
 
     def test_requires_research_only_input_and_training_pairs(self):
