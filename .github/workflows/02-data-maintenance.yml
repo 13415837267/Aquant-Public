@@ -4,8 +4,10 @@ on:
   schedule:
     # 主触发：北京时间18:00。保留原定时点。
     - cron: "0 10 * * *"
-    # 兜底触发：北京时间18:15，避免整点任务延迟/漏触发后当天不更新。
+    # 兜底触发：北京时间18:15，降低主任务漏触发的影响。
     - cron: "15 10 * * *"
+    # 第二兜底：北京时间18:30，补偿前两次调度被延迟或漏触发的情况。
+    - cron: "30 10 * * *"
   push:
     branches: [main]
     paths:
@@ -83,6 +85,7 @@ jobs:
               encoding="utf-8",
           )
           print(json.dumps(payload, ensure_ascii=False))
+          PY
 
       - name: "跳过非交易日市场更新"
         if: steps.trading_day.outputs.is_trading_day != 'true'
