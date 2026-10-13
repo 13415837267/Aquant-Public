@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
-from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, market_thresholds, raw_market_feature, RESEARCH_ABLATION_FAMILIES
+from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, market_thresholds, raw_market_feature
 
 OUT_DIR = ROOT / "data" / "backtest"
 
@@ -49,6 +49,36 @@ MAX_ATOMIC_CANDIDATES = RESEARCH_CONFIG["最大原子条件候选数"]
 MAX_PAIR_CANDIDATES = RESEARCH_CONFIG["最大双条件候选数"]
 TOP_OUTPUT_RULES = RESEARCH_CONFIG["最多输出条件数"]
 TARGET_WIN_RATE_PCT = float(RESEARCH_CONFIG["目标命中率百分比"])
+
+# 研究专用因子族目录。由规则挖掘与消融模块共同引用，避免两处定义漂移。
+RESEARCH_ABLATION_FAMILIES = {
+    "ATR与日内振幅": {"atr_14_pct", "range_pct"},
+    "隔夜收益": {
+        "overnight_1d_pct",
+        "overnight_3d_pct",
+        "overnight_5d_pct",
+        "overnight_10d_pct",
+    },
+    "市场广度": {"market_breadth_pct"},
+    "短期反转": {
+        "return_1d_pct",
+        "return_3d_pct",
+        "return_5d_pct",
+        "intraday_return_pct",
+    },
+    "趋势突破": {
+        "breakout_20d_pct",
+        "breakout_60d_pct",
+        "distance_from_high_20d_pct",
+    },
+    "量能过滤": {
+        "volume_ratio_5d",
+        "volume_ratio_10d",
+        "volume_ratio_20d",
+        "amount_ratio_5d",
+        "amount_ratio_20d",
+    },
+}
 
 # 单族候选数随既有原子条件预算动态变化，避免新增分散的魔法数字。
 ABLATION_CANDIDATES_PER_FAMILY = max(
