@@ -93,7 +93,7 @@ GitHub Actions 历史记录由 `.github/workflows/cleanup-action-deployment-hist
 
 当前模块包含三组可运行研究：公开短线选股规则近似复现、趋势回调缩量代理规则、20日动量基线。无法用现有日线公平还原的策略会登记具体数据缺口与复现限制，不混入可运行策略排名。
 
-专用工作流：`.github/workflows/12-external-strategy-tests.yml`。代码提交后自动执行模块质量检查；完整历史评估通过 **Actions →「12 外部策略历史评估」→ Run workflow** 手动启动，结果以工件保存。研究模块不改动第一版正式模型、不接入正式候选池、不自动下单，也不会重复下载已有历史数据。
+专用工作流：`.github/workflows/12-external-strategy-tests.yml`。代码提交后自动执行模块质量检查；首次全区间对照由可追溯的标记提交触发一次，后续完整历史评估仍可通过 **Actions →「12 外部策略历史评估」→ Run workflow** 手动启动，结果以工件保存。研究模块不改动第一版正式模型、不接入正式候选池、不自动下单，也不会重复下载已有历史数据。
 
 评估细节见 [外部策略评估模块说明](research/external_strategy_tests/README.md)。
 
