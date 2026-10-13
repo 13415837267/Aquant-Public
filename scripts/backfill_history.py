@@ -549,10 +549,7 @@ def validate_bulk(days: int = VALIDATION_TRADING_DAYS) -> None:
     print(f"质量检查日期：{', '.join(recent)}")
     results = []
     for trade_date in recent:
-        if verified_current_day == trade_date and verified_current_daily is not None:
-            raw = verified_current_daily.copy()
-        else:
-            raw = request_bulk_day(api, trade_date)
+        raw = request_bulk_day(api, trade_date)
         market = filter_historical_stock_rows(raw)
         valuation = request_valuation_day(api, trade_date)
         combined = merge_daily_valuation(market, valuation)
@@ -741,7 +738,10 @@ def backfill_daily(end_date: date | None = None) -> None:
         if trade_date in completed:
             continue
 
-        raw = request_bulk_day(api, trade_date)
+        if verified_current_day == trade_date and verified_current_daily is not None:
+            raw = verified_current_daily.copy()
+        else:
+            raw = request_bulk_day(api, trade_date)
         market = filter_historical_stock_rows(raw)
         valuation = request_valuation_day(api, trade_date)
         combined = merge_daily_valuation(market, valuation)
