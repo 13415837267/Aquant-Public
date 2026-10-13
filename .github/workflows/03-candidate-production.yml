@@ -47,16 +47,18 @@ jobs:
           UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$EVENT_NAME" = "push" ]; then
-            echo "手动运行或生产代码/模型变更：使用最近可用的已完成交易日数据。"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "${{ inputs.signal_date }}" ]; then
+            echo "手动指定了信号日期，按请求日期执行候选回放式生产。"
             echo "is_trading_day=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          if [ "$UPSTREAM_CONCLUSION" != "success" ]; then
+          if [ "$EVENT_NAME" = "workflow_run" ] && [ "$UPSTREAM_CONCLUSION" != "success" ]; then
             echo "上游数据维护未成功，禁止生成正式候选快照。" >&2
             exit 1
           fi
+          # 代码变更、无日期手动运行和成功的数据维护事件统一进入下方门禁：
+          # 状态日期必须为今日、最新历史行情必须覆盖今日，否则绝不发布旧候选。
 
           python - <<'PY'
           import json
