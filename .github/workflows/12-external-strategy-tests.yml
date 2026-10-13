@@ -44,6 +44,9 @@ jobs:
     timeout-minutes: 30
     env:
       PYTHONWARNINGS: "error"
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: "init.defaultBranch"
+      GIT_CONFIG_VALUE_0: "main"
     steps:
       - name: "检出公开仓库"
         uses: actions/checkout@v7
@@ -76,6 +79,9 @@ jobs:
     timeout-minutes: 360
     env:
       PYTHONWARNINGS: "error"
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: "init.defaultBranch"
+      GIT_CONFIG_VALUE_0: "main"
       EVALUATION_PERIOD: ${{ inputs.period }}
       COMMISSION_BPS: ${{ inputs.commission_bps_per_side }}
       SLIPPAGE_BPS: ${{ inputs.slippage_bps_per_side }}
