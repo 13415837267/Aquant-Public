@@ -1,0 +1,112 @@
+name: "12 外部策略历史评估"
+
+on:
+  push:
+    paths:
+      - ".github/workflows/12-external-strategy-tests.yml"
+      - "research/__init__.py"
+      - "research/external_strategy_tests/**"
+      - "tests/test_external_strategy_tests.py"
+  workflow_dispatch:
+    inputs:
+      period:
+        description: "选择历史评估区间"
+        required: true
+        type: choice
+        default: "all"
+        options:
+          - "all"
+          - "development"
+          - "validation"
+          - "supplementary"
+      commission_bps_per_side:
+        description: "单边佣金基点；输入0表示不计佣金"
+        required: true
+        default: "3"
+        type: string
+      slippage_bps_per_side:
+        description: "单边滑点基点；输入0表示不计滑点"
+        required: true
+        default: "2"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "外部策略历史评估-main-v1"
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: "云端语法与单元测试"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONWARNINGS: "error"
+    steps:
+      - name: "检出公开仓库"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: "设置Python环境"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: "安装项目依赖"
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: "检查代码语法"
+        run: |
+          set -euo pipefail
+          python -m compileall -q scripts research/external_strategy_tests tests/test_external_strategy_tests.py
+      - name: "执行外部策略单元测试"
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_external_strategy_tests.py
+
+  historical-evaluation:
+    name: "完整历史策略对照"
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      PYTHONWARNINGS: "error"
+      EVALUATION_PERIOD: ${{ inputs.period }}
+      COMMISSION_BPS: ${{ inputs.commission_bps_per_side }}
+      SLIPPAGE_BPS: ${{ inputs.slippage_bps_per_side }}
+    steps:
+      - name: "检出公开仓库及现有历史数据"
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: "设置Python环境"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: "安装项目依赖"
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: "运行历史策略统一评估"
+        run: |
+          set -euo pipefail
+          python -m research.external_strategy_tests.runner \
+            --period "$EVALUATION_PERIOD" \
+            --commission-bps-per-side "$COMMISSION_BPS" \
+            --slippage-bps-per-side "$SLIPPAGE_BPS" \
+            --output data/backtest/external_strategy_evaluation_latest.json
+      - name: "保存策略比较报告"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "外部策略历史评估报告"
+          path: data/backtest/external_strategy_evaluation_latest.json
+          if-no-files-found: error
+          retention-days: 30
