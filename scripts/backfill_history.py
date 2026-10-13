@@ -647,9 +647,11 @@ def backfill_daily(end_date: date | None = None) -> None:
         calendar_end = requested_end
 
     if calendar_end < target_start:
-        raise RuntimeError(
-            f"没有需要增量更新的交易日：已有最新完整数据={latest_existing}, 目标结束日期={calendar_end}"
+        print(
+            f"无需增量更新：已有最新完整数据={latest_existing}，"
+            f"已覆盖目标结束日期={calendar_end}；本次按幂等规则正常跳过。"
         )
+        return
 
     trade_days = load_trade_days(
         api,
