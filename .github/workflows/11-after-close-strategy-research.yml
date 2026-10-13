@@ -32,6 +32,7 @@ on:
       - "tests/test_path_rule_mining.py"
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -160,10 +161,12 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: "下载训练期规则挖掘结果"
-        uses: actions/download-artifact@v8
-        with:
-          name: "rule-research"
-          path: data/artifacts/rules
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/artifacts/rules
+          gh run download "$GITHUB_RUN_ID" --name "rule-research" --dir data/artifacts/rules
 
       - name: "按冻结规则运行同口径Top2组合回测"
         run: |
@@ -243,10 +246,12 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: "下载发现期规则研究结果"
-        uses: actions/download-artifact@v8
-        with:
-          name: "rule-research"
-          path: data/artifacts/rules
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/artifacts/rules
+          gh run download "$GITHUB_RUN_ID" --name "rule-research" --dir data/artifacts/rules
 
       - name: "运行 ATR振幅、隔夜收益、市场广度匹配消融"
         run: |
@@ -289,28 +294,36 @@ jobs:
           python-version: "3.11"
 
       - name: "下载规则研究与模型组合产物"
-        uses: actions/download-artifact@v8
-        with:
-          name: "rule-research"
-          path: data/artifacts/rules
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/artifacts/rules
+          gh run download "$GITHUB_RUN_ID" --name "rule-research" --dir data/artifacts/rules
 
       - name: "下载模型组合产物"
-        uses: actions/download-artifact@v8
-        with:
-          name: "model-compound"
-          path: data/artifacts/model
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/artifacts/model
+          gh run download "$GITHUB_RUN_ID" --name "model-compound" --dir data/artifacts/model
 
       - name: "下载规则组合回测产物"
-        uses: actions/download-artifact@v8
-        with:
-          name: "rule-portfolio"
-          path: data/artifacts/rule-portfolio
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/artifacts/rule-portfolio
+          gh run download "$GITHUB_RUN_ID" --name "rule-portfolio" --dir data/artifacts/rule-portfolio
 
       - name: "下载单因子消融结果"
-        uses: actions/download-artifact@v8
-        with:
-          name: "factor-ablation"
-          path: data/artifacts/factor-ablation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/artifacts/factor-ablation
+          gh run download "$GITHUB_RUN_ID" --name "factor-ablation" --dir data/artifacts/factor-ablation
 
       - name: "将单因子消融结果写入运行摘要"
         run: |
