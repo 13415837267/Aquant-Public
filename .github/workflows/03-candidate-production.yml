@@ -6,6 +6,9 @@ env:
   GIT_CONFIG_VALUE_0: "main"
 
 on:
+  # 每日兜底检查：北京时间18:05；主流程仍由每日数据维护任务触发。
+  schedule:
+    - cron: "5 10 * * *"
   push:
     branches: [main]
     paths:
@@ -15,6 +18,7 @@ on:
       - "config/system_version.json"
       - "config/production_release_v1.json"
       - "data/models/production_v1.json"
+      - ".github/workflows/03-candidate-production.yml"
   workflow_run:
     workflows: ["02 数据维护"]
     types: [completed]
@@ -22,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       signal_date:
-        description: "可选：指定本次候选信号日期（北京时间18:00截面）"
+        description: "可选：指定历史交易日，按当时可见数据生成研究候选"
         required: false
         default: ""
         type: string
@@ -36,97 +40,106 @@ concurrency:
 
 jobs:
   gate:
-    name: "交易日与快照日期门禁"
+    name: "最新已完成交易日与当前策略版本门禁"
     runs-on: ubuntu-24.04
     outputs:
-      is_trading_day: ${{ steps.check.outputs.is_trading_day }}
+      should_produce: ${{ steps.check.outputs.should_produce }}
     steps:
-      - name: "检出代码"
+      - name: "检出最新主分支代码"
         uses: actions/checkout@v7
         with:
+          ref: main
           fetch-depth: 1
 
-      - name: "验证上游状态与候选日期"
+      - name: "查找最新有效行情并判断是否需要重算"
         id: check
+        shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
           UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          SIGNAL_DATE: ${{ inputs.signal_date }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "${{ inputs.signal_date }}" ]; then
-            echo "手动指定了信号日期，按请求日期执行候选回放式生产。"
-            echo "is_trading_day=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "$EVENT_NAME" = "workflow_run" ] && [ "$UPSTREAM_CONCLUSION" != "success" ]; then
-            echo "上游数据维护未成功，禁止生成正式候选快照。" >&2
-            exit 1
-          fi
-          # 代码变更、无日期手动运行和成功的数据维护事件统一进入下方门禁：
-          # 状态日期必须为今日、最新历史行情必须覆盖今日，否则绝不发布旧候选。
-
           python - <<'PY'
           import json
           import os
-          from datetime import datetime
+          from datetime import date
           from pathlib import Path
-          from zoneinfo import ZoneInfo
 
-          tz = ZoneInfo("Asia/Shanghai")
-          now = datetime.now(tz)
-          status_path = Path("data/trading_day_status.json")
-          candidates_path = Path("data/candidates.json")
-          if not status_path.exists():
-              raise SystemExit("缺少交易日状态文件，禁止使用旧状态生成候选。")
-          status = json.loads(status_path.read_text(encoding="utf-8"))
-          checked_at = datetime.fromisoformat(status["checked_at"])
-          if checked_at.tzinfo is None:
-              raise SystemExit("交易日状态时间缺少时区，禁止生成候选。")
-          checked_date = checked_at.astimezone(tz).date()
+          root = Path(".")
+          manifest = json.loads((root / "config/system_version.json").read_text(encoding="utf-8"))
+          history_files = []
+          for path in (root / "data/history").glob("*/*.csv.gz"):
+              value = path.name[:10]
+              try:
+                  if date.fromisoformat(value).isoformat() == value:
+                      history_files.append((value, path))
+              except ValueError:
+                  continue
 
-          reason = ""
-          eligible = False
-          today = now.date().isoformat()
-          history_dates = sorted(
-              path.name[:10]
-              for path in Path("data/history").glob("*/*.csv.gz")
-              if len(path.name) >= 10
-              and path.name[4:5] == "-"
-              and path.name[7:8] == "-"
-          )
-          latest_history_date = history_dates[-1] if history_dates else ""
-          if checked_date != now.date():
-              reason = f"交易日状态不是今日检查结果（状态日期={checked_date}，当前日期={now.date()}），等待下一次补跑。"
-          elif not bool(status.get("is_trading_day")):
-              reason = "上游状态明确标记为非交易日，本次不生成新候选。"
-          elif latest_history_date != today:
-              reason = f"历史行情尚未覆盖今日（最新历史日期={latest_history_date or '无'}，今日={today}），禁止生成旧日期候选。"
+          if not history_files:
+              raise SystemExit("历史行情目录没有有效交易日文件，拒绝生成候选。")
+
+          history_dates = sorted({item[0] for item in history_files})
+          latest_history_date = history_dates[-1]
+          requested_signal_date = os.environ.get("SIGNAL_DATE", "").strip()
+          event_name = os.environ.get("EVENT_NAME", "")
+          upstream_conclusion = os.environ.get("UPSTREAM_CONCLUSION", "")
+
+          if requested_signal_date:
+              try:
+                  requested_signal_date = date.fromisoformat(requested_signal_date).isoformat()
+              except ValueError as exc:
+                  raise SystemExit("手动指定的信号日期格式无效，必须为 YYYY-MM-DD。") from exc
+              if requested_signal_date not in history_dates:
+                  raise SystemExit(f"指定信号日期 {requested_signal_date} 不在已落库历史行情中，拒绝使用其他日期代替。")
+              should_produce = True
+              reason = f"按手动指定的历史交易日 {requested_signal_date} 生成研究候选。"
           else:
+              candidates_path = root / "data/candidates.json"
               candidates = json.loads(candidates_path.read_text(encoding="utf-8")) if candidates_path.exists() else {}
-              as_of = str(candidates.get("as_of", ""))
-              candidate_date = as_of[:10]
-              if candidate_date >= today:
-                  reason = f"正式候选快照已覆盖今日（候选日期={candidate_date}），跳过重复生产。"
+              candidate_date = str(candidates.get("as_of", ""))[:10]
+              snapshot_matches = (
+                  candidates.get("status") == "ready"
+                  and candidates.get("future_function") is False
+                  and candidate_date == latest_history_date
+                  and candidates.get("system_version") == manifest.get("system_version")
+                  and candidates.get("strategy_version") == manifest.get("strategy_version")
+                  and candidates.get("strategy_commit") == manifest.get("strategy_commit")
+                  and candidates.get("production_release") is False
+              )
+              force_refresh = event_name in {"push", "workflow_dispatch"}
+              should_produce = force_refresh or not snapshot_matches
+              if should_produce:
+                  reason = (
+                      f"使用最新已落库交易日 {latest_history_date} 和当前策略 "
+                      f"{manifest.get('strategy_version')}（{manifest.get('strategy_commit')}）生成研究候选；"
+                      "研究状态不阻断候选生成。"
+                  )
               else:
-                  eligible = True
-                  reason = f"今日行情已落库，当前正式候选日期={candidate_date}，允许生成最新候选。"
+                  reason = (
+                      f"当前候选已对应最新已落库交易日 {latest_history_date}、"
+                      f"策略版本 {manifest.get('strategy_version')} 和策略提交；跳过重复计算。"
+                  )
 
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"is_trading_day={str(eligible).lower()}\n")
+          if event_name == "workflow_run" and upstream_conclusion != "success":
+              print("数据维护本轮未成功；不冒充当日行情，继续依据仓库中最新已落库的交易日文件进行研究刷新。")
           print(reason)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"should_produce={str(should_produce).lower()}\n")
           PY
 
   produce:
-    name: "按正式基准生成候选池与下一交易日计划"
+    name: "按当前策略生成研究候选池与模拟计划"
     needs: gate
-    if: ${{ needs.gate.outputs.is_trading_day == 'true' }}
+    if: ${{ needs.gate.outputs.should_produce == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - name: "检出公开仓库"
+      - name: "检出最新公开主分支"
         uses: actions/checkout@v7
         with:
+          ref: main
           fetch-depth: 1
 
       - name: "检出固定Private策略用于审计"
