@@ -30,6 +30,7 @@ on:
 permissions:
   actions: write
   contents: write
+  deployments: write
 
 concurrency:
   group: "历史记录维护-main"
@@ -49,6 +50,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: "清理无效历史记录并保留审计清单"
+      - name: "云端校验维护脚本语法"
+        shell: bash
+        run: bash -n scripts/cleanup_action_deployment_history.sh
+
+      - name: "清理旧 Action 与部署记录并压缩重复审计清单"
         shell: bash
         run: bash scripts/cleanup_action_deployment_history.sh
