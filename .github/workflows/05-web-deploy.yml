@@ -113,6 +113,16 @@ jobs:
               candidate_date = str(candidates.get("as_of", ""))[:10]
               plan_signal_date = str(plan.get("signal_date", ""))[:10]
               plan_data_cutoff = str(plan.get("data_cutoff", ""))[:10]
+              plan_execution_date = str(plan.get("next_trading_day", ""))[:10]
+              try:
+                  execution_date = date.fromisoformat(plan_execution_date).isoformat()
+              except ValueError:
+                  reasons.append("下一交易日计划的执行日期无效。")
+              else:
+                  if execution_date <= today:
+                      reasons.append(
+                          f"计划执行日={execution_date} 已到或已过当前日期={today}，不部署已过期模拟计划。"
+                      )
               manifest_version = manifest.get("system_version")
               manifest_strategy = manifest.get("strategy_version")
               manifest_commit = manifest.get("strategy_commit")
