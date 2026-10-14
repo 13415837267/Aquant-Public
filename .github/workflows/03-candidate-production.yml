@@ -6,9 +6,11 @@ env:
   GIT_CONFIG_VALUE_0: "main"
 
 on:
-  # 每日北京时间18:05兜底检查；每次运行都重新读取 Private/main 最新策略。
+  # 每日北京时间18:05主兜底检查；每次运行都重新读取 Private/main 最新策略。
+  # 收盘后补偿触发：若18:05检查时数据仍未更新，19:25再按最新已落库完整行情校验。
   schedule:
     - cron: "5 10 * * *"
+    - cron: "25 11 * * *"
   push:
     branches: [main]
     paths:
