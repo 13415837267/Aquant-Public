@@ -143,13 +143,13 @@ jobs:
               if should_produce:
                   reason = (
                       f"使用最新已落库交易日 {latest_history_date} 和 Private/main 最新策略 "
-                      f"{current_strategy_version}（{current_strategy_commit}）生成研究候选；
+                      f"{current_strategy_version}（{current_strategy_commit}）生成研究候选；"
                       "研究状态不阻断候选生成。"
                   )
               else:
                   reason = (
                       f"当前候选已对应最新已落库交易日 {latest_history_date}、"
-                      f"最新策略版本 {current_strategy_version} 与提交 {current_strategy_commit}；跳过重复计算。
+                      f"最新策略版本 {current_strategy_version} 与提交 {current_strategy_commit}；跳过重复计算。"
                   )
 
           if event_name == "workflow_run" and upstream_conclusion != "success":
