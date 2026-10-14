@@ -5,9 +5,14 @@ env:
   GIT_CONFIG_KEY_0: "init.defaultBranch"
   GIT_CONFIG_VALUE_0: "main"
 
-# 完整历史研究只允许有明确目的时手动启动；代码更新不应反复触发整条长流程。
+# 仅手动启动，或修改本工作流定义后触发一次完整回归；普通数据提交不触发。
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/06-model-research.yml"
 
 permissions:
   contents: read
@@ -83,6 +88,23 @@ jobs:
           path: private-strategy
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
+
+      - name: "验证当前私有策略版本与单元测试"
+        working-directory: private-strategy
+        run: |
+          set -euo pipefail
+          python -m compileall -q strategy tests
+          python -m pytest -q
+          python - <<'PY'
+          from strategy.precision_config import MIN_MARKET_BREADTH_PCT
+          from strategy.version import STRATEGY_VERSION
+
+          assert STRATEGY_VERSION == "2.6.0", STRATEGY_VERSION
+          assert MIN_MARKET_BREADTH_PCT == 65.0, MIN_MARKET_BREADTH_PCT
+          print("策略版本：", STRATEGY_VERSION)
+          print("研究市场上涨广度门槛：", MIN_MARKET_BREADTH_PCT)
+          print("本流程不修改正式生产模型。")
+          PY
 
       - name: "恢复最近兼容研究检查点"
         uses: actions/cache/restore@v5
