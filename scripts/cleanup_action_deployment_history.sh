@@ -16,6 +16,34 @@ preserved_other_completed='[]'
 cancelled_obsolete_runs='[]'
 cleanup_errors='[]'
 
+# GitHub API 只读请求增加有限重试，降低短暂 5xx/网络波动导致整次清理中断的概率。
+gh_api_read_with_retry() {
+  local attempt=1
+  local max_attempts="${GH_API_READ_MAX_ATTEMPTS:-4}"
+  local delay_seconds="${GH_API_READ_RETRY_DELAY_SECONDS:-3}"
+  local last_status=1
+
+  while (( attempt <= max_attempts )); do
+    if gh api "$@"; then
+      return 0
+    else
+      last_status=$?
+    fi
+
+    if (( attempt >= max_attempts )); then
+      echo "GitHub API 只读请求连续失败：第 ${attempt}/${max_attempts} 次。" >&2
+      return "$last_status"
+    fi
+
+    echo "GitHub API 只读请求失败；等待 ${delay_seconds} 秒后重试第 $((attempt + 1))/${max_attempts} 次。" >&2
+    sleep "$delay_seconds"
+    attempt=$((attempt + 1))
+  done
+
+  return "$last_status"
+}
+
+
 # 可选的定向取消列表只允许来自维护工作流的显式配置；目标名称必须匹配。
 cancel_poll_interval_seconds="\${CANCEL_POLL_INTERVAL_SECONDS:-5}"
 cancel_poll_max_attempts="\${CANCEL_POLL_MAX_ATTEMPTS:-60}"
@@ -27,7 +55,7 @@ if [[ -n "\${CANCEL_OBSOLETE_RUN_IDS:-}" ]]; then
       continue
     fi
 
-    if ! run_info="$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '[.id, .name, .status, (.conclusion // "-")] | @tsv' 2>/dev/null)"; then
+    if ! run_info="$(gh_api_read_with_retry "repos/$REPOSITORY/actions/runs/$run_id" --jq '[.id, .name, .status, (.conclusion // "-")] | @tsv' 2>/dev/null)"; then
       echo "指定旧运行已不存在，无需再次取消：$run_id"
       continue
     fi
@@ -45,7 +73,7 @@ if [[ -n "\${CANCEL_OBSOLETE_RUN_IDS:-}" ]]; then
     fi
 
     if ! gh api --method POST "repos/$REPOSITORY/actions/runs/$run_id/force-cancel" >/dev/null 2>&1; then
-      current_status="$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '.status' 2>/dev/null || printf 'unknown')"
+      current_status="$(gh_api_read_with_retry "repos/$REPOSITORY/actions/runs/$run_id" --jq '.status' 2>/dev/null || printf 'unknown')"
       if [[ "$current_status" != "completed" ]]; then
         cleanup_errors="$(jq -c --arg id "$run_id" --arg status "$current_status" '. + [{kind:"cancel_run", id:$id, reason:("强制取消请求失败，当前状态：" + $status)}]' <<< "$cleanup_errors")"
         echo "强制取消旧运行失败：$run_id（当前状态：$current_status）"
@@ -57,9 +85,9 @@ if [[ -n "\${CANCEL_OBSOLETE_RUN_IDS:-}" ]]; then
     current_status="$actual_status"
     while [[ "$attempt" -lt "$cancel_poll_max_attempts" ]]; do
       attempt=$((attempt + 1))
-      current_status="$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '.status' 2>/dev/null || printf 'unknown')"
+      current_status="$(gh_api_read_with_retry "repos/$REPOSITORY/actions/runs/$run_id" --jq '.status' 2>/dev/null || printf 'unknown')"
       if [[ "$current_status" == "completed" ]]; then
-        final_conclusion="$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '.conclusion // "-"' 2>/dev/null || printf 'unknown')"
+        final_conclusion="$(gh_api_read_with_retry "repos/$REPOSITORY/actions/runs/$run_id" --jq '.conclusion // "-"' 2>/dev/null || printf 'unknown')"
         cancelled_obsolete_runs="$(jq -c --arg id "$run_id" --arg name "$actual_name" --arg prior_status "$actual_status" --arg conclusion "$final_conclusion" '. + [{run_id:($id|tonumber), name:$name, prior_status:$prior_status, conclusion:$conclusion}]' <<< "$cancelled_obsolete_runs")"
         echo "旧研究运行已结束：$run_id（结论：$final_conclusion）"
         break
@@ -75,7 +103,7 @@ if [[ -n "\${CANCEL_OBSOLETE_RUN_IDS:-}" ]]; then
 fi
 
 # 取消完成后重新读取状态；仅删除已结束的失败、跳过、取消记录。
-if ! runs_tsv="$(gh api --paginate "repos/$REPOSITORY/actions/runs?per_page=100" --jq '.workflow_runs[] | [.id, .created_at, .status, (.conclusion // "-"), (.name // "")] | @tsv')"; then
+if ! runs_tsv="$(gh_api_read_with_retry --paginate "repos/$REPOSITORY/actions/runs?per_page=100" --jq '.workflow_runs[] | [.id, .created_at, .status, (.conclusion // "-"), (.name // "")] | @tsv')"; then
   echo "读取历史工作流运行失败。"
   exit 1
 fi
@@ -109,7 +137,7 @@ while IFS=$'\t' read -r run_id created_at status conclusion run_name; do
 done <<< "$runs_tsv"
 
 # 旧部署清理：只处理 GitHub Pages 历史部署，保留 main 上最新的成功部署及所有未结束的部署。
-if ! deployment_rows="$(gh api --paginate "repos/$REPOSITORY/deployments?per_page=100" --jq '.[] | [.id, .ref, .sha, .environment, (.task // ""), .created_at] | @tsv')"; then
+if ! deployment_rows="$(gh_api_read_with_retry --paginate "repos/$REPOSITORY/deployments?per_page=100" --jq '.[] | [.id, .ref, .sha, .environment, (.task // ""), .created_at] | @tsv')"; then
   cleanup_errors="$(jq -c '. + [{kind:"deployment_list", reason:"读取部署记录失败，未执行部署删除"}]' <<< "$cleanup_errors")"
   deployment_rows=""
 fi
@@ -118,7 +146,7 @@ deployment_inventory=""
 current_success_deployment_id=""
 while IFS=$'\t' read -r deployment_id deployment_ref deployment_sha deployment_environment deployment_task deployment_created; do
   [[ -n "${deployment_id:-}" ]] || continue
-  if ! deployment_state="$(gh api "repos/$REPOSITORY/deployments/$deployment_id/statuses?per_page=1" --jq '.[0].state // "none"' 2>/dev/null)"; then
+  if ! deployment_state="$(gh_api_read_with_retry "repos/$REPOSITORY/deployments/$deployment_id/statuses?per_page=1" --jq '.[0].state // "none"' 2>/dev/null)"; then
     deployment_state="unknown"
     cleanup_errors="$(jq -c --arg id "$deployment_id" '. + [{kind:"deployment_status", deployment_id:($id|tonumber), reason:"读取部署状态失败，保留该部署"}]' <<< "$cleanup_errors")"
   fi
