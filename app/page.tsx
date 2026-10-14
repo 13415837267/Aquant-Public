@@ -10,11 +10,11 @@ type Candidate = {
   rank:number; symbol:string; name:string; price:number; change_pct:number; overnight_1d_pct?:number; intraday_return_pct?:number;
   return_3d_pct:number; return_5d_pct:number; return_10d_pct:number;
   volume_ratio_5d:number; turnover_pct:number; amount:number;
-  volatility_10d_pct:number; close_strength:number; score:number; precision_probability:number; admission_tier:string; flags?:string[];
+  volatility_10d_pct:number; close_strength:number; score:number; precision_probability:number; admission_tier:string; flags?:string[]; exclusion_reasons?:string[];
 };
 type Snapshot = {
   as_of:string; status:string; system_version?:string; lifecycle_status?:string; strategy_version:string; strategy_commit:string; signal_horizon:string;
-  candidate_admission_policy:string; candidates:Candidate[];
+  candidate_admission_policy:string; candidates:Candidate[]; research_observation_candidates?:Candidate[];
   model_definition?:{type:string;features?:string[];primary_probability_threshold?:number;maximum_candidates?:number;release_status?:string};
   factor_weights?:Record<string,number> | null;
   market?:{breadth_pct:number;median_return_pct:number;regime:string};
@@ -71,6 +71,7 @@ export default function Home(){
   const currentFeatures=candidatesAreCurrent?(snapshot.model_definition?.features??[]):[];
   const featureLabels:Record<string,string>={return_1d_pct:"近1日收益",return_3d_pct:"近3日收益",return_5d_pct:"近5日收益",return_10d_pct:"近10日收益",return_20d_pct:"近20日收益",overnight_1d_pct:"近1日隔夜收益",overnight_3d_pct:"近3日隔夜收益",overnight_5d_pct:"近5日隔夜收益",overnight_10d_pct:"近10日隔夜收益",volume_ratio_5d:"5日量比",amount_20d:"20日成交额",volatility_10d_pct:"10日波动率",close_strength:"收盘位置强度",intraday_return_pct:"日内涨跌幅",limit_up_5d_count:"近5日涨停次数",turnover_pct:"换手率",change_pct:"当日涨跌幅",market_breadth_pct:"市场上涨广度",market_median_return_pct:"市场中位收益"};
   const rows=candidatesAreCurrent?(snapshot.candidates??[]):[];
+  const observations=candidatesAreCurrent?(snapshot.research_observation_candidates??[]):[];
   const planMatchesSnapshot=candidatesAreCurrent && nextTradingPlan.strategy_version===snapshot.strategy_version && nextTradingPlan.strategy_commit===snapshot.strategy_commit && nextTradingPlan.data_cutoff===snapshot.as_of.slice(0,10) && nextTradingPlan.candidate_count===rows.length && nextTradingPlan.candidates.length===rows.length && nextTradingPlan.candidates.every((candidate,index)=>{const row=rows[index]; return candidate.rank===row.rank && candidate.symbol===row.symbol && candidate.name===row.name && candidate.price===row.price && candidate.score===row.score && candidate.precision_probability===row.precision_probability && candidate.admission_tier===row.admission_tier;});
   const m=snapshot.market;
   const preferred=researchStatus.preferred_operating_point?.final;
@@ -129,8 +130,14 @@ export default function Home(){
     <div className="main">
       <section className="card table-card">
         <div className="table-head"><div><div className="table-title">{liveOrderingEnabled?"生产候选":"研究候选快照"}</div><div className="table-subtitle">{liveOrderingEnabled?"模型评分（模型概率×100） + 市场门控":"候选快照；策略质量门槛未通过，不作为实盘信号"}</div></div><div className="badge">数据时点 {snapshot.as_of.replace("T"," ")}</div></div>
-        {!candidatesAreCurrent?<div className="empty">当前网页不展示旧策略候选。训练基准 {researchTrial.strategy_version} 尚未生成与当前版本完全一致的候选快照；系统宁可暂不展示，也不混用旧信号。</div>:rows.length===0?<div className="empty">当前市场门控未产生候选。系统允许空仓，而不是为了凑够候选数量强行入选。</div>:
-        <div className="table-wrap"><table><thead><tr><th>#</th><th>股票</th><th>价格</th><th>隔夜</th><th>今日</th><th>3日</th><th>5日</th><th>10日</th><th>量比</th><th>成交额</th><th>10日波动</th><th>收盘强度</th><th>模型评分</th></tr></thead>
+        {!candidatesAreCurrent?<div className="empty">当前网页不展示旧策略候选。训练基准 {researchTrial.strategy_version} 尚未生成与当前版本完全一致的候选快照；系统宁可暂不展示，也不混用旧信号。</div>:rows.length===0?<>
+        <div className="empty">当前市场门控未产生可执行候选。以下观察名单只用于解释评分与未入选原因，不属于候选池，也不是买入信号。</div>
+        {observations.length===0?null:<div className="observation-section">
+          <div className="table-head observation-head"><div><div className="table-title">最高评分观察名单（未入选）</div><div className="table-subtitle">仅展示通过基础资格、价格、流动性和历史数据门槛后，评分最高的股票；未入选原因按当前策略规则生成。</div></div><div className="badge">前 {observations.length} 名</div></div>
+          <div className="table-wrap"><table className="observation-table"><thead><tr><th>#</th><th>股票</th><th>价格</th><th>今日</th><th>3日</th><th>5日</th><th>量比</th><th>模型评分</th><th>精度概率</th><th>未入选原因</th></tr></thead>
+          <tbody>{observations.map(r=><tr key={r.symbol}><td className="rank">{r.rank}</td><td><span className="symbol">{r.symbol}</span><span className="name">{r.name}</span></td><td>{fmt(r.price)}</td><td className={dirClass(r.change_pct)}>{pct(r.change_pct)}</td><td className={dirClass(r.return_3d_pct)}>{pct(r.return_3d_pct)}</td><td className={dirClass(r.return_5d_pct)}>{pct(r.return_5d_pct)}</td><td>{fmt(r.volume_ratio_5d,2)}倍</td><td className="score">{fmt(r.score)}</td><td>{fmt(r.precision_probability*100,2)}%</td><td className="exclusion-reasons">{(r.exclusion_reasons??[]).join("；")||"未通过当前准入规则"}</td></tr>)}</tbody></table></div>
+        </div>}
+        </>:<div className="table-wrap"><table><thead><tr><th>#</th><th>股票</th><th>价格</th><th>隔夜</th><th>今日</th><th>3日</th><th>5日</th><th>10日</th><th>量比</th><th>成交额</th><th>10日波动</th><th>收盘强度</th><th>模型评分</th></tr></thead>
         <tbody>{rows.map(r=><tr key={r.symbol}><td className="rank">{r.rank}</td><td><span className="symbol">{r.symbol}</span><span className="name">{r.name}</span></td><td>{fmt(r.price)}</td><td className={r.overnight_1d_pct==null?"":dirClass(r.overnight_1d_pct)}>{r.overnight_1d_pct==null?"—":pct(r.overnight_1d_pct)}</td><td className={dirClass(r.change_pct)}>{pct(r.change_pct)}</td><td className={dirClass(r.return_3d_pct)}>{pct(r.return_3d_pct)}</td><td className={dirClass(r.return_5d_pct)}>{pct(r.return_5d_pct)}</td><td className={dirClass(r.return_10d_pct)}>{pct(r.return_10d_pct)}</td><td>{fmt(r.volume_ratio_5d,2)}倍</td><td>{amount(r.amount)}</td><td>{fmt(r.volatility_10d_pct,2)}%</td><td>{fmt(r.close_strength*100,1)}%</td><td className="score">{fmt(r.score)}</td></tr>)}</tbody></table></div>}
       </section>
 
