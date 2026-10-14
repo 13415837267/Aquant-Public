@@ -107,7 +107,7 @@ jobs:
           PY
 
   build:
-    name: "构建第一版系统网页"
+    name: "构建研究系统网页"
     needs: verify_snapshot
     if: ${{ always() && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && needs.verify_snapshot.result == 'success' && needs.verify_snapshot.outputs.ready == 'true')) }}
     runs-on: ubuntu-24.04
@@ -132,9 +132,9 @@ jobs:
           path: ./out
 
   deploy:
-    name: "部署第一版系统网页"
+    name: "部署研究系统网页"
     needs: build
-    if: ${{ needs.build.result == 'success' }}
+    if: ${{ always() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
