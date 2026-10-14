@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -10,6 +10,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.backfill_history import api_client, load_trade_days, request_bulk_day
+
+
+def calendar_contains_date(current_date: date, trading_days: set[str]) -> bool:
+    """以交易日历返回的 ISO 日期格式匹配日期，避免紧凑格式与 ISO 格式错配。"""
+    return current_date.isoformat() in trading_days
 
 
 def main() -> int:
@@ -21,7 +26,7 @@ def main() -> int:
 
     api = api_client()
     trading_days = set(load_trade_days(api, start=start, end=end))
-    is_trading = day in trading_days
+    is_trading = calendar_contains_date(today, trading_days)
     source = "trade_calendar"
 
     # 交易日历可能存在发布延迟。若日历暂时没有今天，直接检查今天的实际日线数据；
