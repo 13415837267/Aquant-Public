@@ -1,52 +1,135 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 38519846792,
-  "completed_at": "2026-10-14T06:02:42Z",
+  "cleanup_run_id": 38562180758,
+  "completed_at": "2026-10-14T12:14:43Z",
   "deleted_actions": [],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
   "preserved_other_deployments": [],
   "preserved_current_deployment": {
-    "deployment_id": 7055030363,
-    "sha": "e56fd4a0280868fc22ef9477d3f1767695d7a2b8",
+    "deployment_id": 7058119076,
+    "sha": "d268a71f13c69819fb95802792a76baf5284704c",
     "ref": "main",
-    "created_at": "2026-10-14T02:11:45Z",
+    "created_at": "2026-10-14T06:03:17Z",
     "state": "success"
   },
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
+      "run_id": 38562180758,
+      "created_at": "2026-10-14T12:13:14Z",
+      "status": "in_progress",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38562180687,
+      "created_at": "2026-10-14T12:13:14Z",
+      "status": "pending",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38562023535,
+      "created_at": "2026-10-14T12:11:57Z",
+      "status": "in_progress",
+      "name": "03 候选池生产"
+    }
+  ],
+  "preserved_successful_runs": [
+    {
+      "run_id": 38562130598,
+      "created_at": "2026-10-14T12:12:50Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38562023317,
+      "created_at": "2026-10-14T12:11:57Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38562023265,
+      "created_at": "2026-10-14T12:11:57Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 38541897211,
+      "created_at": "2026-10-14T09:22:41Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38526872558,
+      "created_at": "2026-10-14T07:12:48Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38524245947,
+      "created_at": "2026-10-14T06:47:01Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38524203516,
+      "created_at": "2026-10-14T06:46:36Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38524140360,
+      "created_at": "2026-10-14T06:45:57Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38524140270,
+      "created_at": "2026-10-14T06:45:57Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38523942048,
+      "created_at": "2026-10-14T06:44:01Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38523859159,
+      "created_at": "2026-10-14T06:43:11Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 38523858901,
+      "created_at": "2026-10-14T06:43:11Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38520421616,
+      "created_at": "2026-10-14T06:07:54Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38520345752,
+      "created_at": "2026-10-14T06:07:07Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38520299872,
+      "created_at": "2026-10-14T06:06:37Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38520299822,
+      "created_at": "2026-10-14T06:06:37Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38520015884,
+      "created_at": "2026-10-14T06:03:37Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
       "run_id": 38519846792,
       "created_at": "2026-10-14T06:01:47Z",
-      "status": "in_progress",
       "name": "维护历史 Action 记录"
     },
     {
       "run_id": 38519846741,
       "created_at": "2026-10-14T06:01:47Z",
-      "status": "in_progress",
       "name": "05 网页自动部署"
     },
-    {
-      "run_id": 38503065614,
-      "created_at": "2026-10-14T02:49:43Z",
-      "status": "in_progress",
-      "name": "11 盘后选股策略统一研究"
-    },
-    {
-      "run_id": 38495719856,
-      "created_at": "2026-10-14T01:26:20Z",
-      "status": "pending",
-      "name": "06 模型研究"
-    },
-    {
-      "run_id": 38494005142,
-      "created_at": "2026-10-14T01:07:43Z",
-      "status": "in_progress",
-      "name": "06 模型研究"
-    }
-  ],
-  "preserved_successful_runs": [
     {
       "run_id": 38519801852,
       "created_at": "2026-10-14T06:01:17Z",
