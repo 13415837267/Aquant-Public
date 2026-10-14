@@ -11,12 +11,14 @@ from scripts.production_model import (
 )
 
 
-def test_fixed_production_model_matches_its_locked_feature_schema():
+def test_archived_research_model_matches_its_legacy_feature_schema():
     model, payload = load_model(
         DEFAULT_MODEL_PATH,
         expected_version=DEFAULT_MODEL_VERSION,
         expected_commit=DEFAULT_MODEL_CODE_COMMIT,
+        allow_archived=True,
     )
+    assert payload["status"] == "archived_research_baseline"
     assert payload["features"] == list(PRODUCTION_V1_FEATURES)
     assert model.w1.shape[0] == len(PRODUCTION_V1_FEATURES)
 

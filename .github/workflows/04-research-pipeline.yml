@@ -18,6 +18,7 @@ on:
       - "tests/test_short_term_release_validation.py"
       - "tests/test_short_term_research.py"
       - "config/research_run_contract.json"
+      - "config/system_version.json"
   workflow_dispatch:
     inputs:
       resume_run_id:
@@ -61,7 +62,10 @@ jobs:
           set -euo pipefail
           ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
           echo "Private/main 当前提交: $ACTUAL_PRIVATE_COMMIT"
-          test "$ACTUAL_PRIVATE_COMMIT" = "bd395f5577b4247ac621293dfb3a248a7b1d1e00"
+          test "$ACTUAL_PRIVATE_COMMIT" = "000073c9bc831511747c12b6c444bb52968cbe46"
+          grep -q 'STRATEGY_VERSION = "2.6.0"' private-strategy/strategy/version.py
+          grep -q 'release_status: "research_only"' private-strategy/config/strategy.yaml
+          echo "当前唯一策略版本 2.6.0；本流水线仅研究，不能自动晋级正式。"
 
       - name: "设置Python"
         uses: actions/setup-python@v7
@@ -108,7 +112,7 @@ jobs:
         if: ${{ inputs.training_only != 'true' }}
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: "bd395f5577b4247ac621293dfb3a248a7b1d1e00"
+          AQUANT_PRIVATE_STRATEGY_COMMIT: "000073c9bc831511747c12b6c444bb52968cbe46"
           AQUANT_CHECKPOINT_REPO_ROOT: ${{ github.workspace }}
         run: |
           set -euo pipefail

@@ -12,6 +12,7 @@ on:
       - "scripts/production_model.py"
       - "scripts/generate_research_candidates.py"
       - "scripts/next_trading_day_plan.py"
+      - "config/system_version.json"
       - "config/production_release_v1.json"
       - "data/models/production_v1.json"
   workflow_run:
@@ -137,12 +138,20 @@ jobs:
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
 
-      - name: "验证策略源提交"
+      - name: "验证系统与策略版本一一对应"
         run: |
           set -euo pipefail
           ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
-          echo "Private/main 当前提交: $ACTUAL_PRIVATE_COMMIT"
-          test "$ACTUAL_PRIVATE_COMMIT" = "bd395f5577b4247ac621293dfb3a248a7b1d1e00"
+          EXPECTED_PRIVATE_COMMIT="$(python -c 'import json; print(json.load(open("config/system_version.json", encoding="utf-8"))["strategy_commit"])')"
+          ACTUAL_PRIVATE_VERSION="$(grep '^STRATEGY_VERSION' private-strategy/strategy/version.py | cut -d '"' -f 2)"
+          EXPECTED_SYSTEM_VERSION="$(python -c 'import json; print(json.load(open("config/system_version.json", encoding="utf-8"))["system_version"])')"
+          EXPECTED_STRATEGY_VERSION="$(python -c 'import json; print(json.load(open("config/system_version.json", encoding="utf-8"))["strategy_version"])')"
+          echo "Private/main 提交：$ACTUAL_PRIVATE_COMMIT"
+          echo "当前系统版本：$EXPECTED_SYSTEM_VERSION；策略版本：$ACTUAL_PRIVATE_VERSION"
+          test "$ACTUAL_PRIVATE_COMMIT" = "$EXPECTED_PRIVATE_COMMIT"
+          test "$ACTUAL_PRIVATE_VERSION" = "$EXPECTED_SYSTEM_VERSION"
+          test "$ACTUAL_PRIVATE_VERSION" = "$EXPECTED_STRATEGY_VERSION"
+          grep -q 'release_status: "research_only"' private-strategy/config/strategy.yaml
 
       - name: "设置Python"
         uses: actions/setup-python@v7
@@ -163,38 +172,44 @@ jobs:
             echo "当前候选快照不是可归档的 ready 状态，跳过归档。"
           fi
 
-      - name: "验证第一版固定模型资产"
+      - name: "确认旧神经网络仅作历史对照"
         run: |
           set -euo pipefail
-          test -f data/models/production_v1.json
           python - <<'PY'
           import json
           from pathlib import Path
-          release = json.loads(Path("config/production_release_v1.json").read_text(encoding="utf-8"))
-          model = json.loads(Path("data/models/production_v1.json").read_text(encoding="utf-8"))
-          baseline = release["model_baseline"]
-          assert model["status"] == "active_baseline"
-          assert model["strategy_version"] == baseline["version"]
-          assert model["model_code_commit"] == baseline["model_code_commit"]
-          assert model["training_start"] == baseline["training_start"]
-          assert model["training_end"] == baseline["training_end"]
-          print("固定模型资产校验通过；本次运行禁止重新训练。")
+          manifest = json.loads(Path("config/system_version.json").read_text(encoding="utf-8"))
+          archived = json.loads(Path("data/models/production_v1.json").read_text(encoding="utf-8"))
+          assert manifest["system_version"] == manifest["strategy_version"] == "2.6.0"
+          assert manifest["lifecycle_status"] == "research"
+          assert manifest["production_release"] is False
+          assert manifest["automatic_ordering"] is False
+          assert archived["status"] == "archived_research_baseline"
+          print("旧神经网络已归档；当前运行将直接加载 Private/main 研究策略，不使用旧权重。")
           PY
 
-      - name: "使用固定模型生成候选池"
+      - name: "使用当前私有策略生成研究候选池"
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
         run: |
+          set -euo pipefail
           if [ -n "${{ inputs.signal_date }}" ]; then
             python scripts/generate_research_candidates.py \
-              --threshold 0.60 \
-              --model data/models/production_v1.json \
+              --private-strategy "$AQUANT_PRIVATE_STRATEGY_PATH" \
               --signal-date "${{ inputs.signal_date }}" \
               --output data/candidates.json
           else
             python scripts/generate_research_candidates.py \
-              --threshold 0.60 \
-              --model data/models/production_v1.json \
+              --private-strategy "$AQUANT_PRIVATE_STRATEGY_PATH" \
               --output data/candidates.json
           fi
+
+      - name: "校验研究候选的策略来源与交易约束"
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
+        run: |
+          set -euo pipefail
+          python scripts/validate_candidates.py
 
       - name: "生成下一交易日计划"
         env:
@@ -206,40 +221,52 @@ jobs:
           ZZSHARE_TOKEN: ${{ secrets.ZZSHARE_TOKEN }}
         run: python scripts/next_trading_day_plan.py --validate
 
-      - name: "校验第一版正式基准快照"
+      - name: "更新当前研究版本系统审计"
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
         run: |
+          set -euo pipefail
+          python scripts/system_audit.py
+
+      - name: "确认候选与系统清单版本完全一致"
+        run: |
+          set -euo pipefail
           python - <<'PY'
           import json
           from pathlib import Path
           candidates = json.loads(Path("data/candidates.json").read_text(encoding="utf-8"))
           production = json.loads(Path("data/production_status.json").read_text(encoding="utf-8"))
           trial = json.loads(Path("data/research_trial_status.json").read_text(encoding="utf-8"))
+          manifest = json.loads(Path("config/system_version.json").read_text(encoding="utf-8"))
           assert candidates["status"] == "ready"
           assert candidates["future_function"] is False
-          assert candidates["strategy_version"] == trial["strategy_version"]
-          assert candidates["strategy_commit"] == trial["model_code_commit"]
-          assert candidates["model_definition"]["probability_threshold"] == 0.60
-          assert candidates["candidate_admission_policy"] == "top_2_by_recent_window_model_probability_threshold_0.60"
+          assert candidates["system_version"] == manifest["system_version"]
+          assert candidates["strategy_version"] == manifest["strategy_version"] == trial["strategy_version"]
+          assert candidates["strategy_commit"] == manifest["strategy_commit"] == trial["strategy_commit"]
+          assert candidates["model_definition"]["type"] == "private_short_term_precision_policy"
+          assert candidates["candidate_admission_policy"] == manifest["candidate_admission_policy"]
           assert candidates["risk_controls"]["net_win_threshold_pct"] == 1.0
           assert candidates["risk_controls"]["stop_loss_pct"] == 3.0
           assert candidates["holding_window_sessions"] == [2, 5]
-          assert production["production_version"] == "1.0.0"
-          assert production["status"] == "released"
-          assert production["release_gate"] is True
-          assert production["system_audit"] is True
+          assert production["system_version"] == manifest["system_version"]
+          assert production["strategy_version"] == manifest["strategy_version"]
+          assert production["production_version"] is None
+          assert production["status"] == "research_only"
+          assert production["release_gate"] is False
           assert production["strategy_quality_gate_passed"] is False
-          print("第一版正式基准硬规则校验通过。")
+          assert candidates["production_release"] is False
+          print("版本一致性校验通过；当前状态为研究/模拟，正式发布和自动下单均关闭。")
           PY
 
       - name: "提交候选池与下一交易日计划"
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json data/next_trading_day_plan.json data/candidates_history
+          git add data/candidates.json data/next_trading_day_plan.json data/candidates_history data/production_status.json data/system_audit.json
           if git diff --cached --quiet; then
             echo "候选产物无变化，无需提交。"
           else
-            git commit -m "生产：按第一版正式基准更新候选池与下一交易日计划"
+            git commit -m "研究：按当前策略版本更新候选池与模拟计划"
             for attempt in 1 2 3; do
               if git push; then
                 exit 0

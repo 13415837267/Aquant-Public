@@ -1,50 +1,14 @@
 {
-  "schema_version": 2,
-  "status": "active_baseline",
-  "as_of": "2026-10-05T20:36:07Z",
+  "schema_version": 3,
+  "status": "research_pending",
+  "as_of": "2026-10-14",
   "timezone": "Asia/Shanghai",
-  "strategy_version": "近期训练窗口研究版",
-  "strategy_source": "04历史研究流水线",
-  "training_window": {
-    "start": "2019-01-02",
-    "end": "2026-09-30"
-  },
-  "objective": "单笔净利润达到+1%才计为胜，最长5个交易日",
-  "selected_operating_point": {
-    "probability_threshold": 0.6,
-    "final_samples": 604453,
-    "final_sample_share_pct": 51.67965527117898,
-    "final_win_rate_pct": 62.32080906207761,
-    "final_wilson_lower_pct": 62.198567434676534,
-    "final_mean_best_return_pct": 3.4717421696520017,
-    "final_mean_5d_close_return_pct": 0.2891653504084042
-  },
-  "validation": {
-    "samples": 594155,
-    "win_rate_pct": 59.150221743484444,
-    "wilson_lower_pct": 59.02517183052377
-  },
-  "audits": {
-    "no_future_features": true,
-    "entry_is_T_plus_1_open": true,
-    "exit_starts_T_plus_2": true,
-    "strict_profit_label": true
-  },
-  "production_release": true,
-  "formal_gate_pct": 80,
-  "note": "第一版系统当前训练基准。系统工程链路已正式启用；本模型仍未通过80%策略质量门槛，因此仅用于研究/模拟，不自动下单。",
-  "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
+  "system_version": "2.6.0",
+  "strategy_version": "2.6.0",
+  "strategy_source": "Aquant-Private/main",
+  "strategy_commit": "000073c9bc831511747c12b6c444bb52968cbe46",
+  "release_status": "not_released",
   "data_cutoff": "2026-09-30",
-  "candidate_generation": {
-    "probability_threshold": 0.6,
-    "top_k": 2,
-    "policy": "top_2_by_recent_window_model_probability_threshold_0.60",
-    "data_mode": "新交易日增量数据；历史日期按目标日期截断可见数据"
-  },
-  "model_artifact": "data/models/production_v1.json",
-  "model_lifecycle": {
-    "daily_retraining": false,
-    "daily_process": "增量数据维护完成后使用固定模型推理",
-    "new_model_release": "仅新研究/正式模型版本通过验证后更新模型资产"
-  }
+  "production_release": false,
+  "note": "当前系统与策略版本已统一为2.6.0。旧近期训练窗口模型的62.32%标签命中率仅作历史对照，不是当前策略的验证结果。2.6.0须重新完成与当前策略提交一致的云端历史验证、执行约束组合回测、成本压力测试和未来影子验证后再考虑晋级。"
 }

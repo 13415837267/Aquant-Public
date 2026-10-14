@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "release_id": "第一版正式系统",
-  "production_version": "1.0.0",
-  "status": "正式启用",
-  "baseline_locked": true,
+  "release_id": "历史模型资产（已归档）",
+  "production_version": null,
+  "status": "archived_research_baseline",
+  "baseline_locked": false,
   "baseline_as_of": "2026-10-06T00:00:00+08:00",
   "timezone": "Asia/Shanghai",
   "execution_environment": "GitHub Actions云端",
@@ -18,7 +18,7 @@
     "commit": "bd395f5577b4247ac621293dfb3a248a7b1d1e00"
   },
   "model_baseline": {
-    "version": "近期训练窗口研究版",
+    "version": "历史近期训练窗口基线（已归档）",
     "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
     "training_start": "2019-01-02",
     "training_end": "2026-09-30",
@@ -67,9 +67,11 @@
     "single_snapshot": true
   },
   "audit": {
-    "release_gate": true,
+    "release_gate": false,
     "system_audit": true,
     "production_is_research_simulation_only": true,
     "automatic_ordering": false
-  }
+  },
+  "archived": true,
+  "archived_reason": "此前的1.0.0标识不再是当前系统正式版本。该文件仅保留历史近期训练窗口神经网络的输入、权重与旧阈值审计信息。"
 }

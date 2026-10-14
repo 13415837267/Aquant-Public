@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "status": "active_baseline",
+  "status": "archived_research_baseline",
   "model_type": "numpy_two_layer_mlp",
-  "strategy_version": "近期训练窗口研究版",
+  "strategy_version": "历史近期训练窗口基线（已归档）",
   "model_code_commit": "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592",
   "training_start": "2019-01-02",
   "training_end": "2026-09-30",
@@ -754,5 +754,6 @@
     "fixed_model_for_daily_inference": true,
     "daily_retraining": false,
     "historical_replay_uses_signal_date_data_cutoff": true
-  }
+  },
+  "archived_reason": "该神经网络不再作为当前系统候选模型；仅用于历史比较。当前研究策略直接使用 Aquant-Private/strategy/model.py。"
 }

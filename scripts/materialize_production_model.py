@@ -1,4 +1,4 @@
-"""一次性在GitHub云端物化第一版正式模型权重。"""
+"""在 GitHub 云端重建历史近期训练窗口基线；该资产只用于研究对照。"""
 from __future__ import annotations
 
 import argparse
@@ -32,7 +32,7 @@ def main():
         raise RuntimeError(f"模型训练样本不足: {samples}")
     write_model(Path(args.output), model, args.start, args.end, DEFAULT_MODEL_CODE_COMMIT)
     print({
-        "status": "active_baseline",
+        "status": "archived_research_baseline",
         "training_start": args.start,
         "training_end": args.end,
         "processed_days": days,

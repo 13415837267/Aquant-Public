@@ -96,14 +96,29 @@ jobs:
           python -m compileall -q strategy tests
           python -m pytest -q
           python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
           from strategy.precision_config import MIN_MARKET_BREADTH_PCT
           from strategy.version import STRATEGY_VERSION
 
+          public_root = Path.cwd().parent
+          manifest = json.loads((public_root / "config/system_version.json").read_text(encoding="utf-8"))
+          private_commit = subprocess.check_output(
+              ["git", "-C", str(Path.cwd()), "rev-parse", "HEAD"], text=True
+          ).strip()
+
           assert STRATEGY_VERSION == "2.6.0", STRATEGY_VERSION
+          assert manifest["system_version"] == STRATEGY_VERSION
+          assert manifest["strategy_version"] == STRATEGY_VERSION
+          assert manifest["strategy_commit"] == private_commit
+          assert manifest["lifecycle_status"] == "research"
+          assert manifest["release_status"] == "not_released"
           assert MIN_MARKET_BREADTH_PCT == 65.0, MIN_MARKET_BREADTH_PCT
-          print("策略版本：", STRATEGY_VERSION)
+          print("系统/策略版本：", manifest["system_version"], "/", STRATEGY_VERSION)
+          print("策略提交：", private_commit)
           print("研究市场上涨广度门槛：", MIN_MARKET_BREADTH_PCT)
-          print("本流程不修改正式生产模型。")
+          print("正式发布和自动下单仍保持关闭。")
           PY
 
       - name: "恢复最近兼容研究检查点"

@@ -1,4 +1,4 @@
-"""第一版正式候选模型的固定权重读写与校验。"""
+"""已归档的近期训练窗口神经网络基线；当前研究候选直接使用 Private 策略源。"""
 from __future__ import annotations
 
 import json
@@ -18,7 +18,7 @@ DEFAULT_MODEL_PATH = Path("data/models/production_v1.json")
 DEFAULT_TRAINING_START = "2019-01-02"
 DEFAULT_TRAINING_END = "2026-09-30"
 DEFAULT_MODEL_CODE_COMMIT = "3df9ef34ee23a86d6f844ceb9e96bf4b4f387592"
-DEFAULT_MODEL_VERSION = "近期训练窗口研究版"
+DEFAULT_MODEL_VERSION = "历史近期训练窗口基线（已归档）"
 DEFAULT_MAX_FORWARD_SESSIONS = 5
 DEFAULT_SEED = 42
 DEFAULT_HIDDEN = 32
@@ -89,7 +89,7 @@ def train_fixed_baseline(files, start_date: str, end_date: str) -> tuple[Nonline
 def model_payload(model: NonlinearModel, training_start: str, training_end: str, source_commit: str = DEFAULT_MODEL_CODE_COMMIT) -> dict:
     return {
         "schema_version": MODEL_SCHEMA_VERSION,
-        "status": "active_baseline",
+        "status": "archived_research_baseline",
         "model_type": MODEL_TYPE,
         "strategy_version": DEFAULT_MODEL_VERSION,
         "model_code_commit": source_commit,
@@ -120,12 +120,13 @@ def write_model(path: Path, model: NonlinearModel, training_start: str, training
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def load_model(path: Path, expected_version: str | None = None, expected_commit: str | None = None) -> tuple[NonlinearModel, dict]:
+def load_model(path: Path, expected_version: str | None = None, expected_commit: str | None = None, allow_archived: bool = False) -> tuple[NonlinearModel, dict]:
     if not path.exists():
         raise FileNotFoundError(f"正式模型文件不存在: {path}")
     payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("status") != "active_baseline":
-        raise RuntimeError("正式模型状态不是 active_baseline")
+    accepted_statuses = {"active_baseline"} | ({"archived_research_baseline"} if allow_archived else set())
+    if payload.get("status") not in accepted_statuses:
+        raise RuntimeError("模型不是当前允许加载的研究状态")
     if payload.get("model_type") != MODEL_TYPE:
         raise RuntimeError("正式模型类型不一致")
     if expected_version and payload.get("strategy_version") != expected_version:

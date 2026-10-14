@@ -73,6 +73,13 @@ def build_plan(candidates: dict, production: dict) -> dict:
         raise RuntimeError("只有 ready 候选快照才能生成下一交易日计划")
     signal_date = date.fromisoformat(str(candidates["as_of"])[:10])
     execution_date, earliest_exit_date = _next_sessions(signal_date)
+    risk_controls = candidates.get("risk_controls")
+    if not isinstance(risk_controls, dict):
+        raise RuntimeError("当前候选快照缺少策略源提供的止盈止损配置，拒绝生成计划。")
+    target_pct = float(risk_controls.get("net_win_threshold_pct", 0))
+    stop_pct = float(risk_controls.get("stop_loss_pct", 0))
+    if target_pct <= 0 or stop_pct <= 0:
+        raise RuntimeError("当前候选快照的止盈止损配置无效，拒绝生成计划。")
     rows = []
     for candidate in candidates.get("candidates", []):
         rows.append(
@@ -87,8 +94,8 @@ def build_plan(candidates: dict, production: dict) -> dict:
                 "signal_date": signal_date.isoformat(),
                 "execution_date": execution_date,
                 "earliest_exit_date": earliest_exit_date,
-                "net_win_threshold_pct": 1.0,
-                "stop_loss_pct": 3.0,
+                "net_win_threshold_pct": target_pct,
+                "stop_loss_pct": stop_pct,
                 "flags": list(candidate.get("flags", [])),
             }
         )
