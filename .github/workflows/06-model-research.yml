@@ -13,6 +13,7 @@ on:
       - main
     paths:
       - ".github/workflows/06-model-research.yml"
+      - "config/system_version.json"
 
 permissions:
   contents: read
