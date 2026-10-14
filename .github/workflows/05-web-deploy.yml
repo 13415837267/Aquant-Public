@@ -31,6 +31,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 concurrency:
   group: "网页部署-main"
@@ -137,10 +138,93 @@ jobs:
     needs: build
     if: ${{ always() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PAGES_DEPLOY_POLL_SECONDS: "5"
+      PAGES_DEPLOY_TIMEOUT_SECONDS: "600"
+      PAGES_DEPLOY_MAX_ERRORS: "10"
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: "部署到GitHub Pages"
+      - name: "通过GitHub Pages官方接口部署并核验状态"
         id: deployment
-        uses: actions/deploy-pages@v5
+        run: |
+          set -euo pipefail
+          api="https://api.github.com"
+          headers=(
+            -H "Accept: application/vnd.github+json"
+            -H "Authorization: Bearer ${GH_TOKEN}"
+            -H "X-GitHub-Api-Version: 2022-11-28"
+          )
+
+          echo "[部署进度] 查找本次运行生成的网页构建工件。"
+          artifact_response="$(curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 "${headers[@]}" \
+            "${api}/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100")"
+          artifact_id="$(jq -er '[.artifacts[] | select(.name == "github-pages" and .expired == false)] | if length == 1 then .[0].id else error("当前运行必须且只能有一个有效的 github-pages 工件") end' <<< "${artifact_response}")"
+          echo "[部署进度] 已确认网页工件编号：${artifact_id}。"
+
+          if [[ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" || -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]]; then
+            echo "[部署失败] 缺少 GitHub Actions OIDC 请求环境，拒绝绕过身份校验。" >&2
+            exit 1
+          fi
+          oidc_response="$(curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}")"
+          oidc_token="$(jq -er '.value' <<< "${oidc_response}")"
+
+          payload="$(jq -n \
+            --argjson artifact_id "${artifact_id}" \
+            --arg pages_build_version "${GITHUB_SHA}" \
+            --arg oidc_token "${oidc_token}" \
+            '{artifact_id: $artifact_id, pages_build_version: $pages_build_version, oidc_token: $oidc_token}')"
+          echo "[部署进度] 向 GitHub Pages 官方部署接口提交工件及 OIDC 身份证明。"
+          deployment_response="$(curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            -X POST "${headers[@]}" -H "Content-Type: application/json" \
+            "${api}/repos/${GITHUB_REPOSITORY}/pages/deployments" \
+            --data "${payload}")"
+          deployment_id="$(jq -er '(.id // .pages_build_version // empty) | tostring' <<< "${deployment_response}")"
+          if [[ -z "${deployment_id}" ]]; then
+            echo "[部署失败] 官方接口没有返回部署编号。" >&2
+            exit 1
+          fi
+          echo "[部署进度] 已创建部署：${deployment_id}。"
+
+          deadline=$((SECONDS + PAGES_DEPLOY_TIMEOUT_SECONDS))
+          api_errors=0
+          while (( SECONDS < deadline )); do
+            if status_response="$(curl --fail --silent --show-error --retry 2 --retry-all-errors --retry-delay 1 \
+              "${headers[@]}" "${api}/repos/${GITHUB_REPOSITORY}/pages/deployments/${deployment_id}")"; then
+              api_errors=0
+              deployment_status="$(jq -er '.status // "unknown_status"' <<< "${status_response}")"
+              echo "[部署进度] 当前状态：${deployment_status}。"
+              case "${deployment_status}" in
+                succeed)
+                  page_response="$(curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+                    "${headers[@]}" "${api}/repos/${GITHUB_REPOSITORY}/pages")"
+                  page_url="$(jq -er '.html_url' <<< "${page_response}")"
+                  echo "page_url=${page_url}" >> "${GITHUB_OUTPUT}"
+                  echo "[部署完成] 网页已成功发布：${page_url}"
+                  exit 0
+                  ;;
+                deployment_failed|deployment_content_failed|deployment_cancelled|deployment_lost)
+                  echo "[部署失败] GitHub Pages 返回终态：${deployment_status}。" >&2
+                  exit 1
+                  ;;
+              esac
+            else
+              api_errors=$((api_errors + 1))
+              echo "[部署重试] 查询部署状态失败（${api_errors}/${PAGES_DEPLOY_MAX_ERRORS}）。" >&2
+              if (( api_errors >= PAGES_DEPLOY_MAX_ERRORS )); then
+                echo "[部署失败] 官方接口连续查询失败次数超过上限。" >&2
+                exit 1
+              fi
+            fi
+            sleep "${PAGES_DEPLOY_POLL_SECONDS}"
+          done
+
+          echo "[部署失败] 等待 GitHub Pages 部署完成超时。" >&2
+          curl --fail --silent --show-error -X POST "${headers[@]}" \
+            "${api}/repos/${GITHUB_REPOSITORY}/pages/deployments/${deployment_id}/cancel" >/dev/null || true
+          exit 1
