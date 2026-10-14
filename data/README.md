@@ -1,13 +1,22 @@
-# Data
+# 数据目录说明
 
-`candidates.json` is the current generated release artifact.
+## 当前候选与计划文件
 
-Historical market data is stored as one gzip-compressed CSV per trading day:
+- `candidates.json` 是网页读取的当前候选快照。只有状态为 `ready`、系统/策略版本与提交号匹配当前清单和审计记录、且通过未来函数检查的快照才可展示。
+- `next_trading_day_plan.json` 必须与当前候选快照逐项对应；任何版本、数据截止日或候选不一致都会阻止展示。
+- 当前两个活动文件均为明确的“待生成”空状态。旧近期训练窗口模型候选和旧计划已移入 `data/research/historical_candidates/`，仅用于历史审计，不属于 2.6.0 当前结果。
+- 只有 GitHub Actions 云端在当前策略、交易日和行情日期一致的前提下实际重算并通过门禁后，才能覆盖空状态。不得把历史候选改名或改版本来冒充当前结果。
+
+## 行情历史
+
+历史日线数据按交易日保存为 gzip 压缩 CSV：
 
 `data/history/YYYY/YYYY-MM-DD.csv.gz`
 
-The collector can retain Shanghai/Shenzhen/Beijing stock rows without using the current active strategy universe as a historical filter. The existing historical files are the previously built Shanghai/Shenzhen main-board dataset; future rebuilds use the broader database stock scope. Production candidate generation remains restricted to Shanghai/Shenzhen main-board A shares.
+历史行情是共享数据资产，不随策略版本清理。数据维护使用增量更新，优先复用仓库已有数据。
 
-Current strategy generation reads the latest 61 stored trading-day files, derives a 60-trading-day momentum series from the provider `pct_chg` field, and excludes stocks without a complete momentum window.
+## 采集与研究
 
-Daily ingestion runs through GitHub Actions. Provider credentials belong in GitHub Actions secrets and never in source control.
+历史文件可保留沪深京股票记录，不应以当前活动选股范围过滤重建历史行情；当前候选准入仍按系统策略配置限制为沪深主板 A 股。
+
+数据维护由 GitHub Actions 云端执行。数据源凭据必须存放在 GitHub Actions Secrets 中，不能提交到源码仓库。
