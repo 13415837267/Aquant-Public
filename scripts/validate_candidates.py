@@ -196,6 +196,42 @@ def validate_candidates(payload, private_version=None, private_commit=None):
         if not str(row.get("name") or "").strip():
             raise RuntimeError(f"{symbol} 股票名称为空")
 
+    observations = payload.get("research_observation_candidates", [])
+    if not isinstance(observations, list):
+        raise RuntimeError("最高评分观察名单必须为列表")
+    observation_seen = set()
+    previous_observation_score = math.inf
+    for rank, row in enumerate(observations, 1):
+        if not isinstance(row, dict):
+            raise RuntimeError(f"第{rank}个观察标的格式无效")
+        missing = (REQUIRED_CANDIDATE_FIELDS | {"exclusion_reasons"}) - set(row)
+        if missing:
+            raise RuntimeError(f"第{rank}个观察标的缺少字段：{sorted(missing)}")
+        if row.get("rank") != rank:
+            raise RuntimeError("观察名单排名必须连续且从1开始")
+        symbol = str(row.get("symbol", "")).zfill(6)
+        if not is_main_board_symbol(symbol):
+            raise RuntimeError(f"观察标的 {symbol} 不属于沪深主板范围")
+        if symbol in seen or symbol in observation_seen:
+            raise RuntimeError("观察名单与候选池重复或内部存在重复股票")
+        observation_seen.add(symbol)
+        score = finite(row["score"], f"观察标的{symbol}.评分")
+        probability = finite(row["precision_probability"], f"观察标的{symbol}.精度概率")
+        if not 0 <= score <= 100 or not 0 <= probability <= 1:
+            raise RuntimeError(f"观察标的 {symbol} 评分或精度概率超出范围")
+        if score > previous_observation_score + 1e-9:
+            raise RuntimeError("观察名单未按模型评分从高到低排序")
+        previous_observation_score = score
+        reasons = row.get("exclusion_reasons")
+        if not isinstance(reasons, list) or not reasons or any(
+            not isinstance(reason, str) or not reason.strip() for reason in reasons
+        ):
+            raise RuntimeError(f"观察标的 {symbol} 必须明确记录未入选原因")
+        if not str(row.get("name") or "").strip():
+            raise RuntimeError(f"观察标的 {symbol} 股票名称为空")
+        for field in REQUIRED_CANDIDATE_FIELDS - {"rank", "symbol", "name", "admission_tier"}:
+            finite(row[field], f"观察标的{symbol}.{field}")
+
     market = payload.get("market")
     if not isinstance(market, dict) or market.get("regime") not in {"risk_on", "neutral", "risk_off"}:
         raise RuntimeError("市场状态无效")
