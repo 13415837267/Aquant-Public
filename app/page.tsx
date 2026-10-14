@@ -140,6 +140,6 @@ export default function Home(){
       </aside>
     </div>
 
-    <footer className="footer"><span>研究 / 模拟交易系统 · 不连接券商执行。</span><span>"研究/模拟模式，禁止实盘"</span></footer>
+    <footer className="footer"><span>研究 / 模拟交易系统 · 不连接券商执行 · 策略来源 {systemVersion.strategy_commit.slice(0,10)}</span><span>研究/模拟模式，禁止实盘</span></footer>
   </main>;
 }
