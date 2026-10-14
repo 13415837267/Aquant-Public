@@ -14,6 +14,7 @@ on:
       - "package.json"
       - "package-lock.json"
       - "next.config.ts"
+      - ".github/workflows/05-web-deploy.yml"
   workflow_run:
     workflows: ["03 候选池生产"]
     types: [completed]
