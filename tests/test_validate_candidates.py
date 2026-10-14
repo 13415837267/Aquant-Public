@@ -111,3 +111,36 @@ def test_validate_accepts_a_new_research_tier_without_a_stale_threshold():
     row.update({"rank": 1, "score": 1.0, "precision_probability": 0.01, "admission_tier": "new_research_tier"})
     payload["diagnostics"]["candidate_count"] = 1
     assert validate_candidates(payload)["status"] == "pass"
+
+
+def test_validate_accepts_observation_rows_with_explicit_exclusion_reasons():
+    payload = _payload()
+    observation = copy.deepcopy(payload["candidates"][0])
+    observation.update({
+        "rank": 1,
+        "symbol": "600002",
+        "name": "观察标的",
+        "score": 88.0,
+        "precision_probability": 0.88,
+        "admission_tier": "未入选观察",
+        "exclusion_reasons": ["市场过滤：上涨广度低于门槛，风险规避时禁止选股"],
+    })
+    payload["research_observation_candidates"] = [observation]
+    assert validate_candidates(payload)["status"] == "pass"
+
+
+def test_validate_rejects_observation_rows_without_exclusion_reasons():
+    payload = _payload()
+    observation = copy.deepcopy(payload["candidates"][0])
+    observation.update({
+        "rank": 1,
+        "symbol": "600002",
+        "name": "观察标的",
+        "score": 88.0,
+        "precision_probability": 0.88,
+        "admission_tier": "未入选观察",
+        "exclusion_reasons": [],
+    })
+    payload["research_observation_candidates"] = [observation]
+    with pytest.raises(RuntimeError, match="未入选原因"):
+        validate_candidates(payload)
