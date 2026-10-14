@@ -23,6 +23,7 @@ VERSION_MANIFEST = ROOT / "config" / "system_version.json"
 DEFAULT_OUTPUT = ROOT / "data" / "candidates.json"
 MIN_HISTORY_SESSIONS = 20
 MAX_CANDIDATES_HARD_LIMIT = 100
+MAX_RESEARCH_OBSERVATIONS = 5
 
 
 def _yaml_number(text: str, key: str) -> float:
@@ -191,6 +192,86 @@ def payload_row(row: pd.Series, rank: int) -> dict[str, Any]:
     }
 
 
+
+def observation_exclusion_reasons(
+    row: pd.Series,
+    precision: Any,
+    breadth: float,
+    median_return: float,
+    risk_off: bool,
+) -> list[str]:
+    """解释高评分观察股未入选的市场门槛、个股风控和最低准入差距。"""
+    reasons: list[str] = []
+    if breadth < float(precision.MIN_MARKET_BREADTH_PCT):
+        reasons.append(
+            f"市场过滤：上涨广度 {breadth:.2f}% 低于门槛 "
+            f"{float(precision.MIN_MARKET_BREADTH_PCT):.2f}%，风险规避时禁止选股"
+        )
+    if median_return < float(precision.MIN_MARKET_MEDIAN_RETURN_PCT):
+        reasons.append(
+            f"市场过滤：市场中位收益 {median_return:.2f}% 低于门槛 "
+            f"{float(precision.MIN_MARKET_MEDIAN_RETURN_PCT):.2f}%，风险规避时禁止选股"
+        )
+
+    risk_checks = (
+        ("volatility_10d_pct", "10日波动率", ">", float(precision.MAX_VOLATILITY_10D_PCT)),
+        ("change_pct", "当日涨跌幅", "<", float(precision.MIN_SINGLE_DAY_CHANGE_PCT)),
+        ("return_5d_pct", "近5日涨幅", ">", float(precision.MAX_RETURN_5D_PCT)),
+        ("limit_up_5d_count", "近5日涨停次数", ">", float(precision.MAX_LIMIT_UP_5D_COUNT)),
+        ("intraday_return_pct", "日内涨幅", ">", float(precision.MAX_INTRADAY_RETURN_PCT)),
+    )
+    for column, label, operator, limit in risk_checks:
+        value = _number(row, column)
+        failed = value > limit if operator == ">" else value < limit
+        if failed:
+            reasons.append(f"个股风控：{label} {value:.2f} 超出限制（{operator} {limit:.2f}）")
+
+    if not risk_off:
+        rescue_floor = float(precision.DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD)
+        score = _number(row, "score")
+        probability = _number(row, "precision_probability")
+        if score < rescue_floor * 100.0:
+            reasons.append(f"评分不足：模型评分 {score:.2f} 分低于最低回退线 {rescue_floor * 100.0:.2f} 分")
+        if probability < rescue_floor:
+            reasons.append(f"精度概率不足：{probability * 100.0:.2f}% 低于最低回退线 {rescue_floor * 100.0:.2f}%")
+
+    if not reasons:
+        reasons.append("未满足主准入、覆盖回退或每日首选回退的完整规则组合，保留观察、不作为候选")
+    return reasons
+
+
+def research_observation_rows(
+    scored: pd.DataFrame,
+    candidates: list[dict[str, Any]],
+    precision: Any,
+    breadth: float,
+    median_return: float,
+    risk_off: bool,
+) -> list[dict[str, Any]]:
+    """输出少量最高评分且未入选的观察股，绝不改变真实候选列表。"""
+    if scored.empty:
+        return []
+    selected_symbols = {str(row.get("symbol", "")).zfill(6) for row in candidates}
+    ranked = scored.sort_values(
+        ["score", "precision_probability", "volume_ratio_5d", "amount", "symbol"],
+        ascending=[False, False, False, False, True],
+        kind="mergesort",
+    )
+    observations: list[dict[str, Any]] = []
+    for _, row in ranked.iterrows():
+        symbol = str(row["symbol"]).zfill(6)
+        if symbol in selected_symbols:
+            continue
+        item = payload_row(row, len(observations) + 1)
+        item["admission_tier"] = "未入选观察"
+        item["exclusion_reasons"] = observation_exclusion_reasons(
+            row, precision, breadth, median_return, risk_off
+        )
+        observations.append(item)
+        if len(observations) >= MAX_RESEARCH_OBSERVATIONS:
+            break
+    return observations
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="生成当前研究策略候选池；不启用正式生产或自动下单。")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
@@ -292,10 +373,9 @@ def main() -> None:
             "risk_off_no_trade": risk_off,
         },
         "candidates": candidates,
-        "research_observation_candidates": [
-            payload_row(row, rank + 1)
-            for rank, (_, row) in enumerate(scored.head(10).iterrows())
-        ],
+        "research_observation_candidates": research_observation_rows(
+            scored, candidates, precision, breadth, median_return, risk_off
+        ),
         "factor_weights": strategy["weights"],
         "future_function": False,
         "candidate_admission_policy": strategy["admission_policy"],
