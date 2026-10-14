@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +18,12 @@ PLAN_PATH = ROOT / "data" / "next_trading_day_plan.json"
 PRODUCTION_STATUS_PATH = ROOT / "data" / "production_status.json"
 AUDIT_PATH = ROOT / "data" / "system_audit.json"
 RELEASE_EVIDENCE_PATH = ROOT / "data" / "backtest" / "strategy_release_gate.json"
+
+REQUIRED_HISTORY_FIELDS = {
+    "symbol", "date", "open", "high", "low", "close", "volume", "amount",
+    "factor", "high_limit", "low_limit", "turnover_pct", "amplitude_pct",
+    "is_paused", "is_st",
+}
 
 REQUIRED_RELEASE_CHECKS = {
     "validation_minimum_trades",
@@ -56,6 +62,27 @@ def required_marker(path: str, expected_status: str | None = None) -> dict:
     if expected_status is not None and value.get("status") != expected_status:
         raise RuntimeError(f"{path} 状态不是 {expected_status}")
     return value
+
+
+
+def validate_history_completion_marker(marker: dict) -> bool:
+    """校验增量完成标记结构；完整数据库状态由 _BACKFILL_STATE.json 单独判定。"""
+    if not isinstance(marker, dict):
+        raise RuntimeError("历史行情完成标记必须是对象。")
+    completed_at = marker.get("completed_at")
+    end = marker.get("end")
+    if not isinstance(completed_at, str) or not completed_at.strip():
+        raise RuntimeError("历史行情完成标记缺少 completed_at。")
+    try:
+        date.fromisoformat(str(end))
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("历史行情完成标记的 end 日期无效。") from exc
+    fields = marker.get("daily_fields")
+    if not isinstance(fields, list) or not REQUIRED_HISTORY_FIELDS.issubset(
+        {str(field) for field in fields}
+    ):
+        raise RuntimeError("历史行情完成标记缺少必要日线字段。")
+    return True
 
 
 def evaluate_release_evidence(manifest: dict) -> dict:
@@ -108,7 +135,8 @@ def main() -> None:
     if manifest.get("strategy_source_repo") != "13415837267/Aquant-Private" or manifest.get("strategy_source_branch") != "main":
         raise RuntimeError("策略来源必须指向个人策略仓库 main 分支。")
 
-    history_complete = required_marker("data/history/_BACKFILL_COMPLETE", "complete")
+    history_complete = load_json(ROOT / "data" / "history" / "_BACKFILL_COMPLETE")
+    history_marker_valid = validate_history_completion_marker(history_complete)
     history_state = required_marker("data/history/_BACKFILL_STATE.json", "complete")
     fundamentals_complete = required_marker("data/fundamentals/_FUNDAMENTALS_COMPLETE")
     fundamentals_state = load_json(ROOT / "data" / "fundamentals" / "_FUNDAMENTALS_STATE.json")
@@ -161,7 +189,7 @@ def main() -> None:
         "production_strategy_commit": strategy_commit if production_released else None,
         "as_of": candidates.get("as_of") if production_released else None,
         "release_gate": production_released,
-        "system_audit": bool(candidate_current and plan_current and history_complete.get("status") == "complete" and history_state.get("status") == "complete"),
+        "system_audit": bool(candidate_current and plan_current and history_marker_valid and history_state.get("status") == "complete"),
         "strategy_quality_gate_passed": production_released,
         "strategy_source_repo": manifest["strategy_source_repo"],
         "strategy_source_branch": manifest["strategy_source_branch"],

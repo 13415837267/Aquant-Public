@@ -47,8 +47,8 @@ concurrency:
 
 jobs:
   verify_snapshot:
-    name: "验证候选快照是否为今日正式结果"
-    if: ${{ github.event_name == 'workflow_run' }}
+    name: "验证最新有效研究快照"
+    if: ${{ always() }}
     runs-on: ubuntu-24.04
     outputs:
       ready: ${{ steps.check.outputs.ready }}
@@ -58,68 +58,133 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: "校验交易日状态与候选日期"
+      - name: "核验候选日期、策略来源与研究/发布状态"
         id: check
+        shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
           UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_run" ] && [ "$UPSTREAM_CONCLUSION" != "success" ]; then
-            echo "上游候选生产未成功，拒绝部署网页。" >&2
-            exit 1
-          fi
           python - <<'PY'
           import json
           import os
-          from datetime import datetime
+          from datetime import date, datetime
           from pathlib import Path
           from zoneinfo import ZoneInfo
 
+          root = Path(".")
           tz = ZoneInfo("Asia/Shanghai")
           today = datetime.now(tz).date().isoformat()
-          status_path = Path("data/trading_day_status.json")
-          candidates_path = Path("data/candidates.json")
-          plan_path = Path("data/next_trading_day_plan.json")
-
-          ready = False
+          status_path = root / "data/trading_day_status.json"
+          candidates_path = root / "data/candidates.json"
+          plan_path = root / "data/next_trading_day_plan.json"
+          manifest_path = root / "config/system_version.json"
           reasons = []
-          if not status_path.exists() or not candidates_path.exists() or not plan_path.exists():
-              reasons.append("缺少交易日状态、候选快照或下一交易日计划文件。")
+
+          event_name = os.environ.get("EVENT_NAME", "")
+          upstream_conclusion = os.environ.get("UPSTREAM_CONCLUSION", "")
+          if event_name == "workflow_run" and upstream_conclusion != "success":
+              reasons.append(f"上游候选生产未成功（{upstream_conclusion or '无结论'}），拒绝部署。")
+
+          required_paths = (status_path, candidates_path, plan_path, manifest_path)
+          missing = [str(path) for path in required_paths if not path.is_file()]
+          if missing:
+              reasons.append("缺少必要快照文件：" + "、".join(missing))
           else:
               status = json.loads(status_path.read_text(encoding="utf-8"))
               candidates = json.loads(candidates_path.read_text(encoding="utf-8"))
               plan = json.loads(plan_path.read_text(encoding="utf-8"))
+              manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
               checked_at = datetime.fromisoformat(status["checked_at"])
               checked_date = checked_at.astimezone(tz).date().isoformat()
-              candidate_date = str(candidates.get("as_of", ""))[:10]
-              plan_signal_date = str(plan.get("signal_date", ""))
-              if not status.get("is_trading_day"):
-                  reasons.append("最新交易日状态为非交易日，不部署旧候选快照。")
               if checked_date != today:
                   reasons.append(f"交易日状态不是今日检查结果：状态日期={checked_date}，当前日期={today}。")
-              if candidates.get("status") != "ready":
-                  reasons.append("候选快照状态不是 ready。")
-              if candidate_date != today:
-                  reasons.append(f"候选快照日期={candidate_date}，不等于今日={today}。")
-              if plan_signal_date != today:
-                  reasons.append(f"下一交易日计划信号日期={plan_signal_date}，不等于今日={today}。")
-              ready = not reasons
 
+              history_dates = set()
+              for path in (root / "data/history").glob("*/*.csv.gz"):
+                  try:
+                      value = date.fromisoformat(path.name[:10]).isoformat()
+                  except ValueError:
+                      continue
+                  history_dates.add(value)
+              latest_history_date = max(history_dates) if history_dates else None
+              candidate_date = str(candidates.get("as_of", ""))[:10]
+              plan_signal_date = str(plan.get("signal_date", ""))[:10]
+              plan_data_cutoff = str(plan.get("data_cutoff", ""))[:10]
+              manifest_version = manifest.get("system_version")
+              manifest_strategy = manifest.get("strategy_version")
+              manifest_commit = manifest.get("strategy_commit")
+
+              if latest_history_date is None:
+                  reasons.append("历史行情目录没有可用的交易日文件。")
+              elif candidate_date != latest_history_date:
+                  reasons.append(
+                      f"候选数据日期={candidate_date}，最新已落库交易日={latest_history_date}，不一致。"
+                  )
+
+              if candidates.get("status") != "ready":
+                  reasons.append(f"候选快照状态不是 ready：{candidates.get('status')!r}。")
+              if candidates.get("future_function") is not False:
+                  reasons.append("候选快照未明确通过未来函数检查。")
+              if candidates.get("system_version") != manifest_version:
+                  reasons.append("候选系统版本与版本清单不一致。")
+              if candidates.get("strategy_version") != manifest_strategy or manifest_version != manifest_strategy:
+                  reasons.append("候选策略版本与系统版本清单不一致。")
+              if candidates.get("strategy_commit") != manifest_commit or not manifest_commit:
+                  reasons.append("候选策略提交与当前快照版本清单不一致。")
+              if candidates.get("production_release") is not False or manifest.get("production_release") is not False:
+                  reasons.append("研究候选快照的正式发布状态不安全。")
+              if manifest.get("automatic_ordering") is not False:
+                  reasons.append("系统自动下单未明确保持关闭。")
+
+              if plan.get("status") not in {"research_plan", "production_plan"}:
+                  reasons.append(f"下一交易日计划状态无效：{plan.get('status')!r}。")
+              if plan_signal_date != candidate_date or plan_data_cutoff != candidate_date:
+                  reasons.append("计划信号日期/数据截止日与候选数据日期不一致。")
+              source_snapshot = plan.get("source_snapshot") or {}
+              if source_snapshot.get("as_of") != candidates.get("as_of"):
+                  reasons.append("计划来源快照与活动候选快照不一致。")
+              if plan.get("strategy_version") != manifest_strategy or plan.get("strategy_commit") != manifest_commit:
+                  reasons.append("计划策略版本或提交与当前版本清单不一致。")
+              if plan.get("production_release") is not False:
+                  reasons.append("计划未保持研究/模拟状态。")
+
+              production_path = root / "data/production_status.json"
+              if not production_path.is_file():
+                  reasons.append("缺少正式发布状态文件。")
+              else:
+                  production = json.loads(production_path.read_text(encoding="utf-8"))
+                  if production.get("release_gate") is not False:
+                      reasons.append("正式发布门禁未保持关闭。")
+                  if production.get("automatic_ordering") is not False:
+                      reasons.append("生产状态文件未明确关闭自动下单。")
+
+              if candidate_date and latest_history_date and candidate_date == latest_history_date:
+                  print(f"候选数据日期与最新已落库交易日一致：{latest_history_date}。")
+              print(
+                  "交易日状态："
+                  + ("交易日" if status.get("is_trading_day") else "非交易日")
+                  + f"；检查日期={checked_date}；当前日期={today}。"
+              )
+              print("非交易日不再阻断最近完整交易日研究快照部署。")
+
+          ready = not reasons
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"ready={str(ready).lower()}\n")
           for reason in reasons:
-              print(reason)
+              print("[部署校验未通过] " + reason)
           if ready:
-              print(f"正式候选快照、交易日状态和计划均对应 {today}，允许部署网页。")
+              print("当前研究候选、模拟计划、策略来源与最新已落库行情已一致，允许构建网页。")
           else:
-              print("本次不部署；待今日候选生产成功后由工作流再次触发。")
+              print("快照校验未通过；本次不会构建或部署网页。")
           PY
 
   build:
     name: "构建研究系统网页"
     needs: verify_snapshot
-    if: ${{ always() && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && needs.verify_snapshot.result == 'success' && needs.verify_snapshot.outputs.ready == 'true')) }}
+    if: ${{ always() && needs.verify_snapshot.result == 'success' && needs.verify_snapshot.outputs.ready == 'true' }}
     runs-on: ubuntu-24.04
     steps:
       - name: "检出公开仓库"
