@@ -48,6 +48,7 @@ jobs:
       - name: "检出当前主分支"
         uses: actions/checkout@v7
         with:
+          ref: main
           fetch-depth: 1
 
       - name: "云端校验维护脚本语法"

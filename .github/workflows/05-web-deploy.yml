@@ -14,6 +14,14 @@ on:
       - "package.json"
       - "package-lock.json"
       - "next.config.ts"
+      - "data/candidates.json"
+      - "data/next_trading_day_plan.json"
+      - "data/production_status.json"
+      - "data/system_audit.json"
+      - "data/research_status.json"
+      - "data/research_trial_status.json"
+      - "data/trading_day_status.json"
+      - "config/system_version.json"
       - ".github/workflows/05-web-deploy.yml"
   workflow_run:
     workflows: ["03 候选池生产"]
