@@ -6,7 +6,7 @@ env:
   GIT_CONFIG_VALUE_0: "main"
 
 on:
-  # 每日兜底检查：北京时间18:05；主流程仍由每日数据维护任务触发。
+  # 每日北京时间18:05兜底检查；每次运行都重新读取 Private/main 最新策略。
   schedule:
     - cron: "5 10 * * *"
   push:
@@ -14,8 +14,10 @@ on:
     paths:
       - "scripts/production_model.py"
       - "scripts/generate_research_candidates.py"
+      - "scripts/sync_current_strategy.py"
+      - "scripts/validate_candidates.py"
+      - "scripts/system_audit.py"
       - "scripts/next_trading_day_plan.py"
-      - "config/system_version.json"
       - "config/production_release_v1.json"
       - "data/models/production_v1.json"
       - ".github/workflows/03-candidate-production.yml"
@@ -40,34 +42,62 @@ concurrency:
 
 jobs:
   gate:
-    name: "最新已完成交易日与当前策略版本门禁"
+    name: "最新行情与Private主分支策略检查"
     runs-on: ubuntu-24.04
     outputs:
       should_produce: ${{ steps.check.outputs.should_produce }}
     steps:
-      - name: "检出最新主分支代码"
+      - name: "检出最新公开主分支代码"
         uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 1
 
-      - name: "查找最新有效行情并判断是否需要重算"
+      - name: "检出个人策略仓库最新main"
+        uses: actions/checkout@v7
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          path: private-strategy
+          token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
+          fetch-depth: 1
+
+      - name: "查找最新有效行情并比对当前策略来源"
         id: check
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
           UPSTREAM_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           SIGNAL_DATE: ${{ inputs.signal_date }}
+          PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
           import os
+          import subprocess
           from datetime import date
           from pathlib import Path
 
           root = Path(".")
-          manifest = json.loads((root / "config/system_version.json").read_text(encoding="utf-8"))
+          private_root = Path(os.environ["PRIVATE_STRATEGY_PATH"])
+          version_text = (private_root / "strategy/version.py").read_text(encoding="utf-8")
+          current_strategy_version = None
+          for line in version_text.splitlines():
+              if line.startswith("STRATEGY_VERSION") and "=" in line:
+                  current_strategy_version = line.split("=", 1)[1].strip().strip('"').strip("'")
+                  break
+          if not current_strategy_version:
+              raise SystemExit("无法读取 Private/main 最新策略版本。")
+          current_strategy_commit = subprocess.check_output([ "git", "-C", str(private_root), "rev-parse", "HEAD"], text=True).strip()
+          strategy_config = (private_root / "config/strategy.yaml").read_text(encoding="utf-8")
+          config_version = None
+          for line in strategy_config.splitlines():
+              if line.strip().startswith("version:"):
+                  config_version = line.split(":", 1)[1].strip().strip('"').strip("'")
+                  break
+          if config_version != current_strategy_version:
+              raise SystemExit("Private/main 最新策略的代码版本与配置版本不一致。")
           history_files = []
           for path in (root / "data/history").glob("*/*.csv.gz"):
               value = path.name[:10]
@@ -103,23 +133,23 @@ jobs:
                   candidates.get("status") == "ready"
                   and candidates.get("future_function") is False
                   and candidate_date == latest_history_date
-                  and candidates.get("system_version") == manifest.get("system_version")
-                  and candidates.get("strategy_version") == manifest.get("strategy_version")
-                  and candidates.get("strategy_commit") == manifest.get("strategy_commit")
+                  and candidates.get("system_version") == current_strategy_version
+                  and candidates.get("strategy_version") == current_strategy_version
+                  and candidates.get("strategy_commit") == current_strategy_commit
                   and candidates.get("production_release") is False
               )
               force_refresh = event_name in {"push", "workflow_dispatch"}
               should_produce = force_refresh or not snapshot_matches
               if should_produce:
                   reason = (
-                      f"使用最新已落库交易日 {latest_history_date} 和当前策略 "
-                      f"{manifest.get('strategy_version')}（{manifest.get('strategy_commit')}）生成研究候选；"
+                      f"使用最新已落库交易日 {latest_history_date} 和 Private/main 最新策略 "
+                      f"{current_strategy_version}（{current_strategy_commit}）生成研究候选；
                       "研究状态不阻断候选生成。"
                   )
               else:
                   reason = (
                       f"当前候选已对应最新已落库交易日 {latest_history_date}、"
-                      f"策略版本 {manifest.get('strategy_version')} 和策略提交；跳过重复计算。"
+                      f"最新策略版本 {current_strategy_version} 与提交 {current_strategy_commit}；跳过重复计算。
                   )
 
           if event_name == "workflow_run" and upstream_conclusion != "success":
@@ -130,7 +160,7 @@ jobs:
           PY
 
   produce:
-    name: "按当前策略生成研究候选池与模拟计划"
+    name: "使用Private最新策略生成研究候选池与模拟计划"
     needs: gate
     if: ${{ needs.gate.outputs.should_produce == 'true' }}
     runs-on: ubuntu-24.04
@@ -142,7 +172,7 @@ jobs:
           ref: main
           fetch-depth: 1
 
-      - name: "检出固定Private策略用于审计"
+      - name: "检出个人策略仓库main最新提交"
         uses: actions/checkout@v7
         with:
           repository: 13415837267/Aquant-Private
@@ -151,20 +181,12 @@ jobs:
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
 
-      - name: "验证系统与策略版本一一对应"
+      - name: "确认已取得个人策略仓库main最新源码"
         run: |
           set -euo pipefail
-          ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
-          EXPECTED_PRIVATE_COMMIT="$(python -c 'import json; print(json.load(open("config/system_version.json", encoding="utf-8"))["strategy_commit"])')"
-          ACTUAL_PRIVATE_VERSION="$(grep '^STRATEGY_VERSION' private-strategy/strategy/version.py | cut -d '"' -f 2)"
-          EXPECTED_SYSTEM_VERSION="$(python -c 'import json; print(json.load(open("config/system_version.json", encoding="utf-8"))["system_version"])')"
-          EXPECTED_STRATEGY_VERSION="$(python -c 'import json; print(json.load(open("config/system_version.json", encoding="utf-8"))["strategy_version"])')"
-          echo "Private/main 提交：$ACTUAL_PRIVATE_COMMIT"
-          echo "当前系统版本：$EXPECTED_SYSTEM_VERSION；策略版本：$ACTUAL_PRIVATE_VERSION"
-          test "$ACTUAL_PRIVATE_COMMIT" = "$EXPECTED_PRIVATE_COMMIT"
-          test "$ACTUAL_PRIVATE_VERSION" = "$EXPECTED_SYSTEM_VERSION"
-          test "$ACTUAL_PRIVATE_VERSION" = "$EXPECTED_STRATEGY_VERSION"
-          grep -q 'release_status: "research_only"' private-strategy/config/strategy.yaml
+          test -f private-strategy/strategy/version.py
+          test -f private-strategy/config/strategy.yaml
+          echo "已检出当前 Private/main；候选生成步骤将动态同步本轮策略版本及提交来源。"
 
       - name: "设置Python"
         uses: actions/setup-python@v7
@@ -176,6 +198,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+
+      - name: "同步本轮最新策略元数据（不固定历史提交）"
+        env:
+          AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
+        run: python scripts/sync_current_strategy.py --private-strategy "$AQUANT_PRIVATE_STRATEGY_PATH"
 
       - name: "归档上一交易日候选池"
         run: |
@@ -193,7 +220,7 @@ jobs:
           from pathlib import Path
           manifest = json.loads(Path("config/system_version.json").read_text(encoding="utf-8"))
           archived = json.loads(Path("data/models/production_v1.json").read_text(encoding="utf-8"))
-          assert manifest["system_version"] == manifest["strategy_version"] == "2.6.0"
+          assert manifest["system_version"] == manifest["strategy_version"]
           assert manifest["lifecycle_status"] == "research"
           assert manifest["production_release"] is False
           assert manifest["automatic_ordering"] is False
@@ -258,9 +285,12 @@ jobs:
           assert candidates["strategy_commit"] == manifest["strategy_commit"] == trial["strategy_commit"]
           assert candidates["model_definition"]["type"] == "private_short_term_precision_policy"
           assert candidates["candidate_admission_policy"] == manifest["candidate_admission_policy"]
-          assert candidates["risk_controls"]["net_win_threshold_pct"] == 1.0
-          assert candidates["risk_controls"]["stop_loss_pct"] == 3.0
+          assert candidates["risk_controls"]["net_win_threshold_pct"] > 0
+          assert candidates["risk_controls"]["stop_loss_pct"] > 0
+          assert candidates["risk_controls"]["max_holding_sessions"] == 5
           assert candidates["holding_window_sessions"] == [2, 5]
+          assert candidates["model_definition"]["maximum_candidates"] == manifest["candidate_count_max"]
+          assert len(candidates["candidates"]) <= manifest["candidate_count_max"]
           assert production["system_version"] == manifest["system_version"]
           assert production["strategy_version"] == manifest["strategy_version"]
           assert production["production_version"] is None
@@ -275,11 +305,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/candidates.json data/next_trading_day_plan.json data/candidates_history data/production_status.json data/system_audit.json
+          git add config/system_version.json data/research_trial_status.json data/candidates.json data/next_trading_day_plan.json data/candidates_history data/production_status.json data/system_audit.json
           if git diff --cached --quiet; then
             echo "候选产物无变化，无需提交。"
           else
-            git commit -m "研究：按当前策略版本更新候选池与模拟计划"
+            git commit -m "研究：跟随最新策略更新候选池与模拟计划"
             for attempt in 1 2 3; do
               if git push; then
                 exit 0

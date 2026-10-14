@@ -8,6 +8,7 @@ def test_next_trading_day_plan_must_match_candidate_snapshot():
         "as_of": "2026-09-30T18:00:00+08:00",
         "strategy_version": "2.5.0",
         "strategy_commit": "41118d2ea019df87f67b240f418beafb31d4897a",
+        "risk_controls": {"net_win_threshold_pct": 1.5, "stop_loss_pct": 2.5},
         "candidates": [
             {
                 "rank": 1,
@@ -52,8 +53,8 @@ def test_next_trading_day_plan_must_match_candidate_snapshot():
                 "signal_date": "2026-09-30",
                 "execution_date": "2026-10-08",
                 "earliest_exit_date": "2026-10-09",
-                "net_win_threshold_pct": 1.0,
-                "stop_loss_pct": 3.0,
+                "net_win_threshold_pct": 1.5,
+                "stop_loss_pct": 2.5,
                 "flags": [],
             }
         ],

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from datetime import date, timedelta
 import sys
 from pathlib import Path
@@ -194,8 +195,13 @@ def validate_plan(plan: dict, candidates: dict, production: dict) -> dict:
             raise RuntimeError("计划候选日期不一致")
         if date.fromisoformat(actual.get("earliest_exit_date", "1900-01-01")) <= execution:
             raise RuntimeError("最早退出必须晚于执行日")
-        if actual.get("net_win_threshold_pct") != 1.0 or actual.get("stop_loss_pct") != 3.0:
-            raise RuntimeError("计划硬风控阈值不一致")
+        risk_controls = candidates.get("risk_controls") or {}
+        expected_target = float(risk_controls.get("net_win_threshold_pct", 0))
+        expected_stop = float(risk_controls.get("stop_loss_pct", 0))
+        if not math.isclose(float(actual.get("net_win_threshold_pct", 0)), expected_target, rel_tol=0.0, abs_tol=1e-9):
+            raise RuntimeError("计划止盈阈值与本轮策略配置不一致")
+        if not math.isclose(float(actual.get("stop_loss_pct", 0)), expected_stop, rel_tol=0.0, abs_tol=1e-9):
+            raise RuntimeError("计划止损阈值与本轮策略配置不一致")
     expected_release = _production_release(production)
     if plan.get("production_release") is not expected_release:
         raise RuntimeError("计划 production_release 与生产状态不一致")

@@ -106,7 +106,7 @@ def main() -> None:
     if not strategy_commit:
         raise RuntimeError("系统版本清单缺少策略提交号。")
     if manifest.get("strategy_source_repo") != "13415837267/Aquant-Private" or manifest.get("strategy_source_branch") != "main":
-        raise RuntimeError("策略来源必须锁定到 Aquant-Private/main。")
+        raise RuntimeError("策略来源必须指向个人策略仓库 main 分支。")
 
     history_complete = required_marker("data/history/_BACKFILL_COMPLETE", "complete")
     history_state = required_marker("data/history/_BACKFILL_STATE.json", "complete")
@@ -205,7 +205,8 @@ def main() -> None:
         "automatic_ordering": False,
         "audit": {
             "system_and_strategy_version_match": system_version == strategy_version,
-            "strategy_commit_locked_to_manifest": True,
+            "strategy_commit_used_as_snapshot_provenance": bool(strategy_commit),
+            "next_run_resolves_latest_private_main": True,
             "candidate_snapshot_matches_current_strategy": candidate_current,
             "next_trading_day_plan_matches_current_strategy": plan_current,
             "legacy_neural_model_is_archived": True,
@@ -216,7 +217,7 @@ def main() -> None:
             "cloud_runtime_only": True,
         },
         "note": (
-            "系统版本和策略版本保持一一对应。旧候选或旧模型与当前版本不一致时不展示；当前未发布正式版本，也不自动下单。"
+            "每次候选运行都重新读取 Aquant-Private/main 最新提交；提交号只记录本次快照来源，不固定历史提交。旧候选或旧模型与当前策略不一致时不展示；当前未发布正式版本，也不自动下单。"
         ),
     }
     output = ROOT / args.output

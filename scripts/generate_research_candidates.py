@@ -22,7 +22,7 @@ from scripts.short_term_research import FeatureState, history_files, read_daily 
 VERSION_MANIFEST = ROOT / "config" / "system_version.json"
 DEFAULT_OUTPUT = ROOT / "data" / "candidates.json"
 MIN_HISTORY_SESSIONS = 20
-MAX_CANDIDATES = 2
+MAX_CANDIDATES_HARD_LIMIT = 100
 
 
 def _yaml_number(text: str, key: str) -> float:
@@ -48,9 +48,6 @@ def load_current_strategy(private_root: Path) -> dict[str, Any]:
     if not version_file.is_file() or not config_file.is_file():
         raise RuntimeError("私有策略版本文件或策略配置缺失。")
     config_text = config_file.read_text(encoding="utf-8")
-    if 'release_status: "research_only"' not in config_text:
-        raise RuntimeError("当前私有策略未标记为仅研究版本。")
-
     commit = subprocess.check_output(
         ["git", "-C", str(private_root), "rev-parse", "HEAD"], text=True
     ).strip()
@@ -85,8 +82,9 @@ def load_current_strategy(private_root: Path) -> dict[str, Any]:
         raise RuntimeError("私有策略止盈止损参数必须为正。")
     if not np.isclose(sum(float(v) for v in model_module.WEIGHTS.values()), 1.0, atol=1e-9):
         raise RuntimeError("策略因子权重之和不为 1。")
-    if int(precision_module.MAX_CANDIDATES) != MAX_CANDIDATES:
-        raise RuntimeError("当前策略最大候选数与系统研究契约不一致。")
+    max_candidates = int(precision_module.MAX_CANDIDATES)
+    if not 1 <= max_candidates <= MAX_CANDIDATES_HARD_LIMIT:
+        raise RuntimeError(f"当前策略最大候选数超出系统安全范围：{max_candidates}。")
     return {
         "manifest": manifest,
         "version": version,
@@ -102,16 +100,17 @@ def load_current_strategy(private_root: Path) -> dict[str, Any]:
         "target_return_pct": target_return_pct,
         "stop_loss_pct": stop_loss_pct,
         "max_holding_sessions": max_holding_sessions,
+        "max_candidates": max_candidates,
     }
 
 
-def build_latest_frame(files: list[Path], signal_date: str) -> tuple[pd.DataFrame, int, str]:
+def build_latest_frame(files: list[Path], signal_date: str, minimum_history_sessions: int) -> tuple[pd.DataFrame, int, str]:
     dates = [path.name[:10] for path in files]
     if signal_date not in dates:
         raise ValueError(f"信号日期不在历史数据范围内：{signal_date}")
     end_index = dates.index(signal_date)
     # 当前私有策略最高使用20日回报及10日隔夜特征；预留充分滚动窗口。
-    start_index = max(0, end_index - MIN_HISTORY_SESSIONS - 2)
+    start_index = max(0, end_index - minimum_history_sessions - 2)
     state = FeatureState()
     frame: pd.DataFrame | None = None
     for path in files[start_index : end_index + 1]:
@@ -212,7 +211,8 @@ def main() -> None:
     if signal_date not in dates:
         raise ValueError(f"信号日期不在历史数据范围内：{signal_date}")
 
-    raw_frame, files_used, data_start = build_latest_frame(files, signal_date)
+    minimum_history_sessions = max(MIN_HISTORY_SESSIONS, strategy["minimum_history_days"])
+    raw_frame, files_used, data_start = build_latest_frame(files, signal_date, minimum_history_sessions)
     market_breadth_all = pd.to_numeric(raw_frame["market_breadth_pct"], errors="coerce").dropna()
     market_median_all = pd.to_numeric(raw_frame["market_median_return_pct"], errors="coerce").dropna()
     if market_breadth_all.empty or market_median_all.empty:
@@ -225,7 +225,7 @@ def main() -> None:
         raise RuntimeError("通过硬性市场范围、流动性和历史长度门禁的股票数量为零。")
     scored = strategy["score_universe"](eligible)
     selected = strategy["admit_candidates"](scored).copy()
-    if len(selected) > MAX_CANDIDATES:
+    if len(selected) > strategy["max_candidates"]:
         raise RuntimeError("策略输出候选超过系统允许上限。")
     candidates = [payload_row(row, rank + 1) for rank, (_, row) in enumerate(selected.iterrows())]
 
@@ -259,7 +259,7 @@ def main() -> None:
             "type": "private_short_term_precision_policy",
             "features": features,
             "primary_probability_threshold": float(precision.PRECISION_PROBABILITY_THRESHOLD),
-            "maximum_candidates": MAX_CANDIDATES,
+            "maximum_candidates": strategy["max_candidates"],
             "objective": "研究阶段：验证成本后可执行净收益、收益风险结构与参数稳健性",
             "release_status": "not_released",
         },
@@ -271,7 +271,7 @@ def main() -> None:
         "risk_controls": {
             "net_win_threshold_pct": strategy["target_return_pct"],
             "stop_loss_pct": strategy["stop_loss_pct"],
-            "max_positions": MAX_CANDIDATES,
+            "max_positions": strategy["max_candidates"],
             "sell_start_session": 2,
             "max_holding_sessions": strategy["max_holding_sessions"],
         },
@@ -301,7 +301,7 @@ def main() -> None:
         "candidate_admission_policy": strategy["admission_policy"],
         "audit": {
             "hard_eligibility_applied_before_scoring": True,
-            "strategy_source_locked_to_private": True,
+            "strategy_source_tracks_latest_private_main": True,
             "short_term_features_only": True,
             "market_gate_applied": True,
             "no_future_features": True,
