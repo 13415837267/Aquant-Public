@@ -1,9 +1,12 @@
 name: "03 候选池生产"
 
 env:
-  GIT_CONFIG_COUNT: "1"
+  # 统一主分支初始化，并关闭并发推送冲突时的默认提示；冲突仍会记录并自动回基重试。
+  GIT_CONFIG_COUNT: "2"
   GIT_CONFIG_KEY_0: "init.defaultBranch"
   GIT_CONFIG_VALUE_0: "main"
+  GIT_CONFIG_KEY_1: "advice.pushUpdateRejected"
+  GIT_CONFIG_VALUE_1: "false"
 
 on:
   # 每日北京时间18:05主兜底检查；每次运行都重新读取 Private/main 最新策略。
