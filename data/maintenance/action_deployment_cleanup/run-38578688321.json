@@ -1,57 +1,200 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 38541897211,
-  "completed_at": "2026-10-14T09:23:44Z",
+  "cleanup_run_id": 38578688321,
+  "completed_at": "2026-10-14T14:16:06Z",
   "deleted_actions": [
     {
-      "run_id": 38503065614,
-      "created_at": "2026-10-14T02:49:43Z",
+      "run_id": 38578816441,
+      "created_at": "2026-10-14T14:14:59Z",
       "conclusion": "cancelled",
-      "name": "11 盘后选股策略统一研究",
+      "name": "维护历史 Action 记录",
       "diagnostic": null
     },
     {
-      "run_id": 38495719856,
-      "created_at": "2026-10-14T01:26:20Z",
-      "conclusion": "failure",
-      "name": "06 模型研究",
-      "diagnostic": {
-        "run_id": 38495719856,
-        "captured_at": "2026-10-14T09:23:42Z",
-        "log_capture_status": "complete",
-        "jobs": [
-          {
-            "conclusion": "cancelled",
-            "html_url": "https://github.com/13415837267/Aquant-Public/actions/runs/38495719856/job/115729176057",
-            "id": 115729176057,
-            "name": "云端短线模型研究",
-            "status": "completed"
-          }
-        ],
-        "failure_excerpt": "云端短线模型研究\t验证当前私有策略版本与单元测试\t2026-10-14T07:13:33.1243144Z   /home/runner/work/Aquant-Public/Aquant-Public/private-strategy/tests/test_model.py:78: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise in a future error of pandas. Value '64.99' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.\n云端短线模型研究\t执行或恢复：单因子与双条件组合挖掘\t2026-10-14T07:13:40.1999160Z {\"status\": \"completed\", \"successful_stages\": 5, \"failed_stages\": [], \"executed_stage\": \"single_and_double_condition_rules\", \"manifest\": \"/home/runner/work/Aquant-Public/Aquant-Public/data/backtest/all_conditions_research_manifest_latest.json\", \"formal_production_changed\": false}\n云端短线模型研究\t执行或恢复：市场状态与三条件组合挖掘\t2026-10-14T08:16:44.0069608Z {\"status\": \"completed\", \"successful_stages\": 5, \"failed_stages\": [], \"executed_stage\": \"market_regime_three_condition_rules\", \"manifest\": \"/home/runner/work/Aquant-Public/Aquant-Public/data/backtest/all_conditions_research_manifest_latest.json\", \"formal_production_changed\": false}\n云端短线模型研究\t执行或恢复：正式策略评分阈值挖掘\t2026-10-14T08:50:33.9008181Z {\"status\": \"completed\", \"successful_stages\": 5, \"failed_stages\": [], \"executed_stage\": \"private_strategy_score_thresholds\", \"manifest\": \"/home/runner/work/Aquant-Public/Aquant-Public/data/backtest/all_conditions_research_manifest_latest.json\", \"formal_production_changed\": false}\n云端短线模型研究\t执行或恢复：短线净收益百分之一模型训练\t2026-10-14T09:22:40.7477831Z ##[error]The operation was canceled."
-      }
+      "run_id": 38578806375,
+      "created_at": "2026-10-14T14:14:55Z",
+      "conclusion": "cancelled",
+      "name": "维护历史 Action 记录",
+      "diagnostic": null
+    },
+    {
+      "run_id": 38578696701,
+      "created_at": "2026-10-14T14:14:10Z",
+      "conclusion": "cancelled",
+      "name": "05 网页自动部署",
+      "diagnostic": null
+    },
+    {
+      "run_id": 38566161258,
+      "created_at": "2026-10-14T12:44:42Z",
+      "conclusion": "cancelled",
+      "name": "11 盘后选股策略统一研究",
+      "diagnostic": null
     }
   ],
   "deleted_deployments": [],
-  "preserved_active_deployments": [],
+  "preserved_active_deployments": [
+    {
+      "deployment_id": 7067853195,
+      "environment": "github-pages",
+      "ref": "main",
+      "state": "in_progress"
+    }
+  ],
   "preserved_other_deployments": [],
   "preserved_current_deployment": {
-    "deployment_id": 7058119076,
-    "sha": "d268a71f13c69819fb95802792a76baf5284704c",
+    "deployment_id": 7065687029,
+    "sha": "5bac3b37bb2407406ae6e9ff9a9211d6a998fb34",
     "ref": "main",
-    "created_at": "2026-10-14T06:03:17Z",
+    "created_at": "2026-10-14T12:45:47Z",
     "state": "success"
   },
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
-      "run_id": 38541897211,
-      "created_at": "2026-10-14T09:22:41Z",
+      "run_id": 38578826138,
+      "created_at": "2026-10-14T14:15:03Z",
+      "status": "pending",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38578806335,
+      "created_at": "2026-10-14T14:14:55Z",
+      "status": "pending",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38578726125,
+      "created_at": "2026-10-14T14:14:22Z",
+      "status": "in_progress",
+      "name": "11 盘后选股策略统一研究"
+    },
+    {
+      "run_id": 38578688321,
+      "created_at": "2026-10-14T14:14:07Z",
       "status": "in_progress",
       "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38578683554,
+      "created_at": "2026-10-14T14:14:05Z",
+      "status": "in_progress",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38578614613,
+      "created_at": "2026-10-14T14:13:37Z",
+      "status": "in_progress",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38566137534,
+      "created_at": "2026-10-14T12:44:30Z",
+      "status": "in_progress",
+      "name": "06 模型研究"
     }
   ],
   "preserved_successful_runs": [
+    {
+      "run_id": 38578783419,
+      "created_at": "2026-10-14T14:14:46Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38578647233,
+      "created_at": "2026-10-14T14:13:50Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38578637949,
+      "created_at": "2026-10-14T14:13:47Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38578569205,
+      "created_at": "2026-10-14T14:13:18Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38578569182,
+      "created_at": "2026-10-14T14:13:18Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38575365675,
+      "created_at": "2026-10-14T13:51:29Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38566379593,
+      "created_at": "2026-10-14T12:46:21Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38566137644,
+      "created_at": "2026-10-14T12:44:30Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38562890546,
+      "created_at": "2026-10-14T12:19:07Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38562722134,
+      "created_at": "2026-10-14T12:17:42Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38562509591,
+      "created_at": "2026-10-14T12:15:56Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38562509547,
+      "created_at": "2026-10-14T12:15:56Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38562459974,
+      "created_at": "2026-10-14T12:15:32Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38562180758,
+      "created_at": "2026-10-14T12:13:14Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38562180687,
+      "created_at": "2026-10-14T12:13:14Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38562130598,
+      "created_at": "2026-10-14T12:12:50Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38562023535,
+      "created_at": "2026-10-14T12:11:57Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38562023317,
+      "created_at": "2026-10-14T12:11:57Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38562023265,
+      "created_at": "2026-10-14T12:11:57Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 38541897211,
+      "created_at": "2026-10-14T09:22:41Z",
+      "name": "维护历史 Action 记录"
+    },
     {
       "run_id": 38526872558,
       "created_at": "2026-10-14T07:12:48Z",
@@ -891,6 +1034,11 @@
       "run_id": 38298941079,
       "created_at": "2026-10-12T19:38:05Z",
       "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38298820630,
+      "created_at": "2026-10-12T19:36:58Z",
+      "name": "02 数据维护"
     },
     {
       "run_id": 38298820630,
