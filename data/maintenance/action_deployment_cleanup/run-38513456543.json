@@ -1,15 +1,8 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 38501642244,
-  "completed_at": "2026-10-14T02:33:56Z",
-  "deleted_actions": [
-    {
-      "run_id": 38495681141,
-      "created_at": "2026-10-14T01:25:55Z",
-      "conclusion": "failure",
-      "name": "04 历史研究流水线"
-    }
-  ],
+  "cleanup_run_id": 38513456543,
+  "completed_at": "2026-10-14T04:50:45Z",
+  "deleted_actions": [],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
   "preserved_other_deployments": [],
@@ -23,10 +16,28 @@
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
-      "run_id": 38501642244,
-      "created_at": "2026-10-14T02:33:21Z",
+      "run_id": 38513456543,
+      "created_at": "2026-10-14T04:50:15Z",
       "status": "in_progress",
       "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38513456487,
+      "created_at": "2026-10-14T04:50:15Z",
+      "status": "in_progress",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38513456475,
+      "created_at": "2026-10-14T04:50:15Z",
+      "status": "in_progress",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38503065614,
+      "created_at": "2026-10-14T02:49:43Z",
+      "status": "in_progress",
+      "name": "11 盘后选股策略统一研究"
     },
     {
       "run_id": 38495719856,
@@ -35,25 +46,78 @@
       "name": "06 模型研究"
     },
     {
-      "run_id": 38495681095,
-      "created_at": "2026-10-14T01:25:55Z",
-      "status": "in_progress",
-      "name": "11 盘后选股策略统一研究"
-    },
-    {
       "run_id": 38494005142,
       "created_at": "2026-10-14T01:07:43Z",
       "status": "in_progress",
       "name": "06 模型研究"
-    },
-    {
-      "run_id": 38492868610,
-      "created_at": "2026-10-14T00:55:23Z",
-      "status": "in_progress",
-      "name": "09 路径感知模型可执行复利复核"
     }
   ],
   "preserved_successful_runs": [
+    {
+      "run_id": 38503498367,
+      "created_at": "2026-10-14T02:54:33Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38503464599,
+      "created_at": "2026-10-14T02:54:10Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38503359782,
+      "created_at": "2026-10-14T02:52:57Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38503282978,
+      "created_at": "2026-10-14T02:52:06Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38503151126,
+      "created_at": "2026-10-14T02:50:38Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38503104662,
+      "created_at": "2026-10-14T02:50:09Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38503065617,
+      "created_at": "2026-10-14T02:49:43Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38502370332,
+      "created_at": "2026-10-14T02:41:43Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38502071305,
+      "created_at": "2026-10-14T02:38:15Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38502023452,
+      "created_at": "2026-10-14T02:37:42Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38501889137,
+      "created_at": "2026-10-14T02:36:09Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38501816927,
+      "created_at": "2026-10-14T02:35:18Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38501642244,
+      "created_at": "2026-10-14T02:33:21Z",
+      "name": "维护历史 Action 记录"
+    },
     {
       "run_id": 38499787113,
       "created_at": "2026-10-14T02:12:04Z",
@@ -313,6 +377,11 @@
       "run_id": 38492868619,
       "created_at": "2026-10-14T00:55:23Z",
       "name": "10 上涨样本筛选与归因分析"
+    },
+    {
+      "run_id": 38492868610,
+      "created_at": "2026-10-14T00:55:23Z",
+      "name": "09 路径感知模型可执行复利复核"
     },
     {
       "run_id": 38492868590,
