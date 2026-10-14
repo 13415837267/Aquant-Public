@@ -1,10 +1,10 @@
 {
-  "completed_at": "2026-10-13T20:55:04.068800+08:00",
-  "target_start": "2026-10-13",
-  "end": "2026-10-13",
+  "completed_at": "2026-10-14T20:12:45.535198+08:00",
+  "target_start": "2026-10-14",
+  "end": "2026-10-14",
   "years": 5,
   "trading_days": 1,
-  "days_completed": 4,
+  "days_completed": 5,
   "daily_fields": [
     "amount",
     "amplitude_pct",
