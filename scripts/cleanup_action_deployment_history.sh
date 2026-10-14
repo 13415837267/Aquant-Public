@@ -44,6 +44,38 @@ gh_api_read_with_retry() {
 }
 
 
+# 删除失败运行前先保存诊断摘要；完整运行记录仍按项目规则清理，关键根因线索进入审计清单。
+capture_run_diagnostics() {
+  local target_run_id="$1"
+  local log_file jobs_json capture_status excerpt
+  log_file="$(mktemp)"
+  jobs_json='[]'
+  capture_status="partial"
+
+  if jobs_json="$(gh_api_read_with_retry "repos/$REPOSITORY/actions/runs/$target_run_id/jobs?per_page=100" --jq '[.jobs[] | {id, name, status, conclusion, html_url}]' 2>/dev/null)"; then
+    :
+  else
+    jobs_json='[]'
+  fi
+
+  if gh run view "$target_run_id" --repo "$REPOSITORY" --log >"$log_file" 2>&1; then
+    capture_status="complete"
+  fi
+
+  excerpt="$(grep -iE 'error|failed|failure|traceback|exception|assertion|fatal|denied|not found|timed out|timeout|exit code|no such file|unexpected' "$log_file" | tail -n 30 | tail -c 7000 || true)"
+  if [[ -z "$excerpt" ]]; then
+    excerpt="$(tail -n 20 "$log_file" | tail -c 4000 || true)"
+  fi
+
+  jq -cn \
+    --arg run_id "$target_run_id" \
+    --arg capture_status "$capture_status" \
+    --arg excerpt "$excerpt" \
+    --argjson jobs "$jobs_json" \
+    '{run_id:($run_id|tonumber), captured_at:(now|todateiso8601), log_capture_status:$capture_status, jobs:$jobs, failure_excerpt:$excerpt}'
+  rm -f "$log_file"
+}
+
 # 可选的定向取消列表只允许来自维护工作流的显式配置；目标名称必须匹配。
 cancel_poll_interval_seconds="\${CANCEL_POLL_INTERVAL_SECONDS:-5}"
 cancel_poll_max_attempts="\${CANCEL_POLL_MAX_ATTEMPTS:-60}"
@@ -127,8 +159,14 @@ while IFS=$'\t' read -r run_id created_at status conclusion run_name; do
     continue
   fi
 
+  run_diagnostic='null'
+  if [[ "$conclusion" == "failure" ]]; then
+    echo "删除失败运行前保存诊断摘要：$run_id $run_name"
+    run_diagnostic="$(capture_run_diagnostics "$run_id")"
+  fi
+
   if gh api --method DELETE "repos/$REPOSITORY/actions/runs/$run_id" >/dev/null; then
-    deleted_actions="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg conclusion "$conclusion" --arg name "$run_name" '. + [{run_id:($id|tonumber), created_at:$created, conclusion:$conclusion, name:$name}]' <<< "$deleted_actions")"
+    deleted_actions="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg conclusion "$conclusion" --arg name "$run_name" --argjson diagnostic "$run_diagnostic" '. + [{run_id:($id|tonumber), created_at:$created, conclusion:$conclusion, name:$name, diagnostic:$diagnostic}]' <<< "$deleted_actions")"
     echo "已清理历史运行：$run_id $run_name（$conclusion）"
   else
     cleanup_errors="$(jq -c --arg kind "action_run" --arg id "$run_id" --arg conclusion "$conclusion" '. + [{kind:$kind, id:$id, conclusion:$conclusion}]' <<< "$cleanup_errors")"

@@ -320,3 +320,32 @@ jobs:
             echo "候选产物连续三次推送失败。"
             exit 1
           fi
+
+      - name: "输出候选生产状态诊断"
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for label, filename, fields in (
+              ("策略清单", "config/system_version.json", ("system_version", "strategy_version", "strategy_commit", "candidate_count_max")),
+              ("候选快照", "data/candidates.json", ("status", "as_of", "data_cutoff", "strategy_version", "strategy_commit", "stale_reason")),
+              ("交易计划", "data/next_trading_day_plan.json", ("status", "signal_date", "data_cutoff", "strategy_version", "strategy_commit", "candidate_count")),
+              ("研究状态", "data/research_trial_status.json", ("status", "strategy_version", "strategy_commit")),
+          ):
+              path = Path(filename)
+              if not path.exists():
+                  print(f"[诊断] {label}缺失：{filename}")
+                  continue
+              try:
+                  payload = json.loads(path.read_text(encoding="utf-8"))
+              except (OSError, json.JSONDecodeError) as exc:
+                  print(f"[诊断] {label}无法解析：{type(exc).__name__}: {exc}")
+                  continue
+              print("[诊断] " + label + "：" + json.dumps(
+                  {key: payload.get(key) for key in fields},
+                  ensure_ascii=False,
+                  sort_keys=True,
+              ))
+          PY
