@@ -1,5 +1,10 @@
 name: "07 可执行净收益研究"
 
+env:
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: "init.defaultBranch"
+  GIT_CONFIG_VALUE_0: "main"
+
 # 只运行一个明确假设的研究分支；普通提交不触发整套历史条件挖掘。
 on:
   workflow_dispatch:

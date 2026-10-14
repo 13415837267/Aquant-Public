@@ -1,5 +1,10 @@
 name: "06 模型研究"
 
+env:
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: "init.defaultBranch"
+  GIT_CONFIG_VALUE_0: "main"
+
 # 完整历史研究只允许有明确目的时手动启动；代码更新不应反复触发整条长流程。
 on:
   workflow_dispatch:

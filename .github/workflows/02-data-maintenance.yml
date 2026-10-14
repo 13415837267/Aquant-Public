@@ -1,5 +1,10 @@
 name: "02 数据维护"
 
+env:
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: "init.defaultBranch"
+  GIT_CONFIG_VALUE_0: "main"
+
 on:
   schedule:
     # 主触发：北京时间18:00。保留原定时点。
