@@ -6,7 +6,7 @@
   "release_status": "not_released",
   "strategy_source_repo": "13415837267/Aquant-Private",
   "strategy_source_branch": "main",
-  "strategy_commit": "000073c9bc831511747c12b6c444bb52968cbe46",
+  "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
   "version_policy": "系统版本必须与唯一策略源版本完全相同；提交号也必须精确匹配。",
   "current_model": "Aquant-Private/strategy/model.py",
   "candidate_admission_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",

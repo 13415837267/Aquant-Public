@@ -6,7 +6,7 @@
   "system_version": "2.6.0",
   "strategy_version": "2.6.0",
   "strategy_source": "Aquant-Private/main",
-  "strategy_commit": "000073c9bc831511747c12b6c444bb52968cbe46",
+  "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
   "release_status": "not_released",
   "data_cutoff": "2026-09-30",
   "production_release": false,

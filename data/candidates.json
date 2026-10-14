@@ -357,6 +357,6 @@
   "model_artifact": "data/models/production_v1.json",
   "stale_reason": "此快照来自已归档的近期训练窗口神经网络，不是 Aquant-Private/main 2.6.0 策略生成的候选。必须重新生成后才能展示或作为下一交易日研究计划。",
   "required_system_version": "2.6.0",
-  "required_strategy_commit": "000073c9bc831511747c12b6c444bb52968cbe46",
+  "required_strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
   "production_release": false
 }

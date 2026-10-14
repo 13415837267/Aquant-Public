@@ -62,7 +62,7 @@ jobs:
           set -euo pipefail
           ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
           echo "Private/main 当前提交: $ACTUAL_PRIVATE_COMMIT"
-          test "$ACTUAL_PRIVATE_COMMIT" = "000073c9bc831511747c12b6c444bb52968cbe46"
+          test "$ACTUAL_PRIVATE_COMMIT" = "886a01a3a314dd1ba133b9273054b280e3bc871c"
           grep -q 'STRATEGY_VERSION = "2.6.0"' private-strategy/strategy/version.py
           grep -q 'release_status: "research_only"' private-strategy/config/strategy.yaml
           echo "当前唯一策略版本 2.6.0；本流水线仅研究，不能自动晋级正式。"
@@ -112,7 +112,7 @@ jobs:
         if: ${{ inputs.training_only != 'true' }}
         env:
           AQUANT_PRIVATE_STRATEGY_PATH: ${{ github.workspace }}/private-strategy
-          AQUANT_PRIVATE_STRATEGY_COMMIT: "000073c9bc831511747c12b6c444bb52968cbe46"
+          AQUANT_PRIVATE_STRATEGY_COMMIT: "886a01a3a314dd1ba133b9273054b280e3bc871c"
           AQUANT_CHECKPOINT_REPO_ROOT: ${{ github.workspace }}
         run: |
           set -euo pipefail
