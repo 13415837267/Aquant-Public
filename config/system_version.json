@@ -25,5 +25,5 @@
     "cost_stress_test_required": true,
     "adjacent_parameter_robustness_required": true
   },
-  "note": "本次云端模型研究以 Aquant-Private/main 当前研究策略为准，要求系统版本、策略版本和策略提交号严格一致；本次清单更新用于触发 2.6.0 市场广度过滤实验的完整云端研究复核。研究结果只作研究与模拟，不代表正式发布；正式发布和自动下单保持关闭。后续生产及研究运行继续动态读取 Private/main 最新策略提交。"
+  "note": "本轮候选运行使用 Aquant-Private/main 最新策略版本 2.6.0，来源提交 886a01a3a314dd1ba133b9273054b280e3bc871c。此提交号仅用于本轮候选、计划与审计追溯；后续运行将重新读取 main 最新提交。研究候选不代表正式发布。"
 }
