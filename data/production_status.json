@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "status": "research_only",
   "system_version": "2.6.0",
   "strategy_version": "2.6.0",
@@ -8,12 +8,14 @@
   "production_strategy_commit": null,
   "as_of": null,
   "release_gate": false,
-  "system_audit": false,
+  "system_audit": true,
   "strategy_quality_gate_passed": false,
-  "strategy_quality_gate_pct": null,
-  "strategy_quality_gate_target_pct": null,
   "strategy_source_repo": "13415837267/Aquant-Private",
   "strategy_source_branch": "main",
   "strategy_source_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
-  "note": "当前系统和策略版本一一对应为2.6.0，仅研究/模拟。旧近期训练窗口神经网络已归档，不作为当前策略；当前策略尚未完成新版独立验证和发布门禁。禁止实盘下单及自动订单执行。"
+  "candidate_current": true,
+  "plan_current": true,
+  "release_evidence_passed": false,
+  "automatic_ordering": false,
+  "note": "当前系统仍处于研究/模拟阶段；系统版本与策略版本一一对应，但未完成正式发布门禁。禁止实盘下单与自动订单执行。"
 }

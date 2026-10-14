@@ -7,7 +7,7 @@
   "strategy_source_repo": "13415837267/Aquant-Private",
   "strategy_source_branch": "main",
   "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
-  "version_policy": "系统版本必须与唯一策略源版本完全相同；提交号也必须精确匹配。",
+  "version_policy": "每次候选运行动态读取 Aquant-Private/main 最新提交；版本号和提交号仅记录本次快照来源，不固定历史策略。",
   "current_model": "Aquant-Private/strategy/model.py",
   "candidate_admission_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
   "candidate_count_max": 2,
@@ -25,5 +25,5 @@
     "cost_stress_test_required": true,
     "adjacent_parameter_robustness_required": true
   },
-  "note": "2.6.0 为研究候选版本。旧近期训练窗口神经网络仅保留为历史对照，不是当前系统策略，也不是正式发布版本。"
+  "note": "本轮候选运行使用 Aquant-Private/main 最新策略版本 2.6.0，来源提交 886a01a3a314dd1ba133b9273054b280e3bc871c。此提交号仅用于本轮候选、计划与审计追溯；后续运行将重新读取 main 最新提交。研究候选不代表正式发布。"
 }

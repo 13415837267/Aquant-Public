@@ -1,38 +1,54 @@
 {
   "schema_version": 4,
-  "status": "research_version_alignment_pending_audit",
-  "audited_at": "2026-10-14",
+  "status": "current_research_audit",
+  "audited_at": "2026-10-14T06:01:39.921011+00:00",
   "timezone": "Asia/Shanghai",
   "system_version": "2.6.0",
   "strategy_version": "2.6.0",
   "strategy_source": "Aquant-Private/main",
-  "strategy_source_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
+  "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
   "lifecycle_status": "research",
   "historical_database": "complete_incremental",
   "fundamentals_database": "complete_pit",
-  "candidate_layer": "stale_until_2_6_0_regeneration",
-  "fixed_model": "legacy_archived_research_baseline",
-  "training_window": null,
-  "data_cutoff": "2026-09-30",
-  "candidate_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
-  "future_function": false,
-  "daily_retraining": false,
-  "automatic_ordering": false,
+  "candidate_layer": "current",
+  "candidate_check": {
+    "status": "pass",
+    "as_of": "2026-10-13T18:00:00+08:00",
+    "candidate_count": 0,
+    "strategy_version": "2.6.0",
+    "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
+    "market_regime": "risk_off"
+  },
+  "plan_check": {
+    "status": "pass",
+    "signal_date": "2026-10-13",
+    "next_trading_day": "2026-10-14",
+    "candidate_count": 0,
+    "strategy_version": "2.6.0",
+    "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c"
+  },
   "production_version": null,
-  "production_gate": "not_evaluated_research_only",
+  "production_gate": "research_only",
+  "release_evidence": {
+    "present": false,
+    "passed": false,
+    "checks": {},
+    "reason": "尚无与当前策略版本及提交号匹配的完整发布证据。"
+  },
+  "future_function": false,
+  "automatic_ordering": false,
   "audit": {
     "system_and_strategy_version_match": true,
-    "private_strategy_commit_locked": true,
-    "candidate_snapshot_matches_current_strategy": false,
-    "next_trading_day_plan_matches_current_strategy": false,
-    "legacy_neural_model_archived": true,
-    "production_release_disabled": true,
+    "strategy_commit_used_as_snapshot_provenance": true,
+    "next_run_resolves_latest_private_main": true,
+    "candidate_snapshot_matches_current_strategy": true,
+    "next_trading_day_plan_matches_current_strategy": true,
+    "legacy_neural_model_is_archived": true,
+    "history_completion_checked": true,
+    "fundamentals_point_in_time_checked": true,
+    "production_release_enabled": false,
     "automatic_ordering_disabled": true,
     "cloud_runtime_only": true
   },
-  "quality_gate": {
-    "passed": false,
-    "note": "等待2.6.0当前策略的云端历史回测、成本压力测试与参数稳健性结果。"
-  },
-  "note": "系统版本号和策略版本号现均为2.6.0。此审计状态表示版本声明已统一，但当前候选快照仍来自旧历史模型，因此必须隐藏旧候选，待云端按2.6.0重新生成并复核后才展示。"
+  "note": "每次候选运行都重新读取 Aquant-Private/main 最新提交；提交号只记录本次快照来源，不固定历史提交。旧候选或旧模型与当前策略不一致时不展示；当前未发布正式版本，也不自动下单。"
 }
