@@ -47,13 +47,13 @@ type ResearchStatus = {
 };
 
 const snapshot=candidatesData as Snapshot;
+const systemVersion=systemVersionData as {system_version:string;strategy_version:string;lifecycle_status:string;release_status:string;strategy_commit:string;candidate_admission_policy:string;production_release:boolean;automatic_ordering:boolean};
 const audit=auditData as {production_gate?:string; strategy_version?:string; strategy_commit?:string; audit?:{production_gate_passed?:boolean}};
 const provenanceMatches=audit.strategy_version===snapshot.strategy_version && audit.strategy_commit===snapshot.strategy_commit && snapshot.strategy_version===systemVersion.strategy_version && snapshot.strategy_commit===systemVersion.strategy_commit;
 const productionStatus=productionStatusData as {status:string;system_version:string;strategy_version:string;production_version:string|null;release_gate:boolean;system_audit:boolean;strategy_quality_gate_passed:boolean};
 const researchStatus=researchStatusData as ResearchStatus;
 const nextTradingPlan=nextTradingPlanData as NextTradingPlan;
 const researchTrial=researchTrialData as ResearchTrial;
-const systemVersion=systemVersionData as {system_version:string;strategy_version:string;lifecycle_status:string;release_status:string;strategy_commit:string;candidate_admission_policy:string;production_release:boolean;automatic_ordering:boolean};
 const productionReady=productionStatus.status==="released" && productionStatus.release_gate===true && productionStatus.system_audit===true;
 const liveOrderingEnabled=productionReady && productionStatus.strategy_quality_gate_passed===true;
 const fmt=(n:number,d=2)=>n.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
