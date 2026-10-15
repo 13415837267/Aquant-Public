@@ -2,7 +2,7 @@
   "schema_version": 1,
   "status": "trading_day",
   "is_trading_day": true,
-  "checked_at": "2026-10-15T22:58:45.659161+08:00",
+  "checked_at": "2026-10-15T23:16:31.654504+08:00",
   "timezone": "Asia/Shanghai",
   "workflow": "02 数据维护"
 }
