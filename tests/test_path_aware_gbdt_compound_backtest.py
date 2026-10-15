@@ -6,7 +6,9 @@ import numpy as np
 import pytest
 
 from scripts.compound_portfolio_backtest import 运行组合
+import scripts.path_aware_gbdt_compound_backtest as path_aware
 from scripts.path_aware_gbdt_compound_backtest import (
+    compare_candidate_counts,
     complete_signal_window_end,
     rank_probability_candidates,
     select_validation_threshold,
@@ -193,3 +195,63 @@ def test_compound_window_metrics_include_cash_only_dates_before_first_trade():
     assert result["trading_days"] == 10
     assert result["compound_return_pct"] > 0.0
     assert result["yearly_compound_return_pct"][0]["return_pct"] > 0.0
+
+
+def test_candidate_count_comparison_changes_only_top_k(monkeypatch):
+    calls = []
+
+    def fake_run(
+        daily_candidates, dates, start_date, end_date, threshold, top_k,
+        target_net_pct=None, stop_loss_pct=None,
+    ):
+        calls.append((threshold, top_k, target_net_pct, stop_loss_pct))
+        return {
+            "status": "ready",
+            "requested_entries": 20 * top_k,
+            "entered_trades": 10 * top_k,
+            "completed_trades": 8 * top_k,
+            "compound_return_pct": float(top_k),
+            "annualized_compound_return_pct": float(top_k) / 2,
+            "max_drawdown_pct": -float(top_k),
+            "target_hit_rate_pct": 60.0,
+            "positive_trade_rate_pct": 65.0,
+            "mean_trade_net_return_pct": 0.25,
+            "skipped_for_capacity_or_cash": 2,
+            "open_positions_at_end": 0,
+        }
+
+    monkeypatch.setattr(path_aware, "_run_threshold_portfolio", fake_run)
+    rows = compare_candidate_counts(
+        daily_candidates={},
+        dates=["2026-01-02", "2026-01-05", "2026-01-06"],
+        start_date="2026-01-02",
+        end_date="2026-01-05",
+        threshold=0.70,
+        target_net_pct=10.0,
+        stop_loss_pct=2.5,
+        period_label="验证期",
+        parameter_source="冻结参数",
+    )
+
+    assert [row["top_k_per_signal_day"] for row in rows] == [1, 2]
+    assert calls == [(0.70, 1, 10.0, 2.5), (0.70, 2, 10.0, 2.5)]
+    assert all(row["parameter_source"] == "冻结参数" for row in rows)
+    assert all(row["formal_production_changed"] is False for row in rows)
+
+
+def test_candidate_count_comparison_rejects_invalid_top_k():
+    kwargs = {
+        "daily_candidates": {},
+        "dates": ["2026-01-02", "2026-01-05"],
+        "start_date": "2026-01-02",
+        "end_date": "2026-01-05",
+        "threshold": 0.70,
+        "target_net_pct": 10.0,
+        "stop_loss_pct": 2.5,
+        "period_label": "验证期",
+        "parameter_source": "冻结参数",
+    }
+    with pytest.raises(ValueError, match="无重复的正整数"):
+        compare_candidate_counts(**kwargs, top_ks=(1, 1))
+    with pytest.raises(ValueError, match="无重复的正整数"):
+        compare_candidate_counts(**kwargs, top_ks=(0, 2))

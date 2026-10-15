@@ -350,6 +350,63 @@ def _run_threshold_portfolio(
     return portfolio
 
 
+def compare_candidate_counts(
+    daily_candidates: dict[str, list[dict]],
+    dates: list[str],
+    start_date: str,
+    end_date: str,
+    threshold: float,
+    target_net_pct: float,
+    stop_loss_pct: float,
+    period_label: str,
+    parameter_source: str,
+    top_ks: tuple[int, ...] = (1, 2),
+) -> list[dict]:
+    """在同一候选排序与冻结参数下，只比较每日最多入选数。"""
+    if (
+        not top_ks
+        or any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in top_ks)
+        or len(set(top_ks)) != len(top_ks)
+    ):
+        raise ValueError("候选数对照必须是无重复的正整数序列")
+
+    rows = []
+    for top_k in top_ks:
+        portfolio = _run_threshold_portfolio(
+            daily_candidates,
+            dates,
+            start_date,
+            end_date,
+            threshold,
+            top_k,
+            target_net_pct=target_net_pct,
+            stop_loss_pct=stop_loss_pct,
+        )
+        rows.append(
+            {
+                "period": period_label,
+                "top_k_per_signal_day": top_k,
+                "probability_threshold": float(threshold),
+                "net_target_pct": float(target_net_pct),
+                "stop_loss_pct": float(stop_loss_pct),
+                "parameter_source": parameter_source,
+                "status": portfolio.get("status"),
+                "requested_entries": portfolio.get("requested_entries"),
+                "entered_trades": portfolio.get("entered_trades"),
+                "completed_trades": int(portfolio.get("completed_trades") or 0),
+                "compound_return_pct": portfolio.get("compound_return_pct"),
+                "annualized_compound_return_pct": portfolio.get("annualized_compound_return_pct"),
+                "max_drawdown_pct": portfolio.get("max_drawdown_pct"),
+                "target_hit_rate_pct": portfolio.get("target_hit_rate_pct"),
+                "positive_trade_rate_pct": portfolio.get("positive_trade_rate_pct"),
+                "mean_trade_net_return_pct": portfolio.get("mean_trade_net_return_pct"),
+                "skipped_for_capacity_or_cash": portfolio.get("skipped_for_capacity_or_cash"),
+                "open_positions_at_end": portfolio.get("open_positions_at_end"),
+                "formal_production_changed": False,
+            }
+        )
+    return rows
+
 def _threshold_sweep(
     daily_candidates: dict[str, list[dict]],
     diagnostics: dict,
@@ -504,6 +561,80 @@ def main() -> None:
             files, dates, model, FINAL_START, final_signal_end, 每日最多候选数
         )
 
+    if final_candidates is None:
+        final_candidates, final_diagnostics = _collect_ranked_candidates(
+            files, dates, model, FINAL_START, final_signal_end, 每日最多候选数
+        )
+
+    if selected_exit_parameters is not None:
+        comparison_threshold = float(selected_exit_parameters["probability_threshold"])
+        comparison_target = float(selected_exit_parameters["net_target_pct"])
+        comparison_stop_loss = float(selected_exit_parameters["stop_loss_pct"])
+        comparison_parameter_source = "验证期联合网格选择；参数曾按Top2组合排序，候选数对照仅作敏感性分析"
+    elif selected_threshold is not None:
+        comparison_threshold = float(selected_threshold["probability_threshold"])
+        comparison_target = 目标净收益百分比
+        comparison_stop_loss = 止损幅度百分比
+        comparison_parameter_source = "入场阈值由验证期选择；止盈止损为固定研究基准"
+    else:
+        comparison_threshold = 固定概率阈值
+        comparison_target = 目标净收益百分比
+        comparison_stop_loss = 止损幅度百分比
+        comparison_parameter_source = "预设固定基准参数；本轮未在最终补充期选参"
+
+    candidate_count_experiment = {
+        "status": "research_only",
+        "method": "同一每日概率排名下，对照每个信号日最多入选1只与2只；现金约束、交易时序、成本、止盈止损与阈值保持一致",
+        "top_k_values": [1, 2],
+        "fixed_reference": {
+            "parameters": {
+                "probability_threshold": 固定概率阈值,
+                "net_target_pct": 目标净收益百分比,
+                "stop_loss_pct": 止损幅度百分比,
+                "source": "脚本预设基准，不根据本轮Top1/Top2结果调整",
+            },
+            "validation": compare_candidate_counts(
+                validation_candidates, dates, VALIDATION_START, validation_safe_end,
+                固定概率阈值, 目标净收益百分比, 止损幅度百分比,
+                "验证期", "预设固定基准参数",
+            ),
+            "final_supplemental": compare_candidate_counts(
+                final_candidates, dates, FINAL_START, final_signal_end,
+                固定概率阈值, 目标净收益百分比, 止损幅度百分比,
+                "历史补充期", "预设固定基准参数",
+            ),
+        },
+        "validation_selected_operating_point": {
+            "parameters": {
+                "probability_threshold": comparison_threshold,
+                "net_target_pct": comparison_target,
+                "stop_loss_pct": comparison_stop_loss,
+                "source": comparison_parameter_source,
+            },
+            "validation": compare_candidate_counts(
+                validation_candidates, dates, VALIDATION_START, validation_safe_end,
+                comparison_threshold, comparison_target, comparison_stop_loss,
+                "验证期", comparison_parameter_source,
+            ),
+            "final_supplemental": compare_candidate_counts(
+                final_candidates, dates, FINAL_START, final_signal_end,
+                comparison_threshold, comparison_target, comparison_stop_loss,
+                "历史补充期", comparison_parameter_source,
+            ),
+        },
+        "decision_boundary": "仅用于研究候选数敏感性；不修改Private策略、生产候选上限或正式发布状态。历史补充期此前已被查看，只能用于补充否决，不能视为独立新留出。",
+        "audit": {
+            "same_ranked_candidates_within_each_period": True,
+            "same_operating_parameters_between_top1_and_top2": True,
+            "entry_is_T_plus_1_open": True,
+            "exit_starts_T_plus_2": True,
+            "round_trip_cost_applied": True,
+            "cash_constrained_no_leverage": True,
+            "final_period_used_for_candidate_count_selection": False,
+            "final_period_is_fresh_unseen_holdout": False,
+            "formal_production_changed": False,
+        },
+    }
     if selected_threshold is not None:
         threshold = float(selected_threshold["probability_threshold"])
         final_portfolio = _run_threshold_portfolio(
@@ -593,6 +724,7 @@ def main() -> None:
             "fresh_unseen_holdout": False,
             "note": "最终留出期此前已用于路径标签报告和固定阈值组合复核；本结果属于补充验证，不是从未查看过的新留出集",
         },
+        "candidate_count_experiment": candidate_count_experiment,
         "exit_parameter_experiment": {
             "status": "research_only",
             "method": "验证期联合搜索入场概率、净止盈目标与止损幅度；最终期仅评估已冻结参数",
@@ -702,6 +834,48 @@ def main() -> None:
                     "compound_return_pct": final_exit_portfolio.get("compound_return_pct"),
                     "max_drawdown_pct": final_exit_portfolio.get("max_drawdown_pct"),
                     "selection_policy": final_exit_portfolio.get("selection_policy"),
+                },
+                "candidate_count_experiment": {
+                    "fixed_reference_validation": [
+                        {
+                            "top_k": row["top_k_per_signal_day"],
+                            "completed_trades": row["completed_trades"],
+                            "compound_return_pct": row["compound_return_pct"],
+                            "max_drawdown_pct": row["max_drawdown_pct"],
+                            "mean_trade_net_return_pct": row["mean_trade_net_return_pct"],
+                        }
+                        for row in result["candidate_count_experiment"]["fixed_reference"]["validation"]
+                    ],
+                    "fixed_reference_final_supplemental": [
+                        {
+                            "top_k": row["top_k_per_signal_day"],
+                            "completed_trades": row["completed_trades"],
+                            "compound_return_pct": row["compound_return_pct"],
+                            "max_drawdown_pct": row["max_drawdown_pct"],
+                            "mean_trade_net_return_pct": row["mean_trade_net_return_pct"],
+                        }
+                        for row in result["candidate_count_experiment"]["fixed_reference"]["final_supplemental"]
+                    ],
+                    "validation_selected_point_validation": [
+                        {
+                            "top_k": row["top_k_per_signal_day"],
+                            "completed_trades": row["completed_trades"],
+                            "compound_return_pct": row["compound_return_pct"],
+                            "max_drawdown_pct": row["max_drawdown_pct"],
+                            "mean_trade_net_return_pct": row["mean_trade_net_return_pct"],
+                        }
+                        for row in result["candidate_count_experiment"]["validation_selected_operating_point"]["validation"]
+                    ],
+                    "validation_selected_point_final_supplemental": [
+                        {
+                            "top_k": row["top_k_per_signal_day"],
+                            "completed_trades": row["completed_trades"],
+                            "compound_return_pct": row["compound_return_pct"],
+                            "max_drawdown_pct": row["max_drawdown_pct"],
+                            "mean_trade_net_return_pct": row["mean_trade_net_return_pct"],
+                        }
+                        for row in result["candidate_count_experiment"]["validation_selected_operating_point"]["final_supplemental"]
+                    ],
                 },
                 "elapsed_seconds": result["elapsed_seconds"],
             },
