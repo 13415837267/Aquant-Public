@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "status": "current_research_audit",
-  "audited_at": "2026-10-14T14:19:21.579384+00:00",
+  "audited_at": "2026-10-15T12:06:03.665890+00:00",
   "timezone": "Asia/Shanghai",
   "system_version": "2.6.0",
   "strategy_version": "2.6.0",
@@ -13,7 +13,7 @@
   "candidate_layer": "current",
   "candidate_check": {
     "status": "pass",
-    "as_of": "2026-10-14T18:00:00+08:00",
+    "as_of": "2026-10-15T18:00:00+08:00",
     "candidate_count": 0,
     "strategy_version": "2.6.0",
     "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
@@ -21,8 +21,8 @@
   },
   "plan_check": {
     "status": "pass",
-    "signal_date": "2026-10-14",
-    "next_trading_day": "2026-10-15",
+    "signal_date": "2026-10-15",
+    "next_trading_day": "2026-10-16",
     "candidate_count": 0,
     "strategy_version": "2.6.0",
     "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c"
