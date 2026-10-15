@@ -48,6 +48,9 @@ from scripts.train_short_term_model import make_features
 阈值网格 = tuple(sorted(set(round(float(x), 3) for x in 配置["复利入场概率阈值网格"]) | {固定概率阈值}))
 最低验证交易数 = int(配置["参数选择最低交易数"])
 最大允许回撤百分比 = float(配置["参数选择最大允许回撤百分比"])
+止盈目标网格 = tuple(sorted(set(round(float(x), 3) for x in 配置["复利止盈目标网格百分比"])))
+止损幅度网格 = tuple(sorted(set(round(float(x), 3) for x in 配置["复利止损幅度网格百分比"])))
+退出参数最大回撤门槛 = float(配置["复利止盈止损参数最大允许回撤百分比"])
 
 
 def rank_probability_candidates(
@@ -133,6 +136,54 @@ def _threshold_key(threshold: float) -> str:
 def select_validation_threshold(rows: list[dict]) -> dict | None:
     """仅按验证集收益、最低交易数与最大回撤门槛选择阈值。"""
     return 选择概率阈值(rows, 最低验证交易数, 最大允许回撤百分比)
+
+
+def select_validation_exit_operating_point(
+    rows: list[dict],
+    minimum_trades: int,
+    max_drawdown_floor_pct: float,
+) -> dict | None:
+    """只按验证期筛选入场概率、止盈与止损；最终期不得参与选参。"""
+    eligible = []
+    for row in rows:
+        try:
+            trades = int(row.get("completed_trades") or 0)
+            threshold = float(row["probability_threshold"])
+            target = float(row["net_target_pct"])
+            stop_loss = float(row["stop_loss_pct"])
+            compound = float(row["compound_return_pct"])
+            annualized = float(row["annualized_compound_return_pct"])
+            drawdown = float(row["max_drawdown_pct"])
+            mean_trade = float(row["mean_trade_net_return_pct"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        values = (threshold, target, stop_loss, compound, annualized, drawdown, mean_trade)
+        if not all(math.isfinite(value) for value in values):
+            continue
+        if not 0.0 <= threshold <= 1.0 or target <= 0.0 or stop_loss <= 0.0:
+            continue
+        if trades < minimum_trades:
+            continue
+        if compound <= 0.0 or annualized <= 0.0 or mean_trade <= 0.0:
+            continue
+        if drawdown < max_drawdown_floor_pct:
+            continue
+        eligible.append(dict(row))
+
+    if not eligible:
+        return None
+    selected = max(
+        eligible,
+        key=lambda row: (
+            float(row["compound_return_pct"]),
+            float(row["annualized_compound_return_pct"]),
+            float(row["mean_trade_net_return_pct"]),
+            float(row["max_drawdown_pct"]),
+            int(row["completed_trades"]),
+        ),
+    )
+    selected["selection_status"] = "仅由验证期选择；联合网格存在多重比较偏差"
+    return selected
 
 
 def _collect_ranked_candidates(
@@ -253,8 +304,12 @@ def _run_threshold_portfolio(
     end_date: str,
     threshold: float,
     top_k: int,
+    target_net_pct: float | None = None,
+    stop_loss_pct: float | None = None,
 ) -> dict:
-    """按冻结阈值过滤缓存候选，并按完整研究窗口计算收益与风险。"""
+    """按冻结参数过滤缓存候选，并按完整研究窗口计算收益与风险。"""
+    target_net = 目标净收益百分比 if target_net_pct is None else float(target_net_pct)
+    stop_loss = 止损幅度百分比 if stop_loss_pct is None else float(stop_loss_pct)
     filtered_candidates = {
         signal_date: [
             candidate for candidate in candidates
@@ -270,8 +325,8 @@ def _run_threshold_portfolio(
         filtered_candidates,
         dates,
         "每日排名",
-        目标净收益百分比,
-        止损幅度百分比,
+        target_net,
+        stop_loss,
         往返交易成本基点,
         top_k=top_k,
         窗口起始日期=start_date,
@@ -287,8 +342,8 @@ def _run_threshold_portfolio(
         "entry": "T+1开盘",
         "earliest_exit": "T+2",
         "maximum_holding_sessions": MAX_FORWARD_SESSIONS,
-        "net_target_pct": 目标净收益百分比,
-        "stop_loss_pct": 止损幅度百分比,
+        "net_target_pct": target_net,
+        "stop_loss_pct": stop_loss,
         "round_trip_cost_bps": 往返交易成本基点,
         "annualization_includes_full_signal_window": True,
     }
@@ -321,6 +376,54 @@ def _threshold_sweep(
         rows.append(item)
     return rows
 
+
+def _exit_parameter_sweep(
+    daily_candidates: dict[str, list[dict]],
+    diagnostics: dict,
+    dates: list[str],
+    start_date: str,
+    end_date: str,
+    top_k: int,
+) -> list[dict]:
+    """在验证期枚举概率阈值×净止盈×止损；最终期不进入评分或排序。"""
+    rows = []
+    total = len(阈值网格) * len(止盈目标网格) * len(止损幅度网格)
+    completed = 0
+    for threshold in 阈值网格:
+        for target in 止盈目标网格:
+            for stop_loss in 止损幅度网格:
+                portfolio = _run_threshold_portfolio(
+                    daily_candidates,
+                    dates,
+                    start_date,
+                    end_date,
+                    threshold,
+                    top_k,
+                    target_net_pct=target,
+                    stop_loss_pct=stop_loss,
+                )
+                rows.append({
+                    "probability_threshold": float(threshold),
+                    "net_target_pct": float(target),
+                    "stop_loss_pct": float(stop_loss),
+                    **diagnostics["thresholds"][_threshold_key(threshold)],
+                    "status": portfolio.get("status"),
+                    "completed_trades": int(portfolio.get("completed_trades") or 0),
+                    "compound_return_pct": portfolio.get("compound_return_pct"),
+                    "annualized_compound_return_pct": portfolio.get("annualized_compound_return_pct"),
+                    "max_drawdown_pct": portfolio.get("max_drawdown_pct"),
+                    "mean_trade_net_return_pct": portfolio.get("mean_trade_net_return_pct"),
+                    "target_hit_rate_pct": portfolio.get("target_hit_rate_pct"),
+                    "positive_trade_rate_pct": portfolio.get("positive_trade_rate_pct"),
+                    "exit_reason_counts": portfolio.get("exit_reason_counts", {}),
+                })
+                completed += 1
+                if completed % 100 == 0 or completed == total:
+                    print(
+                        f"[验证期出场参数实验] 已完成组合 {completed}/{total}",
+                        flush=True,
+                    )
+    return rows
 
 
 def main() -> None:
@@ -370,13 +473,39 @@ def main() -> None:
     )
     selected_threshold = select_validation_threshold(validation_sweep)
 
+    exit_parameter_sweep = _exit_parameter_sweep(
+        validation_candidates,
+        validation_diagnostics,
+        dates,
+        VALIDATION_START,
+        validation_safe_end,
+        每日最多候选数,
+    )
+    selected_exit_parameters = select_validation_exit_operating_point(
+        exit_parameter_sweep,
+        minimum_trades=最低验证交易数,
+        max_drawdown_floor_pct=退出参数最大回撤门槛,
+    )
+
     final_diagnostics = None
-    final_portfolio = None
-    if selected_threshold is not None:
-        threshold = float(selected_threshold["probability_threshold"])
+    final_candidates = None
+    final_portfolio = {
+        "status": "not_evaluated_no_eligible_validation_threshold",
+        "reason": "验证期没有满足既定样本数、正复利和回撤条件的入场阈值；不在最终补充期反向选参",
+        "formal_production_changed": False,
+    }
+    final_exit_portfolio = {
+        "status": "not_evaluated_no_eligible_validation_exit_parameters",
+        "reason": "验证期没有满足最低交易数、正复利、正平均单笔收益及更严格回撤门槛的联合参数组合",
+        "formal_production_changed": False,
+    }
+    if selected_threshold is not None or selected_exit_parameters is not None:
         final_candidates, final_diagnostics = _collect_ranked_candidates(
             files, dates, model, FINAL_START, final_signal_end, 每日最多候选数
         )
+
+    if selected_threshold is not None:
+        threshold = float(selected_threshold["probability_threshold"])
         final_portfolio = _run_threshold_portfolio(
             final_candidates,
             dates,
@@ -385,13 +514,22 @@ def main() -> None:
             threshold,
             每日最多候选数,
         )
-        final_portfolio["selection_status"] = "阈值仅由验证集选择；最终留出未用于选参"
-    else:
-        final_portfolio = {
-            "status": "not_evaluated_no_eligible_validation_threshold",
-            "reason": "验证集没有同时满足最低交易数、正复利和最大回撤门槛的阈值；不在最终留出集反向挑参",
-            "formal_production_changed": False,
-        }
+        final_portfolio["selection_status"] = "入场阈值仅由验证期选择；最终补充期未用于选参"
+
+    if selected_exit_parameters is not None:
+        final_exit_portfolio = _run_threshold_portfolio(
+            final_candidates,
+            dates,
+            FINAL_START,
+            final_signal_end,
+            float(selected_exit_parameters["probability_threshold"]),
+            每日最多候选数,
+            target_net_pct=float(selected_exit_parameters["net_target_pct"]),
+            stop_loss_pct=float(selected_exit_parameters["stop_loss_pct"]),
+        )
+        final_exit_portfolio["selection_status"] = (
+            "概率阈值、止盈与止损均由验证期一次冻结；最终期仅作历史补充检验"
+        )
 
     result = {
         "schema_version": 2,
@@ -455,6 +593,44 @@ def main() -> None:
             "fresh_unseen_holdout": False,
             "note": "最终留出期此前已用于路径标签报告和固定阈值组合复核；本结果属于补充验证，不是从未查看过的新留出集",
         },
+        "exit_parameter_experiment": {
+            "status": "research_only",
+            "method": "验证期联合搜索入场概率、净止盈目标与止损幅度；最终期仅评估已冻结参数",
+            "selection_policy": {
+                "probability_threshold_grid": list(阈值网格),
+                "net_target_pct_grid": list(止盈目标网格),
+                "stop_loss_pct_grid": list(止损幅度网格),
+                "combination_count": len(exit_parameter_sweep),
+                "minimum_validation_trades": 最低验证交易数,
+                "max_drawdown_floor_pct": 退出参数最大回撤门槛,
+                "selection_rule": "验证期至少100笔完成交易、复利与平均单笔收益均为正、最大回撤不差于配置门槛，再按复利收益优先选择",
+            },
+            "validation": {
+                "signal_window": [VALIDATION_START, validation_safe_end],
+                "sweep": exit_parameter_sweep,
+                "selected_operating_point": selected_exit_parameters,
+            },
+            "final_supplemental": {
+                "signal_window": [FINAL_START, final_signal_end],
+                "selected_validation_operating_point": (
+                    {
+                        "probability_threshold": selected_exit_parameters["probability_threshold"],
+                        "net_target_pct": selected_exit_parameters["net_target_pct"],
+                        "stop_loss_pct": selected_exit_parameters["stop_loss_pct"],
+                    }
+                    if selected_exit_parameters is not None else None
+                ),
+                "portfolio": final_exit_portfolio,
+                "fresh_unseen_holdout": False,
+            },
+            "audit": {
+                "final_period_used_for_parameter_selection": False,
+                "parameter_combination_frozen_before_final_evaluation": True,
+                "joint_grid_selection_has_multiple_comparison_bias": True,
+                "final_period_is_supplemental_not_fresh_unseen_holdout": True,
+                "formal_production_changed": False,
+            },
+        },
         "audit": {
             "no_future_features": True,
             "candidate_admission_does_not_use_future_path_completeness": True,
@@ -502,17 +678,37 @@ def main() -> None:
                     }
                     if selected_threshold is not None else None
                 ),
-                "final_holdout_portfolio": final_portfolio,
+                "final_holdout_portfolio": {
+                    "status": final_portfolio.get("status"),
+                    "completed_trades": final_portfolio.get("completed_trades"),
+                    "compound_return_pct": final_portfolio.get("compound_return_pct"),
+                    "max_drawdown_pct": final_portfolio.get("max_drawdown_pct"),
+                },
+                "exit_parameter_grid_size": len(exit_parameter_sweep),
+                "selected_validation_exit_parameters": (
+                    {
+                        "probability_threshold": selected_exit_parameters["probability_threshold"],
+                        "net_target_pct": selected_exit_parameters["net_target_pct"],
+                        "stop_loss_pct": selected_exit_parameters["stop_loss_pct"],
+                        "completed_trades": selected_exit_parameters["completed_trades"],
+                        "compound_return_pct": selected_exit_parameters["compound_return_pct"],
+                        "max_drawdown_pct": selected_exit_parameters["max_drawdown_pct"],
+                    }
+                    if selected_exit_parameters is not None else None
+                ),
+                "final_supplemental_exit_portfolio": {
+                    "status": final_exit_portfolio.get("status"),
+                    "completed_trades": final_exit_portfolio.get("completed_trades"),
+                    "compound_return_pct": final_exit_portfolio.get("compound_return_pct"),
+                    "max_drawdown_pct": final_exit_portfolio.get("max_drawdown_pct"),
+                    "selection_policy": final_exit_portfolio.get("selection_policy"),
+                },
                 "elapsed_seconds": result["elapsed_seconds"],
             },
             ensure_ascii=False,
         ),
         flush=True,
     )
-
-
-if __name__ == "__main__":
-    main()
 
 
 if __name__ == "__main__":

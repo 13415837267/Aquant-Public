@@ -37,8 +37,8 @@ permissions:
 
 concurrency:
   group: "盘后选股策略统一研究-main-v2"
-  # 新提交优先，取消仍在运行的旧版本研究，避免过期训练阻塞最新验证。
-  cancel-in-progress: true
+  # 研究作业可能运行数小时；新提交不得取消正在进行的云端实验。
+  cancel-in-progress: false
 
 jobs:
   quality:
@@ -272,6 +272,7 @@ jobs:
 
   comparison_report:
     name: "生成统一研究结论与晋级审计"
+    if: ${{ always() }}
     needs:
       - rule_strategy
       - rule_portfolio_strategy
@@ -280,6 +281,28 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      - name: "核验上游研究作业状态"
+        env:
+          RULE_RESEARCH_RESULT: ${{ needs.rule_strategy.result }}
+          RULE_PORTFOLIO_RESULT: ${{ needs.rule_portfolio_strategy.result }}
+          MODEL_RESEARCH_RESULT: ${{ needs.model_strategy.result }}
+          FACTOR_ABLATION_RESULT: ${{ needs.factor_ablation.result }}
+        run: |
+          set -euo pipefail
+          printf "规则挖掘：%s\n" "$RULE_RESEARCH_RESULT"
+          printf "规则组合回测：%s\n" "$RULE_PORTFOLIO_RESULT"
+          printf "模型组合回测：%s\n" "$MODEL_RESEARCH_RESULT"
+          printf "因子消融：%s\n" "$FACTOR_ABLATION_RESULT"
+          if [[ "$RULE_RESEARCH_RESULT" != "success" || "$RULE_PORTFOLIO_RESULT" != "success" || "$MODEL_RESEARCH_RESULT" != "success" || "$FACTOR_ABLATION_RESULT" != "success" ]]; then
+            {
+              echo "## 统一研究结论未生成"
+              echo
+              echo "上游作业至少一项未成功；为避免缺失工件或混合版本，停止生成模型/规则比较报告。"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "上游研究作业全部成功，开始生成同口径研究对照。" >> "$GITHUB_STEP_SUMMARY"
+
       - name: "检出报告脚本"
         uses: actions/checkout@v7
         with:
