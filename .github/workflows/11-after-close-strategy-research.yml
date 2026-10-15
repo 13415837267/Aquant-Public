@@ -30,6 +30,7 @@ on:
       - "tests/test_after_close_rule_compound_backtest.py"
       - "tests/test_workflow_action_runtimes.py"
       - "tests/test_path_rule_mining.py"
+      - "tests/test_candidate_count_operating_point_research.py"
 
 permissions:
   actions: read

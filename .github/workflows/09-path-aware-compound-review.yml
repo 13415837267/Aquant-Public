@@ -13,6 +13,7 @@ on:
       - "scripts/path_aware_gbdt_compound_backtest.py"
       - "scripts/compound_portfolio_backtest.py"
       - "tests/test_path_aware_gbdt_compound_backtest.py"
+      - "tests/test_candidate_count_operating_point_research.py"
 
 permissions:
   contents: read

@@ -16,6 +16,7 @@ on:
       - "scripts/train_executable_return_ranker.py"
       - "scripts/executable_return_backtest.py"
       - "tests/test_executable_return_ranker.py"
+      - "tests/test_candidate_count_operating_point_research.py"
       - "scripts/compound_portfolio_backtest.py"
       - "scripts/high_precision_profit_mining.py"
       - "scripts/train_short_term_model.py"
