@@ -1,0 +1,421 @@
+"""分别为每日Top1和Top2候选上限选择验证期参数，并进行冻结后的补充评估。"""
+from __future__ import annotations
+
+import json
+import math
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import scripts.path_aware_gbdt_compound_backtest as core
+from scripts.short_term_research import history_files
+from scripts.train_path_aware_gbdt import (
+    FINAL_END,
+    FINAL_START,
+    MAX_FORWARD_SESSIONS,
+    TRAIN_END,
+    VALIDATION_END,
+    VALIDATION_START,
+    collect_training,
+)
+
+DEFAULT_OUTPUT = ROOT / "data/backtest/candidate_count_operating_point_latest.json"
+TOP_K_VALUES = (1, 2)
+
+
+def _finite_number(row: dict[str, Any], key: str) -> float | None:
+    try:
+        value = float(row[key])
+    except (KeyError, TypeError, ValueError):
+        return None
+    return value if math.isfinite(value) else None
+
+
+def eligible_operating_point(
+    row: dict[str, Any],
+    minimum_trades: int,
+    max_drawdown_floor_pct: float,
+) -> bool:
+    """与正式研究门槛保持一致；仅用于判断验证期参数是否有资格被选中。"""
+    try:
+        trades = int(row.get("completed_trades") or 0)
+    except (TypeError, ValueError):
+        return False
+    threshold = _finite_number(row, "probability_threshold")
+    target = _finite_number(row, "net_target_pct")
+    stop_loss = _finite_number(row, "stop_loss_pct")
+    compound = _finite_number(row, "compound_return_pct")
+    annualized = _finite_number(row, "annualized_compound_return_pct")
+    drawdown = _finite_number(row, "max_drawdown_pct")
+    mean_trade = _finite_number(row, "mean_trade_net_return_pct")
+    values = (threshold, target, stop_loss, compound, annualized, drawdown, mean_trade)
+    if any(value is None for value in values):
+        return False
+    if not 0.0 <= threshold <= 1.0 or target <= 0.0 or stop_loss <= 0.0:
+        return False
+    return (
+        trades >= minimum_trades
+        and compound > 0.0
+        and annualized > 0.0
+        and mean_trade > 0.0
+        and drawdown >= max_drawdown_floor_pct
+    )
+
+
+def independently_select_parameters(
+    daily_candidates: dict[str, list[dict]],
+    diagnostics: dict,
+    dates: list[str],
+    start_date: str,
+    end_date: str,
+    top_ks: tuple[int, ...] = TOP_K_VALUES,
+) -> dict[int, dict[str, Any]]:
+    """每个候选数量独立运行同一验证网格，不将Top2参数直接套给Top1。"""
+    if (
+        not top_ks
+        or any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in top_ks)
+        or len(set(top_ks)) != len(top_ks)
+    ):
+        raise ValueError("候选数量必须是无重复的正整数序列")
+
+    result: dict[int, dict[str, Any]] = {}
+    for top_k in top_ks:
+        print(f"[候选数量独立选参] 开始每日最多{top_k}只的验证期参数网格", flush=True)
+        sweep = core._exit_parameter_sweep(
+            daily_candidates, diagnostics, dates, start_date, end_date, top_k
+        )
+        selected = core.select_validation_exit_operating_point(
+            sweep,
+            minimum_trades=core.最低验证交易数,
+            max_drawdown_floor_pct=core.退出参数最大回撤门槛,
+        )
+        eligible_count = sum(
+            eligible_operating_point(
+                row,
+                minimum_trades=core.最低验证交易数,
+                max_drawdown_floor_pct=core.退出参数最大回撤门槛,
+            )
+            for row in sweep
+        )
+        print(
+            f"[候选数量独立选参] 每日最多{top_k}只："
+            f"网格{len(sweep)}组，达门槛{eligible_count}组，"
+            f"选中={'是' if selected is not None else '否'}",
+            flush=True,
+        )
+        result[top_k] = {
+            "sweep": sweep,
+            "selected": selected,
+            "eligible_parameter_count": eligible_count,
+            "grid_size": len(sweep),
+        }
+    return result
+
+
+def adjacent_operating_points(
+    selected: dict[str, Any],
+    threshold_grid: tuple[float, ...],
+    target_grid: tuple[float, ...],
+    stop_grid: tuple[float, ...],
+) -> list[dict[str, Any]]:
+    """返回与选中参数仅有一个维度、且相差一个网格步的相邻组合。"""
+    grid_specs = (
+        ("probability_threshold", threshold_grid),
+        ("net_target_pct", target_grid),
+        ("stop_loss_pct", stop_grid),
+    )
+    points: list[dict[str, Any]] = []
+    selected_key = {
+        "probability_threshold": round(float(selected["probability_threshold"]), 3),
+        "net_target_pct": round(float(selected["net_target_pct"]), 3),
+        "stop_loss_pct": round(float(selected["stop_loss_pct"]), 3),
+    }
+    for field, values in grid_specs:
+        grid = [round(float(value), 3) for value in values]
+        try:
+            index = grid.index(selected_key[field])
+        except ValueError as exc:
+            raise ValueError(f"已选参数不在预先声明的网格内：{field}") from exc
+        for neighbor_index in (index - 1, index + 1):
+            if not 0 <= neighbor_index < len(grid):
+                continue
+            item = dict(selected_key)
+            item[field] = grid[neighbor_index]
+            item["changed_parameter"] = field
+            points.append(item)
+    return points
+
+
+def _metric_summary(row: dict[str, Any] | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    fields = (
+        "probability_threshold",
+        "net_target_pct",
+        "stop_loss_pct",
+        "completed_trades",
+        "compound_return_pct",
+        "annualized_compound_return_pct",
+        "max_drawdown_pct",
+        "mean_trade_net_return_pct",
+        "target_hit_rate_pct",
+        "positive_trade_rate_pct",
+        "exit_reason_counts",
+    )
+    return {key: row.get(key) for key in fields}
+
+
+def _portfolio_summary(portfolio: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": portfolio.get("status"),
+        "requested_entries": portfolio.get("requested_entries"),
+        "entered_trades": portfolio.get("entered_trades"),
+        "completed_trades": portfolio.get("completed_trades"),
+        "compound_return_pct": portfolio.get("compound_return_pct"),
+        "annualized_compound_return_pct": portfolio.get("annualized_compound_return_pct"),
+        "max_drawdown_pct": portfolio.get("max_drawdown_pct"),
+        "mean_trade_net_return_pct": portfolio.get("mean_trade_net_return_pct"),
+        "target_hit_rate_pct": portfolio.get("target_hit_rate_pct"),
+        "positive_trade_rate_pct": portfolio.get("positive_trade_rate_pct"),
+        "skipped_for_capacity_or_cash": portfolio.get("skipped_for_capacity_or_cash"),
+        "open_positions_at_end": portfolio.get("open_positions_at_end"),
+    }
+
+
+def _find_grid_row(sweep: list[dict[str, Any]], parameters: dict[str, Any]) -> dict[str, Any] | None:
+    target = (
+        round(float(parameters["probability_threshold"]), 3),
+        round(float(parameters["net_target_pct"]), 3),
+        round(float(parameters["stop_loss_pct"]), 3),
+    )
+    for row in sweep:
+        key = (
+            round(float(row["probability_threshold"]), 3),
+            round(float(row["net_target_pct"]), 3),
+            round(float(row["stop_loss_pct"]), 3),
+        )
+        if key == target:
+            return row
+    return None
+
+
+def _evaluate_final(
+    final_candidates: dict[str, list[dict]],
+    dates: list[str],
+    final_signal_end: str,
+    top_k: int,
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    return core._run_threshold_portfolio(
+        final_candidates,
+        dates,
+        FINAL_START,
+        final_signal_end,
+        float(parameters["probability_threshold"]),
+        top_k,
+        target_net_pct=float(parameters["net_target_pct"]),
+        stop_loss_pct=float(parameters["stop_loss_pct"]),
+    )
+
+
+def run_research() -> dict[str, Any]:
+    started = time.time()
+    files = history_files()
+    dates = [path.name[:10] for path in files]
+    date_set = set(dates)
+    required_dates = (TRAIN_END, VALIDATION_START, VALIDATION_END, FINAL_START, FINAL_END)
+    missing = [day for day in required_dates if day not in date_set]
+    if missing:
+        raise RuntimeError("历史行情缺少必要研究边界：" + "、".join(missing))
+
+    final_signal_end = core.complete_signal_window_end(dates, FINAL_END, MAX_FORWARD_SESSIONS)
+    if dates.index(final_signal_end) < dates.index(FINAL_START):
+        raise RuntimeError("历史行情不足以覆盖最终补充期内至少一个完整退出窗口")
+    validation_start_index = dates.index(VALIDATION_START)
+    final_start_index = dates.index(FINAL_START)
+    validation_safe_end_index = final_start_index - MAX_FORWARD_SESSIONS - 1
+    if validation_safe_end_index < validation_start_index:
+        raise RuntimeError("验证期在清除跨期标签后没有足够的完整退出窗口")
+    validation_safe_end = dates[validation_safe_end_index]
+
+    print("[步骤1/5] 使用2015年至2022年训练数据建立路径感知模型", flush=True)
+    x, y, processed_days, raw_samples = collect_training(
+        files, dates, TRAIN_END, validation_start_index
+    )
+    if len(x) == 0 or len(set(y.tolist())) < 2:
+        raise RuntimeError("训练样本为空或只包含单一类别，终止参数研究")
+    model = core._build_model()
+    model.fit(x, y)
+    print(
+        f"[步骤1/5] 训练完成：处理{processed_days}个交易日，"
+        f"原始样本{raw_samples}，保留样本{len(y)}",
+        flush=True,
+    )
+
+    print("[步骤2/5] 生成验证期可执行候选排名缓存", flush=True)
+    validation_candidates, validation_diagnostics = core._collect_ranked_candidates(
+        files, dates, model, VALIDATION_START, validation_safe_end, max(TOP_K_VALUES)
+    )
+
+    print("[步骤3/5] 为Top1与Top2各自独立选择验证期参数", flush=True)
+    studies = independently_select_parameters(
+        validation_candidates,
+        validation_diagnostics,
+        dates,
+        VALIDATION_START,
+        validation_safe_end,
+    )
+
+    selected_any = any(study["selected"] is not None for study in studies.values())
+    final_candidates = None
+    final_diagnostics = None
+    if selected_any:
+        print("[步骤4/5] 生成历史补充期排名缓存；不使用补充期选择参数", flush=True)
+        final_candidates, final_diagnostics = core._collect_ranked_candidates(
+            files, dates, model, FINAL_START, final_signal_end, max(TOP_K_VALUES)
+        )
+
+    outcomes: dict[str, Any] = {}
+    for top_k, study in studies.items():
+        selected = study["selected"]
+        if selected is None:
+            outcomes[str(top_k)] = {
+                "status": "no_eligible_validation_operating_point",
+                "grid_size": study["grid_size"],
+                "eligible_parameter_count": study["eligible_parameter_count"],
+                "validation_selected_point": None,
+                "final_supplemental": {
+                    "status": "not_evaluated_no_eligible_validation_operating_point"
+                },
+                "neighbor_sensitivity": [],
+            }
+            continue
+
+        validation_row = _find_grid_row(study["sweep"], selected)
+        final_portfolio = _evaluate_final(
+            final_candidates, dates, final_signal_end, top_k, selected
+        )
+        neighbor_rows = []
+        neighbor_points = adjacent_operating_points(
+            selected, core.阈值网格, core.止盈目标网格, core.止损幅度网格
+        )
+        for point in neighbor_points:
+            validation_neighbor = _find_grid_row(study["sweep"], point)
+            if validation_neighbor is None:
+                continue
+            final_neighbor = _evaluate_final(
+                final_candidates, dates, final_signal_end, top_k, point
+            )
+            neighbor_rows.append({
+                "parameters": point,
+                "validation": _metric_summary(validation_neighbor),
+                "final_supplemental": _portfolio_summary(final_neighbor),
+            })
+
+        outcomes[str(top_k)] = {
+            "status": "selected_on_validation_then_frozen",
+            "grid_size": study["grid_size"],
+            "eligible_parameter_count": study["eligible_parameter_count"],
+            "minimum_validation_trades": core.最低验证交易数,
+            "maximum_validation_drawdown_floor_pct": core.退出参数最大回撤门槛,
+            "selection_rule": "交易数、正复利、正年化复利、正平均单笔净收益和最大回撤均达标后，按验证期复利优先排序",
+            "validation_selected_point": _metric_summary(validation_row),
+            "final_supplemental": _portfolio_summary(final_portfolio),
+            "neighbor_sensitivity": neighbor_rows,
+            "parameter_selection_status": selected.get("selection_status"),
+        }
+        print(
+            f"[步骤5/5] Top{top_k}冻结参数：阈值{selected['probability_threshold']:.3f}、"
+            f"净止盈{selected['net_target_pct']:.3f}%、止损{selected['stop_loss_pct']:.3f}%；"
+            f"验证复利{selected['compound_return_pct']:.4f}%，"
+            f"补充期复利{final_portfolio.get('compound_return_pct')}%",
+            flush=True,
+        )
+
+    return {
+        "schema_version": 1,
+        "status": "research_only",
+        "experiment": "candidate_count_specific_validation_parameter_selection",
+        "source_public_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip(),
+        "model": {
+            "type": "HistGradientBoostingClassifier",
+            "seed": 42,
+            "training_feature_end": TRAIN_END,
+            "training_processed_days": processed_days,
+            "training_raw_samples": raw_samples,
+            "training_samples": int(len(y)),
+        },
+        "splits": {
+            "train_feature_end": TRAIN_END,
+            "validation_signal_window": [VALIDATION_START, validation_safe_end],
+            "validation_nominal_end": VALIDATION_END,
+            "final_supplemental_signal_window": [FINAL_START, final_signal_end],
+            "final_nominal_end": FINAL_END,
+        },
+        "shared_execution_assumptions": {
+            "top_k_values": list(TOP_K_VALUES),
+            "round_trip_cost_bps": core.往返交易成本基点,
+            "signal": "T日收盘",
+            "entry": "T+1开盘",
+            "earliest_exit": "T+2",
+            "maximum_holding_sessions": MAX_FORWARD_SESSIONS,
+            "stop_first_when_both_barriers_hit": True,
+            "cash_constrained_no_leverage": True,
+            "candidate_ranking_and_execution_filter_shared": True,
+        },
+        "candidate_count_studies": outcomes,
+        "audit": {
+            "top1_and_top2_parameters_selected_independently": True,
+            "only_validation_period_used_for_parameter_selection": True,
+            "final_supplemental_used_for_parameter_selection": False,
+            "final_supplemental_is_fresh_unseen_holdout": False,
+            "neighbor_sensitivity_reported": True,
+            "formal_production_changed": False,
+            "automatic_ordering": False,
+        },
+        "elapsed_seconds": round(time.time() - started, 2),
+        "note": "两个候选数量分别使用相同验证网格选参，仍有多重比较与历史窗口偏差；历史补充期此前已被查看，只作补充审查，不可替代未来影子模拟。",
+    }
+
+
+def main() -> None:
+    output_path = DEFAULT_OUTPUT
+    if len(sys.argv) == 3 and sys.argv[1] == "--output":
+        output_path = Path(sys.argv[2])
+    elif len(sys.argv) != 1:
+        raise SystemExit("用法：python scripts/candidate_count_operating_point_research.py [--output 输出路径]")
+
+    result = run_research()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    compact = {
+        "status": result["status"],
+        "source_public_commit": result["source_public_commit"],
+        "elapsed_seconds": result["elapsed_seconds"],
+        "candidate_count_studies": {
+            key: {
+                "status": value["status"],
+                "eligible_parameter_count": value.get("eligible_parameter_count"),
+                "validation_selected_point": value.get("validation_selected_point"),
+                "final_supplemental": value.get("final_supplemental"),
+                "neighbor_sensitivity": value.get("neighbor_sensitivity"),
+            }
+            for key, value in result["candidate_count_studies"].items()
+        },
+    }
+    print(json.dumps(compact, ensure_ascii=False), flush=True)
+
+
+if __name__ == "__main__":
+    main()
