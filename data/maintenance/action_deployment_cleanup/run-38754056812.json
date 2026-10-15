@@ -1,34 +1,148 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 38670806288,
-  "completed_at": "2026-10-15T02:25:03Z",
+  "cleanup_run_id": 38754056812,
+  "completed_at": "2026-10-15T14:45:00Z",
   "deleted_actions": [],
-  "deleted_deployments": [],
+  "deleted_deployments": [
+    {
+      "deployment_id": 7092083403,
+      "created_at": "2026-10-15T12:07:27Z",
+      "sha": "95aba6cd1ee79d858bb1da8f8ba6f6226f6830ec",
+      "ref": "main",
+      "prior_state": "success"
+    }
+  ],
   "preserved_active_deployments": [],
   "preserved_other_deployments": [],
   "preserved_current_deployment": {
-    "deployment_id": 7069631069,
-    "sha": "b26b3b8af4c9d6828742ce23cc175a9a5875d8b9",
+    "deployment_id": 7095753739,
+    "sha": "cc8670804730e91d9b2e1fe2a0892936b96ff274",
     "ref": "main",
-    "created_at": "2026-10-14T15:26:26Z",
+    "created_at": "2026-10-15T14:43:49Z",
     "state": "success"
   },
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
-      "run_id": 38670806288,
-      "created_at": "2026-10-15T02:24:23Z",
+      "run_id": 38754056812,
+      "created_at": "2026-10-15T14:44:15Z",
       "status": "in_progress",
       "name": "维护历史 Action 记录"
     },
     {
-      "run_id": 38659933257,
-      "created_at": "2026-10-15T00:25:22Z",
+      "run_id": 38745126018,
+      "created_at": "2026-10-15T13:43:25Z",
+      "status": "in_progress",
+      "name": "13 候选数量独立参数复核"
+    },
+    {
+      "run_id": 38726077348,
+      "created_at": "2026-10-15T11:15:46Z",
       "status": "in_progress",
       "name": "11 盘后选股策略统一研究"
     }
   ],
   "preserved_successful_runs": [
+    {
+      "run_id": 38753778253,
+      "created_at": "2026-10-15T14:42:25Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38753778182,
+      "created_at": "2026-10-15T14:42:25Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38753693322,
+      "created_at": "2026-10-15T14:41:51Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38753693303,
+      "created_at": "2026-10-15T14:41:51Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38753400441,
+      "created_at": "2026-10-15T14:39:52Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 38745272305,
+      "created_at": "2026-10-15T13:44:26Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38745125732,
+      "created_at": "2026-10-15T13:43:24Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38733516225,
+      "created_at": "2026-10-15T12:17:28Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38732312423,
+      "created_at": "2026-10-15T12:07:42Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38732127087,
+      "created_at": "2026-10-15T12:06:11Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38732127086,
+      "created_at": "2026-10-15T12:06:11Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38731916845,
+      "created_at": "2026-10-15T12:04:31Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38731916819,
+      "created_at": "2026-10-15T12:04:31Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38731782417,
+      "created_at": "2026-10-15T12:03:26Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38731680588,
+      "created_at": "2026-10-15T12:02:36Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 38731680468,
+      "created_at": "2026-10-15T12:02:36Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38726181286,
+      "created_at": "2026-10-15T11:16:39Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38726077338,
+      "created_at": "2026-10-15T11:15:46Z",
+      "name": "09 路径感知模型可执行复利复核"
+    },
+    {
+      "run_id": 38726077314,
+      "created_at": "2026-10-15T11:15:46Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38670806288,
+      "created_at": "2026-10-15T02:24:23Z",
+      "name": "维护历史 Action 记录"
+    },
     {
       "run_id": 38665160459,
       "created_at": "2026-10-15T01:21:00Z",
@@ -43,6 +157,11 @@
       "run_id": 38659933312,
       "created_at": "2026-10-15T00:25:22Z",
       "name": "09 路径感知模型可执行复利复核"
+    },
+    {
+      "run_id": 38659933257,
+      "created_at": "2026-10-15T00:25:22Z",
+      "name": "11 盘后选股策略统一研究"
     },
     {
       "run_id": 38659933195,
