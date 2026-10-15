@@ -1,50 +1,175 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 38758942314,
-  "completed_at": "2026-10-15T15:17:51Z",
-  "deleted_actions": [],
+  "cleanup_run_id": 38768215908,
+  "completed_at": "2026-10-15T16:21:58Z",
+  "deleted_actions": [
+    {
+      "run_id": 38768144640,
+      "created_at": "2026-10-15T16:20:20Z",
+      "conclusion": "cancelled",
+      "name": "维护历史 Action 记录",
+      "diagnostic": null
+    },
+    {
+      "run_id": 38767990996,
+      "created_at": "2026-10-15T16:19:15Z",
+      "conclusion": "failure",
+      "name": "07 可执行净收益研究",
+      "diagnostic": {
+        "run_id": 38767990996,
+        "captured_at": "2026-10-15T16:21:55Z",
+        "log_capture_status": "complete",
+        "jobs": [
+          {
+            "conclusion": "failure",
+            "html_url": "https://github.com/13415837267/Aquant-Public/actions/runs/38767990996/job/116536120180",
+            "id": 116536120180,
+            "name": "净收益目标训练与交易验证",
+            "status": "completed"
+          }
+        ],
+        "failure_excerpt": "净收益目标训练与交易验证\t云端质量门禁\t2026-10-15T16:20:43.3697472Z =================================== FAILURES ===================================\n净收益目标训练与交易验证\t云端质量门禁\t2026-10-15T16:20:43.3703911Z E       AttributeError: module 'scripts.path_aware_gbdt_compound_backtest' has no attribute '计算盈利因子'\n净收益目标训练与交易验证\t云端质量门禁\t2026-10-15T16:20:43.3704857Z tests/test_candidate_count_operating_point_research.py:105: AttributeError\n净收益目标训练与交易验证\t云端质量门禁\t2026-10-15T16:20:43.3707461Z FAILED tests/test_candidate_count_operating_point_research.py::test_profit_factor_uses_cost_adjusted_trade_returns_and_is_undefined_without_losses - AttributeError: module 'scripts.path_aware_gbdt_compound_backtest' has no attribute '计算盈利因子'\n净收益目标训练与交易验证\t云端质量门禁\t2026-10-15T16:20:43.3708709Z 1 failed, 151 passed in 7.44s\n净收益目标训练与交易验证\t云端质量门禁\t2026-10-15T16:20:43.6111624Z ##[error]Process completed with exit code 1.\n净收益目标训练与交易验证\t持久化训练断点\t2026-10-15T16:20:43.8448116Z [warning]Path Validation Error: Path(s) specified in the action for caching do(es) not exist, hence no cache is being saved."
+      }
+    }
+  ],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
   "preserved_other_deployments": [],
   "preserved_current_deployment": {
-    "deployment_id": 7096247028,
-    "sha": "0a45993cc1136e785298c4c002f985329b8907b6",
+    "deployment_id": 7097049817,
+    "sha": "7f1b7dfb13ea4a5c8f5d8f787a7f73185c06fa32",
     "ref": "main",
-    "created_at": "2026-10-15T15:03:02Z",
+    "created_at": "2026-10-15T15:35:20Z",
     "state": "success"
   },
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
+      "run_id": 38768334454,
+      "created_at": "2026-10-15T16:21:40Z",
+      "status": "queued",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38768215908,
+      "created_at": "2026-10-15T16:20:50Z",
+      "status": "in_progress",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38768209644,
+      "created_at": "2026-10-15T16:20:47Z",
+      "status": "in_progress",
+      "name": "13 候选数量独立参数复核"
+    },
+    {
+      "run_id": 38762362809,
+      "created_at": "2026-10-15T15:40:14Z",
+      "status": "pending",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38762248713,
+      "created_at": "2026-10-15T15:39:27Z",
+      "status": "waiting",
+      "name": "05 网页自动部署"
+    }
+  ],
+  "preserved_successful_runs": [
+    {
+      "run_id": 38768209773,
+      "created_at": "2026-10-15T16:20:47Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38768138441,
+      "created_at": "2026-10-15T16:20:17Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38762362606,
+      "created_at": "2026-10-15T15:40:14Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38762300356,
+      "created_at": "2026-10-15T15:39:49Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38762248929,
+      "created_at": "2026-10-15T15:39:27Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38762164562,
+      "created_at": "2026-10-15T15:38:51Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38762164527,
+      "created_at": "2026-10-15T15:38:51Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38761983834,
+      "created_at": "2026-10-15T15:37:35Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 38761698652,
+      "created_at": "2026-10-15T15:35:38Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38761447134,
+      "created_at": "2026-10-15T15:33:57Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38761446992,
+      "created_at": "2026-10-15T15:33:56Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38761371375,
+      "created_at": "2026-10-15T15:33:25Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38761371214,
+      "created_at": "2026-10-15T15:33:25Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38761179627,
+      "created_at": "2026-10-15T15:32:08Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 38759344379,
+      "created_at": "2026-10-15T15:19:46Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
       "run_id": 38759026238,
       "created_at": "2026-10-15T15:17:35Z",
-      "status": "pending",
       "name": "维护历史 Action 记录"
     },
     {
       "run_id": 38759025648,
       "created_at": "2026-10-15T15:17:34Z",
-      "status": "queued",
       "name": "05 网页自动部署"
     },
-    {
-      "run_id": 38758942314,
-      "created_at": "2026-10-15T15:17:01Z",
-      "status": "in_progress",
-      "name": "维护历史 Action 记录"
-    },
-    {
-      "run_id": 38726077348,
-      "created_at": "2026-10-15T11:15:46Z",
-      "status": "in_progress",
-      "name": "11 盘后选股策略统一研究"
-    }
-  ],
-  "preserved_successful_runs": [
     {
       "run_id": 38758942588,
       "created_at": "2026-10-15T15:17:01Z",
       "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38758942314,
+      "created_at": "2026-10-15T15:17:01Z",
+      "name": "维护历史 Action 记录"
     },
     {
       "run_id": 38758761949,
@@ -195,6 +320,11 @@
       "run_id": 38726181286,
       "created_at": "2026-10-15T11:16:39Z",
       "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38726077348,
+      "created_at": "2026-10-15T11:15:46Z",
+      "name": "11 盘后选股策略统一研究"
     },
     {
       "run_id": 38726077338,
@@ -1390,6 +1520,26 @@
       "run_id": 38282203706,
       "created_at": "2026-10-12T17:08:14Z",
       "name": "临时维护：停止旧并发组重复研究"
+    },
+    {
+      "run_id": 38274321297,
+      "created_at": "2026-10-12T16:00:20Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38273958981,
+      "created_at": "2026-10-12T15:57:23Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38273859423,
+      "created_at": "2026-10-12T15:56:30Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38273847579,
+      "created_at": "2026-10-12T15:56:24Z",
+      "name": "11 盘后选股策略统一研究"
     },
     {
       "run_id": 38274321297,
