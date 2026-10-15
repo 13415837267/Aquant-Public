@@ -27,6 +27,10 @@ from scripts.train_path_aware_gbdt import (
 
 DEFAULT_OUTPUT = ROOT / "data/backtest/candidate_count_operating_point_latest.json"
 TOP_K_VALUES = (1, 2)
+MINIMUM_PROFIT_FACTOR = float(core.配置.get("复利研究最低盈利因子", 1.2))
+COST_STRESS_MULTIPLIERS = tuple(
+    float(value) for value in core.配置.get("候选数量成本压力倍率", (1.5, 2.0))
+)
 
 
 def _finite_number(row: dict[str, Any], key: str) -> float | None:
@@ -54,7 +58,8 @@ def eligible_operating_point(
     annualized = _finite_number(row, "annualized_compound_return_pct")
     drawdown = _finite_number(row, "max_drawdown_pct")
     mean_trade = _finite_number(row, "mean_trade_net_return_pct")
-    values = (threshold, target, stop_loss, compound, annualized, drawdown, mean_trade)
+    profit_factor = _finite_number(row, "profit_factor")
+    values = (threshold, target, stop_loss, compound, annualized, drawdown, mean_trade, profit_factor)
     if any(value is None for value in values):
         return False
     if not 0.0 <= threshold <= 1.0 or target <= 0.0 or stop_loss <= 0.0:
@@ -64,6 +69,7 @@ def eligible_operating_point(
         and compound > 0.0
         and annualized > 0.0
         and mean_trade > 0.0
+        and profit_factor >= MINIMUM_PROFIT_FACTOR
         and drawdown >= max_drawdown_floor_pct
     )
 
@@ -90,19 +96,32 @@ def independently_select_parameters(
         sweep = core._exit_parameter_sweep(
             daily_candidates, diagnostics, dates, start_date, end_date, top_k
         )
-        selected = core.select_validation_exit_operating_point(
-            sweep,
-            minimum_trades=core.最低验证交易数,
-            max_drawdown_floor_pct=core.退出参数最大回撤门槛,
-        )
-        eligible_count = sum(
-            eligible_operating_point(
+        eligible_rows = [
+            row for row in sweep
+            if eligible_operating_point(
                 row,
                 minimum_trades=core.最低验证交易数,
                 max_drawdown_floor_pct=core.退出参数最大回撤门槛,
             )
-            for row in sweep
+        ]
+        eligible_count = len(eligible_rows)
+        selected = max(
+            eligible_rows,
+            key=lambda row: (
+                float(row["compound_return_pct"]),
+                float(row["annualized_compound_return_pct"]),
+                float(row["mean_trade_net_return_pct"]),
+                float(row["max_drawdown_pct"]),
+                int(row["completed_trades"]),
+            ),
+            default=None,
         )
+        if selected is not None:
+            selected = dict(selected)
+            selected["selection_status"] = (
+                f"仅由验证期选择；盈利因子不低于{MINIMUM_PROFIT_FACTOR:.2f}；"
+                "联合参数网格仍存在多重比较偏差"
+            )
         print(
             f"[候选数量独立选参] 每日最多{top_k}只："
             f"网格{len(sweep)}组，达门槛{eligible_count}组，"
@@ -166,6 +185,7 @@ def _metric_summary(row: dict[str, Any] | None) -> dict[str, Any] | None:
         "mean_trade_net_return_pct",
         "target_hit_rate_pct",
         "positive_trade_rate_pct",
+        "profit_factor",
         "exit_reason_counts",
     )
     return {key: row.get(key) for key in fields}
@@ -181,6 +201,8 @@ def _portfolio_summary(portfolio: dict[str, Any]) -> dict[str, Any]:
         "annualized_compound_return_pct": portfolio.get("annualized_compound_return_pct"),
         "max_drawdown_pct": portfolio.get("max_drawdown_pct"),
         "mean_trade_net_return_pct": portfolio.get("mean_trade_net_return_pct"),
+        "profit_factor": portfolio.get("profit_factor"),
+        "yearly_compound_return_pct": portfolio.get("yearly_compound_return_pct"),
         "target_hit_rate_pct": portfolio.get("target_hit_rate_pct"),
         "positive_trade_rate_pct": portfolio.get("positive_trade_rate_pct"),
         "skipped_for_capacity_or_cash": portfolio.get("skipped_for_capacity_or_cash"),
@@ -211,6 +233,7 @@ def _evaluate_final(
     final_signal_end: str,
     top_k: int,
     parameters: dict[str, Any],
+    round_trip_cost_bps: float | None = None,
 ) -> dict[str, Any]:
     return core._run_threshold_portfolio(
         final_candidates,
@@ -221,6 +244,7 @@ def _evaluate_final(
         top_k,
         target_net_pct=float(parameters["net_target_pct"]),
         stop_loss_pct=float(parameters["stop_loss_pct"]),
+        round_trip_cost_bps=round_trip_cost_bps,
     )
 
 
@@ -294,6 +318,7 @@ def run_research() -> dict[str, Any]:
                     "status": "not_evaluated_no_eligible_validation_operating_point"
                 },
                 "neighbor_sensitivity": [],
+                "cost_stress_sensitivity": [],
             }
             continue
 
@@ -301,6 +326,32 @@ def run_research() -> dict[str, Any]:
         final_portfolio = _evaluate_final(
             final_candidates, dates, final_signal_end, top_k, selected
         )
+        cost_stress_rows = []
+        if any(not math.isfinite(multiplier) or multiplier <= 1.0 for multiplier in COST_STRESS_MULTIPLIERS):
+            raise RuntimeError("成本压力倍率必须是有限且大于1的数值")
+        if len(set(COST_STRESS_MULTIPLIERS)) != len(COST_STRESS_MULTIPLIERS):
+            raise RuntimeError("成本压力倍率不得重复")
+        for multiplier in COST_STRESS_MULTIPLIERS:
+            stressed_cost_bps = round(core.往返交易成本基点 * multiplier, 4)
+            stressed_portfolio = _evaluate_final(
+                final_candidates,
+                dates,
+                final_signal_end,
+                top_k,
+                selected,
+                round_trip_cost_bps=stressed_cost_bps,
+            )
+            stressed_summary = _portfolio_summary(stressed_portfolio)
+            stressed_summary["cost_multiplier"] = multiplier
+            stressed_summary["round_trip_cost_bps"] = stressed_cost_bps
+            stressed_summary["passes_stress_gate"] = (
+                int(stressed_summary.get("completed_trades") or 0) > 0
+                and (stressed_summary.get("compound_return_pct") or 0.0) > 0.0
+                and (stressed_summary.get("mean_trade_net_return_pct") or 0.0) > 0.0
+                and (stressed_summary.get("profit_factor") or 0.0) >= MINIMUM_PROFIT_FACTOR
+                and (stressed_summary.get("max_drawdown_pct") or -100.0) >= core.退出参数最大回撤门槛
+            )
+            cost_stress_rows.append(stressed_summary)
         neighbor_rows = []
         neighbor_points = adjacent_operating_points(
             selected, core.阈值网格, core.止盈目标网格, core.止损幅度网格
@@ -327,6 +378,24 @@ def run_research() -> dict[str, Any]:
             "selection_rule": "交易数、正复利、正年化复利、正平均单笔净收益和最大回撤均达标后，按验证期复利优先排序",
             "validation_selected_point": _metric_summary(validation_row),
             "final_supplemental": _portfolio_summary(final_portfolio),
+            "cost_stress_sensitivity": cost_stress_rows,
+            "strict_validation_gate": {
+                "minimum_profit_factor": MINIMUM_PROFIT_FACTOR,
+                "validation_profit_factor": validation_row.get("profit_factor") if validation_row else None,
+                "validation_profit_factor_passed": bool(
+                    validation_row
+                    and _finite_number(validation_row, "profit_factor") is not None
+                    and float(validation_row["profit_factor"]) >= MINIMUM_PROFIT_FACTOR
+                ),
+                "final_supplemental_profit_factor": final_portfolio.get("profit_factor"),
+                "final_supplemental_profit_factor_passed": bool(
+                    final_portfolio.get("profit_factor") is not None
+                    and float(final_portfolio["profit_factor"]) >= MINIMUM_PROFIT_FACTOR
+                ),
+                "all_cost_stress_cases_passed": bool(cost_stress_rows) and all(
+                    row["passes_stress_gate"] for row in cost_stress_rows
+                ),
+            },
             "neighbor_sensitivity": neighbor_rows,
             "parameter_selection_status": selected.get("selection_status"),
         }
@@ -378,6 +447,9 @@ def run_research() -> dict[str, Any]:
             "final_supplemental_used_for_parameter_selection": False,
             "final_supplemental_is_fresh_unseen_holdout": False,
             "neighbor_sensitivity_reported": True,
+            "validation_selection_profit_factor_floor": MINIMUM_PROFIT_FACTOR,
+            "cost_stress_multipliers": list(COST_STRESS_MULTIPLIERS),
+            "historical_cost_stress_is_not_forward_validation": True,
             "formal_production_changed": False,
             "automatic_ordering": False,
         },

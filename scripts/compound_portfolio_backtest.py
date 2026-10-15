@@ -38,6 +38,16 @@ RESEARCH_CONFIG = load_research_config()
 目标本金倍数 = 1.0 + 目标累计收益百分比 / 100.0
 
 
+def 计算盈利因子(单笔收益: np.ndarray | list[float]) -> float | None:
+    """以成本后的盈利交易总额除以亏损交易绝对总额；无亏损时返回未定义值。"""
+    values = np.asarray(单笔收益, dtype=np.float64)
+    if values.ndim != 1 or not np.isfinite(values).all():
+        raise ValueError("计算盈利因子需要有限的一维单笔净收益")
+    gross_profit = float(values[values > 0].sum())
+    gross_loss = float(-values[values < 0].sum())
+    return gross_profit / gross_loss if gross_loss > 0 else None
+
+
 def 解析模型(结果: dict) -> NonlinearModel:
     """从研究结果恢复已训练的网络权重，不重新训练或选择参数。"""
     模型参数 = 结果["model"]
@@ -372,6 +382,7 @@ def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目�
     日波动 = float(np.std(日收益数组, ddof=1)) if len(日收益数组) > 1 else 0.0
     夏普 = float(np.mean(日收益数组) / 日波动 * math.sqrt(252.0)) if 日波动 > 0 else None
     单笔收益 = np.asarray([r["net_return_pct"] for r in 完成交易], dtype=np.float64)
+    盈利因子 = 计算盈利因子(单笔收益)
     几何均值 = None
     if len(单笔收益):
         if np.all(单笔收益 > -100.0):
@@ -414,6 +425,7 @@ def 运行组合(每日候选: dict, 全部日期: list[str], 模式: str, 目�
         "target_hit_rate_pct": round(止盈数 / len(完成交易) * 100.0, 4) if 完成交易 else None,
         "positive_trade_rate_pct": round(正收益数 / len(完成交易) * 100.0, 4) if 完成交易 else None,
         "mean_trade_net_return_pct": round(float(单笔收益.mean()), 4) if len(单笔收益) else None,
+        "profit_factor": round(float(盈利因子), 4) if 盈利因子 is not None else None,
         "geometric_mean_trade_return_pct": round(float(几何均值), 4) if 几何均值 is not None else None,
         "exit_reason_counts": {reason: sum(1 for r in 完成交易 if r["exit_reason"] == reason) for reason in ("止盈", "止损", "到期")},
         "yearly_compound_return_pct": 年度收益,

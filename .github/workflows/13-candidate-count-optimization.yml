@@ -18,6 +18,7 @@ on:
       - "tests/test_candidate_count_operating_point_research.py"
       - "docs/每日候选数量对照研究.md"
       - "scripts/path_aware_gbdt_compound_backtest.py"
+      - "scripts/compound_portfolio_backtest.py"
       - "scripts/train_path_aware_gbdt.py"
       - "scripts/compound_portfolio_backtest.py"
       - "config/选股条件研究配置.json"
@@ -95,9 +96,11 @@ jobs:
               print()
               print(f"### 每日最多{top_k}只")
               print("状态：", study.get("status"))
-              print("达标参数组合数：", study.get("eligible_parameter_count"))
+              print("达标参数组合数（含盈利因子门槛）：", study.get("eligible_parameter_count"))
               print("验证期选中参数：", json.dumps(study.get("validation_selected_point"), ensure_ascii=False))
               print("历史补充结果：", json.dumps(study.get("final_supplemental"), ensure_ascii=False))
+              print("盈利因子与压力测试门槛：", json.dumps(study.get("strict_validation_gate"), ensure_ascii=False))
+              print("成本压力情景：", json.dumps(study.get("cost_stress_sensitivity", []), ensure_ascii=False))
               print("相邻参数敏感性组合数：", len(study.get("neighbor_sensitivity", [])))
           print()
           print("该研究不修改正式策略或自动下单状态；历史补充期不是全新独立留出集。")

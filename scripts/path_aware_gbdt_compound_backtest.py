@@ -306,10 +306,14 @@ def _run_threshold_portfolio(
     top_k: int,
     target_net_pct: float | None = None,
     stop_loss_pct: float | None = None,
+    round_trip_cost_bps: float | None = None,
 ) -> dict:
     """按冻结参数过滤缓存候选，并按完整研究窗口计算收益与风险。"""
     target_net = 目标净收益百分比 if target_net_pct is None else float(target_net_pct)
     stop_loss = 止损幅度百分比 if stop_loss_pct is None else float(stop_loss_pct)
+    cost_bps = 往返交易成本基点 if round_trip_cost_bps is None else float(round_trip_cost_bps)
+    if not math.isfinite(cost_bps) or cost_bps < 0.0:
+        raise ValueError("往返交易成本必须是有限的非负数")
     filtered_candidates = {
         signal_date: [
             candidate for candidate in candidates
@@ -327,7 +331,7 @@ def _run_threshold_portfolio(
         "每日排名",
         target_net,
         stop_loss,
-        往返交易成本基点,
+        cost_bps,
         top_k=top_k,
         窗口起始日期=start_date,
         窗口结束日期=dates[end_index],
@@ -344,7 +348,7 @@ def _run_threshold_portfolio(
         "maximum_holding_sessions": MAX_FORWARD_SESSIONS,
         "net_target_pct": target_net,
         "stop_loss_pct": stop_loss,
-        "round_trip_cost_bps": 往返交易成本基点,
+        "round_trip_cost_bps": cost_bps,
         "annualization_includes_full_signal_window": True,
     }
     return portfolio
@@ -470,6 +474,7 @@ def _exit_parameter_sweep(
                     "annualized_compound_return_pct": portfolio.get("annualized_compound_return_pct"),
                     "max_drawdown_pct": portfolio.get("max_drawdown_pct"),
                     "mean_trade_net_return_pct": portfolio.get("mean_trade_net_return_pct"),
+                    "profit_factor": portfolio.get("profit_factor"),
                     "target_hit_rate_pct": portfolio.get("target_hit_rate_pct"),
                     "positive_trade_rate_pct": portfolio.get("positive_trade_rate_pct"),
                     "exit_reason_counts": portfolio.get("exit_reason_counts", {}),
