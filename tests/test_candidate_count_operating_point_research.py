@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import scripts.candidate_count_operating_point_research as research
+import scripts.compound_portfolio_backtest as portfolio_core
 
 
 def _row(top_k: int, threshold: float, target: float, stop: float, compound: float) -> dict:
@@ -102,10 +103,10 @@ def test_adjacent_parameter_grid_rejects_parameters_outside_declared_grid():
 
 
 def test_profit_factor_uses_cost_adjusted_trade_returns_and_is_undefined_without_losses():
-    assert research.core.计算盈利因子([1.0, 0.5, -1.0, -0.5]) == 1.0
-    assert research.core.计算盈利因子([1.0, 0.5]) is None
+    assert portfolio_core.计算盈利因子([1.0, 0.5, -1.0, -0.5]) == 1.0
+    assert portfolio_core.计算盈利因子([1.0, 0.5]) is None
     try:
-        research.core.计算盈利因子([1.0, float("nan")])
+        portfolio_core.计算盈利因子([1.0, float("nan")])
     except ValueError as exc:
         assert "有限的一维单笔净收益" in str(exc)
     else:
