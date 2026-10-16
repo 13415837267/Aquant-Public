@@ -99,8 +99,6 @@ jobs:
 
               checked_at = datetime.fromisoformat(status["checked_at"])
               checked_date = checked_at.astimezone(tz).date().isoformat()
-              if checked_date != today:
-                  reasons.append(f"交易日状态不是今日检查结果：状态日期={checked_date}，当前日期={today}。")
 
               history_dates = set()
               for path in (root / "data/history").glob("*/*.csv.gz"):
@@ -123,6 +121,28 @@ jobs:
                       reasons.append(
                           f"计划执行日={execution_date} 已到或已过当前日期={today}，不部署已过期模拟计划。"
                       )
+
+              if checked_date != today:
+                  current_date = date.fromisoformat(today)
+                  status_date = date.fromisoformat(checked_date)
+                  status_age_days = (current_date - status_date).days
+                  reusable_weekend_snapshot = (
+                      current_date.weekday() >= 5
+                      and 0 <= status_age_days <= 2
+                      and candidate_date == latest_history_date
+                      and bool(plan_execution_date)
+                      and plan_execution_date > today
+                  )
+                  if reusable_weekend_snapshot:
+                      print(
+                          f"周末沿用最近完整交易日状态：状态日期={checked_date}，"
+                          f"候选与最新行情日期={latest_history_date}，计划执行日={plan_execution_date}。"
+                      )
+                  else:
+                      reasons.append(
+                          f"交易日状态不是今日检查结果：状态日期={checked_date}，当前日期={today}。"
+                      )
+
               manifest_version = manifest.get("system_version")
               manifest_strategy = manifest.get("strategy_version")
               manifest_commit = manifest.get("strategy_commit")
