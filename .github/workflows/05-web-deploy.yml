@@ -42,7 +42,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: "网页部署-main-auto"
+  group: "网页部署-main"
   cancel-in-progress: true
 
 jobs:
@@ -247,10 +247,9 @@ jobs:
       PAGES_DEPLOY_POLL_SECONDS: "5"
       PAGES_DEPLOY_TIMEOUT_SECONDS: "600"
       PAGES_DEPLOY_MAX_ERRORS: "10"
-      PAGES_DEPLOY_ENVIRONMENT: "aquant-pages-auto"
+      PAGES_DEPLOY_ENVIRONMENT: "github-pages"
     environment:
-      # 使用独立的自动发布环境，避免 github-pages 环境的审批保护规则将每日自动更新永久挂起。
-      name: aquant-pages-auto
+      name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: "通过GitHub Pages官方接口部署并核验状态"
