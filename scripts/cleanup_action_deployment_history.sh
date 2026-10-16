@@ -137,7 +137,7 @@ fi
 
 # 取消完成后重新读取状态；仅删除已结束的失败、跳过、取消记录。
 if ! runs_tsv="$(gh_api_read_with_retry --paginate "repos/$REPOSITORY/actions/runs?per_page=100" --jq '.workflow_runs[] | [.id, .created_at, .status, (.conclusion // "-"), (.name // ""), (.workflow_id // 0), (.head_sha // "")] | @tsv')"; then
-  echo "读取历史工作流运行失败。"
+  echo "读取历史工作流运行失败；停止清理，保留现有记录。"
   exit 1
 fi
 
@@ -147,8 +147,24 @@ if ! successful_runs_tsv="$(gh_api_read_with_retry --paginate "repos/$REPOSITORY
   exit 1
 fi
 
-while IFS=
-  [[ -n "\${run_id:-}" ]] || continue
+find_successful_repair_id() {
+  local target_workflow_id="$1"
+  local target_created_at="$2"
+  local target_head_sha="$3"
+  local success_workflow_id success_created_at success_head_sha success_run_id
+
+  while IFS=$'\t' read -r success_workflow_id success_created_at success_head_sha success_run_id; do
+    [[ -n "${success_workflow_id:-}" ]] || continue
+    if [[ "$success_workflow_id" == "$target_workflow_id" && "$success_created_at" > "$target_created_at" && "$success_head_sha" != "$target_head_sha" ]]; then
+      printf '%s\n' "$success_run_id"
+      return 0
+    fi
+  done <<< "$successful_runs_tsv"
+  return 1
+}
+
+while IFS=$'\t' read -r run_id created_at status conclusion run_name workflow_id head_sha; do
+  [[ -n "${run_id:-}" ]] || continue
 
   if [[ "$status" != "completed" ]]; then
     preserved_active="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg status "$status" --arg name "$run_name" '. + [{run_id:($id|tonumber), created_at:$created, status:$status, name:$name}]' <<< "$preserved_active")"
@@ -156,17 +172,22 @@ while IFS=
     continue
   fi
 
-  if [[ "$conclusion" == "failure" || "$conclusion" == "skipped" || "$conclusion" == "cancelled" ]]; then
-    has_successful_repair=false
-    repair_run_id=""
-    # GitHub 时间戳使用 UTC ISO 8601，可按字典序比较。
-    while IFS=
+  if [[ "$conclusion" != "failure" && "$conclusion" != "skipped" && "$conclusion" != "cancelled" ]]; then
     if [[ "$conclusion" == "success" ]]; then
       preserved_successful="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg name "$run_name" '. + [{run_id:($id|tonumber), created_at:$created, name:$name}]' <<< "$preserved_successful")"
     else
       preserved_other_completed="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg conclusion "$conclusion" --arg name "$run_name" '. + [{run_id:($id|tonumber), created_at:$created, conclusion:$conclusion, name:$name}]' <<< "$preserved_other_completed")"
     fi
-    echo "保留非清理目标运行：$run_id（\${conclusion:-无结论}）"
+    echo "保留非清理目标运行：$run_id（${conclusion:-无结论}）"
+    continue
+  fi
+
+  repair_run_id=""
+  if repair_run_id="$(find_successful_repair_id "$workflow_id" "$created_at" "$head_sha")"; then
+    echo "核验到同工作流后续成功修复运行 $repair_run_id；允许清理旧记录：$run_id"
+  else
+    preserved_unresolved="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg conclusion "$conclusion" --arg name "$run_name" --arg workflow_id "$workflow_id" --arg head_sha "$head_sha" '. + [{run_id:($id|tonumber), created_at:$created, conclusion:$conclusion, name:$name, workflow_id:($workflow_id|tonumber), head_sha:$head_sha, reason:"同一工作流在后续不同提交上尚无成功运行；保留原始记录"}]' <<< "$preserved_unresolved")"
+    echo "保留未成功运行：$run_id $run_name（尚无同工作流后续修复成功记录）"
     continue
   fi
 
@@ -180,7 +201,7 @@ while IFS=
     deleted_actions="$(jq -c --arg id "$run_id" --arg created "$created_at" --arg conclusion "$conclusion" --arg name "$run_name" --argjson diagnostic "$run_diagnostic" '. + [{run_id:($id|tonumber), created_at:$created, conclusion:$conclusion, name:$name, diagnostic:$diagnostic}]' <<< "$deleted_actions")"
     echo "已清理历史运行：$run_id $run_name（$conclusion）"
   else
-    cleanup_errors="$(jq -c --arg kind "action_run" --arg id "$run_id" --arg conclusion "$conclusion" '. + [{kind:$kind, id:$id, conclusion:$conclusion}]' <<< "$cleanup_errors")"
+    cleanup_errors="$(jq -c --arg kind "action_run" --arg id "$run_id" --arg conclusion "$conclusion" '. + [{kind:$kind, id:($id|tonumber), conclusion:$conclusion}]' <<< "$cleanup_errors")"
     echo "清理历史运行失败：$run_id"
   fi
 done <<< "$runs_tsv"

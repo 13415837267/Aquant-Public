@@ -56,9 +56,9 @@ def test_cleanup_keeps_unresolved_failure_until_later_same_workflow_repair_succe
     cleanup_workflow = (WORKFLOWS / "cleanup-action-deployment-history.yml").read_text(encoding="utf-8")
 
     assert "successful_runs_tsv=" in script
-    assert '[[ "$success_workflow_id" == "$workflow_id"' in script
-    assert '"$success_created_at" > "$created_at"' in script
-    assert '"$success_head_sha" != "$head_sha"' in script
+    assert '[[ "$success_workflow_id" == "$target_workflow_id"' in script
+    assert '"$success_created_at" > "$target_created_at"' in script
+    assert '"$success_head_sha" != "$target_head_sha"' in script
     assert "preserved_unresolved_runs" in script
     assert "12 私有策略实际交易回放" in cleanup_workflow
 
@@ -69,3 +69,10 @@ def test_private_strategy_replay_normalizes_test_fixture_without_ignoring_warnin
     assert "规范化两个策略测试夹具的市场广度浮点类型" in replay_workflow
     assert '"market_breadth_pct": 65.0,' in replay_workflow
     assert "python -m pytest -q tests" in replay_workflow
+
+
+def test_cleanup_loop_preserves_failed_runs_without_verified_repair():
+    script = (ROOT / "scripts" / "cleanup_action_deployment_history.sh").read_text(encoding="utf-8")
+    assert "find_successful_repair_id()" in script
+    assert "while IFS=$'\\t' read -r run_id created_at status conclusion run_name workflow_id head_sha; do" in script
+    assert "preserved_unresolved_runs" in script

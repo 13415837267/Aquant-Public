@@ -52,3 +52,14 @@ def test_candidate_is_rejected_if_any_cost_case_or_period_fails():
     assert not result["all_quality_gates_passed"]
     assert not result["strict_improvement_over_baseline"]
     assert result["decision"] == "拒绝本次策略改动"
+
+
+def test_replay_cost_scenarios_include_base_and_stress_costs():
+    from scripts.private_strategy_replay_backtest import BASE_COST_BPS, COST_MULTIPLIERS
+
+    assert 1.0 in COST_MULTIPLIERS
+    assert tuple(sorted(set(COST_MULTIPLIERS))) == COST_MULTIPLIERS
+    cost_levels = {round(BASE_COST_BPS * multiplier, 6) for multiplier in COST_MULTIPLIERS}
+    assert BASE_COST_BPS in cost_levels
+    assert BASE_COST_BPS * 1.5 in cost_levels
+    assert BASE_COST_BPS * 2.0 in cost_levels

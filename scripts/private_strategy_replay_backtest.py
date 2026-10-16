@@ -41,7 +41,7 @@ MIN_PROFIT_FACTOR = 1.2
 MAX_DRAWDOWN_FLOOR_PCT = -15.0
 ROOT_CONFIG = load_research_config()
 BASE_COST_BPS = float(ROOT_CONFIG["往返交易成本基点"])
-COST_MULTIPLIERS = tuple(float(x) for x in ROOT_CONFIG["候选数量成本压力倍率"])
+COST_MULTIPLIERS = tuple(sorted({1.0, *[float(x) for x in ROOT_CONFIG["候选数量成本压力倍率"]]}))
 MAX_HOLD = int(ROOT_CONFIG["最大前瞻交易日数"])
 
 
