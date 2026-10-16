@@ -315,6 +315,238 @@ def _evaluate_final(
     )
 
 
+def filter_candidates_by_market_breadth(
+    daily_candidates: dict[str, list[dict]],
+    diagnostics: dict[str, Any],
+    minimum_breadth_pct: float | None,
+) -> dict[str, list[dict]]:
+    """按T日收盘已知的市场上涨广度过滤整日候选，不使用未来价格。"""
+    if minimum_breadth_pct is not None:
+        floor = float(minimum_breadth_pct)
+        if not math.isfinite(floor) or not 0.0 <= floor <= 100.0:
+            raise ValueError("市场广度门槛必须是0至100之间的有限百分比")
+    else:
+        floor = None
+
+    contexts = diagnostics.get("market_breadth_pct_by_signal_date")
+    if not isinstance(contexts, dict):
+        raise ValueError("候选诊断缺少按信号日保存的市场广度")
+    filtered: dict[str, list[dict]] = {}
+    for signal_date, candidates in daily_candidates.items():
+        if signal_date not in contexts:
+            raise ValueError(f"候选信号日缺少市场广度：{signal_date}")
+        breadth = float(contexts[signal_date])
+        if not math.isfinite(breadth) or not 0.0 <= breadth <= 100.0:
+            raise ValueError(f"信号日市场广度无效：{signal_date}={breadth}")
+        filtered[signal_date] = (
+            list(candidates) if floor is None or breadth >= floor else []
+        )
+    return filtered
+
+
+def select_market_breadth_floor(
+    validation_grid: list[dict[str, Any]],
+    minimum_trades: int,
+    max_drawdown_floor_pct: float,
+) -> dict[str, Any]:
+    """只按验证期选市场广度门槛；所有成本场景必须同时达标。"""
+    required_multipliers = tuple(sorted((1.0, *COST_STRESS_MULTIPLIERS)))
+    eligible = []
+    for item in validation_grid:
+        by_multiplier = {
+            round(float(row["cost_multiplier"]), 6): row
+            for row in item.get("validation_by_cost", [])
+        }
+        if any(round(multiplier, 6) not in by_multiplier for multiplier in required_multipliers):
+            continue
+        if all(
+            eligible_operating_point(
+                by_multiplier[round(multiplier, 6)],
+                minimum_trades=minimum_trades,
+                max_drawdown_floor_pct=max_drawdown_floor_pct,
+            )
+            for multiplier in required_multipliers
+        ):
+            eligible.append(item)
+
+    def score(item: dict[str, Any]) -> tuple[float, ...]:
+        by_multiplier = {
+            round(float(row["cost_multiplier"]), 6): row
+            for row in item["validation_by_cost"]
+        }
+        ordered = sorted(required_multipliers, reverse=True)
+        compounds = tuple(float(by_multiplier[round(multiplier, 6)]["compound_return_pct"]) for multiplier in ordered)
+        highest_cost = by_multiplier[round(max(required_multipliers), 6)]
+        minimum_profit_factor = min(
+            float(by_multiplier[round(multiplier, 6)]["profit_factor"])
+            for multiplier in required_multipliers
+        )
+        base_trades = int(by_multiplier[1.0]["completed_trades"])
+        return (
+            *compounds,
+            float(highest_cost["max_drawdown_pct"]),
+            minimum_profit_factor,
+            base_trades,
+        )
+
+    selected = max(eligible, key=score, default=None)
+    return {
+        "eligible_market_breadth_floor_count": len(eligible),
+        "eligible_market_breadth_floors_pct": [
+            item.get("market_breadth_floor_pct") for item in eligible
+        ],
+        "selected": selected,
+        "selection_rule": (
+            "基准、1.5倍和2倍成本均须满足最低交易数、正复利、正年化复利、"
+            "正平均单笔净收益、盈利因子不低于配置门槛及回撤约束；"
+            "合格后按最高成本复利、其余成本复利、最高成本回撤排序"
+        ),
+    }
+
+
+def run_market_breadth_filter_study(
+    validation_candidates: dict[str, list[dict]],
+    validation_diagnostics: dict[str, Any],
+    final_candidates: dict[str, list[dict]],
+    final_diagnostics: dict[str, Any],
+    dates: list[str],
+    validation_end: str,
+    final_signal_end: str,
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    """固定Top2与已冻结退出参数，只检验市场广度整日准入门槛。"""
+    configured_floors = sorted(set(float(value) for value in core.配置["市场广度阈值"]))
+    if not configured_floors or any(
+        not math.isfinite(value) or not 0.0 <= value <= 100.0 for value in configured_floors
+    ):
+        raise RuntimeError("市场广度阈值配置必须是0至100之间的有限百分比")
+    floors: list[float | None] = [None, *configured_floors]
+    cost_multipliers = tuple(sorted((1.0, *COST_STRESS_MULTIPLIERS)))
+
+    def evaluate(
+        candidates: dict[str, list[dict]],
+        diagnostics: dict[str, Any],
+        start: str,
+        end: str,
+        floor: float | None,
+        multiplier: float,
+    ) -> dict[str, Any]:
+        filtered = filter_candidates_by_market_breadth(candidates, diagnostics, floor)
+        cost_bps = round(core.往返交易成本基点 * multiplier, 4)
+        portfolio = core._run_threshold_portfolio(
+            filtered,
+            dates,
+            start,
+            end,
+            float(parameters["probability_threshold"]),
+            2,
+            target_net_pct=float(parameters["net_target_pct"]),
+            stop_loss_pct=float(parameters["stop_loss_pct"]),
+            round_trip_cost_bps=cost_bps,
+        )
+        summary = _portfolio_summary(portfolio)
+        summary["market_breadth_floor_pct"] = floor
+        summary["cost_multiplier"] = multiplier
+        summary["round_trip_cost_bps"] = cost_bps
+        summary["passes_cost_gate"] = eligible_operating_point(
+            {
+                **summary,
+                "probability_threshold": float(parameters["probability_threshold"]),
+                "net_target_pct": float(parameters["net_target_pct"]),
+                "stop_loss_pct": float(parameters["stop_loss_pct"]),
+            },
+            minimum_trades=core.最低验证交易数,
+            max_drawdown_floor_pct=core.退出参数最大回撤门槛,
+        )
+        return summary
+
+    grid = []
+    for floor in floors:
+        rows = [
+            evaluate(
+                validation_candidates,
+                validation_diagnostics,
+                VALIDATION_START,
+                validation_end,
+                floor,
+                multiplier,
+            )
+            for multiplier in cost_multipliers
+        ]
+        grid.append({
+            "market_breadth_floor_pct": floor,
+            "validation_by_cost": rows,
+            "all_costs_passed": all(row["passes_cost_gate"] for row in rows),
+        })
+        print(
+            f"[市场广度过滤] 门槛={'不启用' if floor is None else f'{floor:.1f}%'}；"
+            f"基准/压力成本合格={sum(row['passes_cost_gate'] for row in rows)}/{len(rows)}",
+            flush=True,
+        )
+
+    selection = select_market_breadth_floor(
+        grid,
+        minimum_trades=core.最低验证交易数,
+        max_drawdown_floor_pct=core.退出参数最大回撤门槛,
+    )
+    selected = selection["selected"]
+    selected_floor = selected.get("market_breadth_floor_pct") if selected else None
+
+    # 补充期只评估已由验证期冻结的门槛，并与无过滤基准对照；不参与选择。
+    final_floors: list[float | None] = [None]
+    if selected is not None and selected_floor is not None:
+        final_floors.append(float(selected_floor))
+    final_comparison = []
+    for floor in final_floors:
+        rows = [
+            evaluate(
+                final_candidates,
+                final_diagnostics,
+                FINAL_START,
+                final_signal_end,
+                floor,
+                multiplier,
+            )
+            for multiplier in cost_multipliers
+        ]
+        final_comparison.append({
+            "market_breadth_floor_pct": floor,
+            "role": "无过滤基准" if floor is None else "验证期冻结的市场广度过滤",
+            "final_supplemental_by_cost": rows,
+        })
+
+    return {
+        "status": (
+            "no_eligible_validation_setting" if selected is None
+            else "validation_selected_no_filter" if selected_floor is None
+            else "validation_selected_market_breadth_filter"
+        ),
+        "fixed_parameters": {
+            "top_k_per_signal_day": 2,
+            "probability_threshold": float(parameters["probability_threshold"]),
+            "net_target_pct": float(parameters["net_target_pct"]),
+            "stop_loss_pct": float(parameters["stop_loss_pct"]),
+        },
+        "validation_signal_window": [VALIDATION_START, validation_end],
+        "final_supplemental_signal_window": [FINAL_START, final_signal_end],
+        "configured_market_breadth_floors_pct": configured_floors,
+        "cost_multipliers": list(cost_multipliers),
+        "validation_gate_grid": grid,
+        "selection": selection,
+        "selected_market_breadth_floor_pct": selected_floor if selected is not None else None,
+        "final_supplemental_comparison": final_comparison,
+        "audit": {
+            "market_breadth_uses_T_day_close_only": True,
+            "candidate_rank_and_exit_parameters_frozen_before_market_gate_experiment": True,
+            "market_gate_selected_on_validation_only": True,
+            "final_supplemental_used_for_selection": False,
+            "final_supplemental_is_fresh_unseen_holdout": False,
+            "automatic_ordering": False,
+            "formal_production_changed": False,
+        },
+    }
+
+
 def run_research() -> dict[str, Any]:
     started = time.time()
     if not COST_STRESS_MULTIPLIERS or any(
@@ -411,6 +643,23 @@ def run_research() -> dict[str, Any]:
         print("[步骤4/5] 生成历史补充期排名缓存；不使用补充期选择参数", flush=True)
         final_candidates, final_diagnostics = core._collect_ranked_candidates(
             files, dates, model, FINAL_START, final_signal_end, max(TOP_K_VALUES)
+        )
+
+    market_breadth_study: dict[str, Any] = {
+        "status": "not_evaluated_no_cost_robust_top2_parameters",
+        "audit": {"formal_production_changed": False, "automatic_ordering": False},
+    }
+    frozen_top2 = robust_studies.get(2, {}).get("selected_parameters")
+    if frozen_top2 is not None:
+        market_breadth_study = run_market_breadth_filter_study(
+            validation_candidates,
+            validation_diagnostics,
+            final_candidates,
+            final_diagnostics,
+            dates,
+            validation_safe_end,
+            final_signal_end,
+            frozen_top2,
         )
 
     outcomes: dict[str, Any] = {}
@@ -608,6 +857,7 @@ def run_research() -> dict[str, Any]:
             "candidate_ranking_and_execution_filter_shared": True,
         },
         "candidate_count_studies": outcomes,
+        "market_breadth_filter_study": market_breadth_study,
         "audit": {
             "top1_and_top2_parameters_selected_independently": True,
             "only_validation_period_used_for_parameter_selection": True,
@@ -657,6 +907,7 @@ def main() -> None:
             }
             for key, value in result["candidate_count_studies"].items()
         },
+        "market_breadth_filter_study": result.get("market_breadth_filter_study"),
     }
     print(json.dumps(compact, ensure_ascii=False), flush=True)
 

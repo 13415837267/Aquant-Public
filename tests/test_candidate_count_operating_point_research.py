@@ -97,6 +97,80 @@ def test_cost_robust_selection_returns_no_point_when_high_cost_gate_fails():
     assert result["validation_by_cost"] == {}
 
 
+def test_market_breadth_filter_keeps_only_days_above_frozen_floor():
+    daily = {
+        "2026-01-02": [{"symbol": "000001"}],
+        "2026-01-05": [{"symbol": "000002"}],
+        "2026-01-06": [],
+    }
+    diagnostics = {
+        "market_breadth_pct_by_signal_date": {
+            "2026-01-02": 65.0,
+            "2026-01-05": 39.9,
+            "2026-01-06": 55.0,
+        }
+    }
+    filtered = research.filter_candidates_by_market_breadth(daily, diagnostics, 40.0)
+    assert filtered["2026-01-02"] == daily["2026-01-02"]
+    assert filtered["2026-01-05"] == []
+    assert filtered["2026-01-06"] == []
+    assert research.filter_candidates_by_market_breadth(daily, diagnostics, None) == daily
+
+
+def test_market_breadth_filter_rejects_missing_or_invalid_context():
+    with __import__("pytest").raises(ValueError, match="缺少市场广度"):
+        research.filter_candidates_by_market_breadth(
+            {"2026-01-02": []},
+            {"market_breadth_pct_by_signal_date": {}},
+            40.0,
+        )
+    with __import__("pytest").raises(ValueError, match="必须是0至100"):
+        research.filter_candidates_by_market_breadth(
+            {"2026-01-02": []},
+            {"market_breadth_pct_by_signal_date": {"2026-01-02": 40.0}},
+            101.0,
+        )
+    with __import__("pytest").raises(ValueError, match="无效"):
+        research.filter_candidates_by_market_breadth(
+            {"2026-01-02": []},
+            {"market_breadth_pct_by_signal_date": {"2026-01-02": float("nan")}},
+            40.0,
+        )
+
+
+def test_market_breadth_floor_selection_requires_all_costs_and_prefers_high_cost_return():
+    def gate(floor, returns, profit_factors=None):
+        profit_factors = profit_factors or [1.4, 1.3, 1.25]
+        multipliers = [1.0, 1.5, 2.0]
+        rows = []
+        for multiplier, compound, pf in zip(multipliers, returns, profit_factors):
+            row = _row(2, 0.65, 10.0, 2.5, compound)
+            row.update({
+                "cost_multiplier": multiplier,
+                "round_trip_cost_bps": 10.0 * multiplier,
+                "profit_factor": pf,
+                "max_drawdown_pct": -8.0,
+                "mean_trade_net_return_pct": 0.2,
+            })
+            rows.append(row)
+        return {"market_breadth_floor_pct": floor, "validation_by_cost": rows}
+
+    baseline = gate(None, [10.0, 7.0, 5.0])
+    breadth_45 = gate(45.0, [9.0, 8.0, 7.0])
+    breadth_60 = gate(60.0, [12.0, 10.0, 9.0], [1.5, 1.3, 1.1])
+    result = research.select_market_breadth_floor(
+        [baseline, breadth_45, breadth_60], minimum_trades=100, max_drawdown_floor_pct=-15.0
+    )
+    assert result["eligible_market_breadth_floor_count"] == 2
+    assert result["selected"]["market_breadth_floor_pct"] == 45.0
+    assert result["selected"]["validation_by_cost"][-1]["compound_return_pct"] == 7.0
+
+    rejected = research.select_market_breadth_floor(
+        [breadth_60], minimum_trades=100, max_drawdown_floor_pct=-15.0
+    )
+    assert rejected["selected"] is None
+
+
 def test_adjacent_parameter_grid_changes_only_one_parameter():
     selected = {
         "probability_threshold": 0.65,

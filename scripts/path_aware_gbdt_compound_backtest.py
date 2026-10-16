@@ -218,6 +218,7 @@ def _collect_ranked_candidates(
         "universe_samples": 0,
         "executable_entries": 0,
         "missing_or_invalid_entry_prices": 0,
+        "market_breadth_pct_by_signal_date": {},
         "thresholds": threshold_diagnostics,
     }
 
@@ -229,6 +230,13 @@ def _collect_ranked_candidates(
             continue
         if i + MAX_FORWARD_SESSIONS >= len(files):
             continue
+
+        if "market_breadth_pct" not in frame.columns:
+            raise RuntimeError(f"缺少信号日市场广度字段：{signal_date}")
+        market_breadth = float(pd.to_numeric(frame["market_breadth_pct"], errors="coerce").iloc[0])
+        if not math.isfinite(market_breadth) or not 0.0 <= market_breadth <= 100.0:
+            raise RuntimeError(f"信号日市场广度无效：{signal_date}={market_breadth}")
+        diagnostics["market_breadth_pct_by_signal_date"][signal_date] = market_breadth
 
         symbols = _symbol_keys(frame["symbol"])
         probabilities = model.predict_proba(make_features(frame))[:, 1]
