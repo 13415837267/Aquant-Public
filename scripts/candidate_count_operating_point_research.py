@@ -137,6 +137,71 @@ def independently_select_parameters(
     return result
 
 
+def select_cost_robust_operating_point(
+    sweeps_by_cost: dict[float, list[dict[str, Any]]],
+    minimum_trades: int,
+    max_drawdown_floor_pct: float,
+) -> dict[str, Any]:
+    """只用验证期结果，筛选在基准成本及所有压力成本下同时达标的操作点。"""
+    required_multipliers = (1.0, *COST_STRESS_MULTIPLIERS)
+    normalized_sweeps = {round(float(multiplier), 6): rows for multiplier, rows in sweeps_by_cost.items()}
+    missing = [multiplier for multiplier in required_multipliers if round(float(multiplier), 6) not in normalized_sweeps]
+    if missing:
+        raise ValueError("成本稳健选参缺少成本场景：" + "、".join(str(value) for value in missing))
+
+    indexed: dict[float, dict[tuple[float, float, float], dict[str, Any]]] = {}
+    for multiplier in required_multipliers:
+        index: dict[tuple[float, float, float], dict[str, Any]] = {}
+        for row in normalized_sweeps[round(float(multiplier), 6)]:
+            key = (
+                round(float(row["probability_threshold"]), 3),
+                round(float(row["net_target_pct"]), 3),
+                round(float(row["stop_loss_pct"]), 3),
+            )
+            if key in index:
+                raise ValueError(f"成本场景{multiplier}包含重复参数组合：{key}")
+            index[key] = row
+        indexed[float(multiplier)] = index
+
+    common_keys = set.intersection(*(set(rows) for rows in indexed.values()))
+    eligible_keys = [
+        key for key in common_keys
+        if all(
+            eligible_operating_point(
+                indexed[multiplier][key],
+                minimum_trades=minimum_trades,
+                max_drawdown_floor_pct=max_drawdown_floor_pct,
+            )
+            for multiplier in required_multipliers
+        )
+    ]
+
+    highest_cost = max(float(value) for value in required_multipliers)
+    priority_multipliers = sorted((float(value) for value in required_multipliers), reverse=True)
+
+    def score(key: tuple[float, float, float]) -> tuple[float, ...]:
+        rows = [indexed[multiplier][key] for multiplier in priority_multipliers]
+        compounds = [float(row["compound_return_pct"]) for row in rows]
+        stressed_drawdown = float(indexed[highest_cost][key]["max_drawdown_pct"])
+        profit_factors = [float(indexed[multiplier][key]["profit_factor"]) for multiplier in priority_multipliers]
+        return (*compounds, stressed_drawdown, min(profit_factors), int(indexed[1.0][key]["completed_trades"]))
+
+    selected_key = max(eligible_keys, key=score, default=None)
+    return {
+        "selected_parameters": indexed[1.0][selected_key] if selected_key is not None else None,
+        "eligible_parameter_count": len(eligible_keys),
+        "validation_by_cost": {
+            float(multiplier): indexed[float(multiplier)][selected_key]
+            for multiplier in required_multipliers
+        } if selected_key is not None else {},
+        "cost_multipliers": [float(value) for value in required_multipliers],
+        "selection_rule": (
+            "基准成本及所有压力成本均须满足交易数、正复利、正年化复利、"
+            "正平均单笔净收益、盈利因子和回撤门槛；达标后按最高成本复利优先排序"
+        ),
+    }
+
+
 def adjacent_operating_points(
     selected: dict[str, Any],
     threshold_grid: tuple[float, ...],
@@ -178,6 +243,7 @@ def _metric_summary(row: dict[str, Any] | None) -> dict[str, Any] | None:
         "probability_threshold",
         "net_target_pct",
         "stop_loss_pct",
+        "round_trip_cost_bps",
         "completed_trades",
         "compound_return_pct",
         "annualized_compound_return_pct",
@@ -194,6 +260,7 @@ def _metric_summary(row: dict[str, Any] | None) -> dict[str, Any] | None:
 def _portfolio_summary(portfolio: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": portfolio.get("status"),
+        "round_trip_cost_bps": (portfolio.get("selection_policy") or {}).get("round_trip_cost_bps"),
         "requested_entries": portfolio.get("requested_entries"),
         "entered_trades": portfolio.get("entered_trades"),
         "completed_trades": portfolio.get("completed_trades"),
@@ -250,6 +317,12 @@ def _evaluate_final(
 
 def run_research() -> dict[str, Any]:
     started = time.time()
+    if not COST_STRESS_MULTIPLIERS or any(
+        not math.isfinite(value) or value <= 1.0 for value in COST_STRESS_MULTIPLIERS
+    ):
+        raise RuntimeError("成本压力倍率必须为非空、有限且大于1的配置")
+    if len(set(COST_STRESS_MULTIPLIERS)) != len(COST_STRESS_MULTIPLIERS):
+        raise RuntimeError("成本压力倍率配置不得重复")
     files = history_files()
     dates = [path.name[:10] for path in files]
     date_set = set(dates)
@@ -296,6 +369,41 @@ def run_research() -> dict[str, Any]:
         validation_safe_end,
     )
 
+    print("[步骤3.5/5] 在同一验证期检查基准成本与成本压力场景", flush=True)
+    robust_studies: dict[int, dict[str, Any]] = {}
+    for top_k, study in studies.items():
+        sweeps_by_cost: dict[float, list[dict[str, Any]]] = {
+            1.0: study["sweep"],
+        }
+        for multiplier in COST_STRESS_MULTIPLIERS:
+            cost_bps = round(core.往返交易成本基点 * multiplier, 4)
+            print(
+                f"[成本稳健选参] Top{top_k}开始{multiplier:.2f}倍成本网格，"
+                f"往返成本{cost_bps:.4f}基点",
+                flush=True,
+            )
+            sweeps_by_cost[float(multiplier)] = core._exit_parameter_sweep(
+                validation_candidates,
+                validation_diagnostics,
+                dates,
+                VALIDATION_START,
+                validation_safe_end,
+                top_k,
+                round_trip_cost_bps=cost_bps,
+            )
+        robust_studies[top_k] = select_cost_robust_operating_point(
+            sweeps_by_cost,
+            minimum_trades=core.最低验证交易数,
+            max_drawdown_floor_pct=core.退出参数最大回撤门槛,
+        )
+        robust = robust_studies[top_k]
+        print(
+            f"[成本稳健选参] Top{top_k}：所有成本场景共同达标组合"
+            f"{robust['eligible_parameter_count']}组；"
+            f"选中={'是' if robust['selected_parameters'] is not None else '否'}",
+            flush=True,
+        )
+
     selected_any = any(study["selected"] is not None for study in studies.values())
     final_candidates = None
     final_diagnostics = None
@@ -319,6 +427,15 @@ def run_research() -> dict[str, Any]:
                 },
                 "neighbor_sensitivity": [],
                 "cost_stress_sensitivity": [],
+                "cost_robust_selection": {
+                    "status": "no_eligible_cost_robust_point",
+                    "eligible_parameter_count": robust_studies[top_k]["eligible_parameter_count"],
+                    "selected_parameters": None,
+                    "validation_by_cost": {},
+                    "final_supplemental": None,
+                    "final_cost_stress_sensitivity": [],
+                    "selection_rule": robust_studies[top_k]["selection_rule"],
+                },
             }
             continue
 
@@ -369,6 +486,55 @@ def run_research() -> dict[str, Any]:
                 "final_supplemental": _portfolio_summary(final_neighbor),
             })
 
+        robust_study = robust_studies[top_k]
+        robust_point = robust_study["selected_parameters"]
+        robust_validation_summary = {
+            f"{float(multiplier):.1f}倍基准成本": _metric_summary(row)
+            for multiplier, row in robust_study["validation_by_cost"].items()
+        }
+        robust_final_portfolio = None
+        robust_final_stress_rows = []
+        robust_parameter_summary = None
+        if robust_point is not None:
+            robust_parameter_summary = {
+                "probability_threshold": float(robust_point["probability_threshold"]),
+                "net_target_pct": float(robust_point["net_target_pct"]),
+                "stop_loss_pct": float(robust_point["stop_loss_pct"]),
+            }
+            robust_final_portfolio = _portfolio_summary(
+                _evaluate_final(final_candidates, dates, final_signal_end, top_k, robust_point)
+            )
+            for multiplier in COST_STRESS_MULTIPLIERS:
+                stressed_cost_bps = round(core.往返交易成本基点 * multiplier, 4)
+                stressed_portfolio = _evaluate_final(
+                    final_candidates,
+                    dates,
+                    final_signal_end,
+                    top_k,
+                    robust_point,
+                    round_trip_cost_bps=stressed_cost_bps,
+                )
+                stressed_summary = _portfolio_summary(stressed_portfolio)
+                stressed_summary["cost_multiplier"] = multiplier
+                stressed_summary["passes_stress_gate"] = (
+                    int(stressed_summary.get("completed_trades") or 0) > 0
+                    and (stressed_summary.get("compound_return_pct") or 0.0) > 0.0
+                    and (stressed_summary.get("mean_trade_net_return_pct") or 0.0) > 0.0
+                    and (stressed_summary.get("profit_factor") or 0.0) >= MINIMUM_PROFIT_FACTOR
+                    and (stressed_summary.get("max_drawdown_pct") or -100.0) >= core.退出参数最大回撤门槛
+                )
+                robust_final_stress_rows.append(stressed_summary)
+        cost_robust_summary = {
+            "status": "selected_on_validation_all_costs_then_frozen"
+            if robust_point is not None else "no_eligible_cost_robust_point",
+            "eligible_parameter_count": robust_study["eligible_parameter_count"],
+            "selection_rule": robust_study["selection_rule"],
+            "selected_parameters": robust_parameter_summary,
+            "validation_by_cost": robust_validation_summary,
+            "final_supplemental": robust_final_portfolio,
+            "final_cost_stress_sensitivity": robust_final_stress_rows,
+        }
+
         outcomes[str(top_k)] = {
             "status": "selected_on_validation_then_frozen",
             "grid_size": study["grid_size"],
@@ -397,6 +563,7 @@ def run_research() -> dict[str, Any]:
                 ),
             },
             "neighbor_sensitivity": neighbor_rows,
+            "cost_robust_selection": cost_robust_summary,
             "parameter_selection_status": selected.get("selection_status"),
         }
         print(
@@ -450,6 +617,8 @@ def run_research() -> dict[str, Any]:
             "validation_selection_profit_factor_floor": MINIMUM_PROFIT_FACTOR,
             "cost_stress_multipliers": list(COST_STRESS_MULTIPLIERS),
             "historical_cost_stress_is_not_forward_validation": True,
+            "cost_robust_operating_point_selected_on_validation_only": True,
+            "all_cost_robust_gate_scenarios_required": True,
             "formal_production_changed": False,
             "automatic_ordering": False,
         },
@@ -481,6 +650,9 @@ def main() -> None:
                 "eligible_parameter_count": value.get("eligible_parameter_count"),
                 "validation_selected_point": value.get("validation_selected_point"),
                 "final_supplemental": value.get("final_supplemental"),
+                "cost_stress_sensitivity": value.get("cost_stress_sensitivity"),
+                "strict_validation_gate": value.get("strict_validation_gate"),
+                "cost_robust_selection": value.get("cost_robust_selection"),
                 "neighbor_sensitivity": value.get("neighbor_sensitivity"),
             }
             for key, value in result["candidate_count_studies"].items()

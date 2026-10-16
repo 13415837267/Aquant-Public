@@ -445,8 +445,12 @@ def _exit_parameter_sweep(
     start_date: str,
     end_date: str,
     top_k: int,
+    round_trip_cost_bps: float | None = None,
 ) -> list[dict]:
     """在验证期枚举概率阈值×净止盈×止损；最终期不进入评分或排序。"""
+    cost_bps = 往返交易成本基点 if round_trip_cost_bps is None else float(round_trip_cost_bps)
+    if not math.isfinite(cost_bps) or cost_bps < 0.0:
+        raise ValueError("往返交易成本必须是有限的非负数")
     rows = []
     total = len(阈值网格) * len(止盈目标网格) * len(止损幅度网格)
     completed = 0
@@ -462,9 +466,11 @@ def _exit_parameter_sweep(
                     top_k,
                     target_net_pct=target,
                     stop_loss_pct=stop_loss,
+                    round_trip_cost_bps=cost_bps,
                 )
                 rows.append({
                     "probability_threshold": float(threshold),
+                    "round_trip_cost_bps": cost_bps,
                     "net_target_pct": float(target),
                     "stop_loss_pct": float(stop_loss),
                     **diagnostics["thresholds"][_threshold_key(threshold)],

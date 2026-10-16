@@ -59,6 +59,44 @@ def test_eligibility_gate_rejects_low_sample_negative_return_and_high_drawdown()
     assert not research.eligible_operating_point({key: value for key, value in base.items() if key != "profit_factor"}, 100, -15.0)
 
 
+def test_cost_robust_selection_rejects_points_that_fail_any_cost_scenario():
+    base_a = _row(2, 0.65, 10.0, 2.5, 12.0)
+    base_b = _row(2, 0.65, 8.0, 2.0, 8.0)
+    base_c = _row(2, 0.70, 6.0, 2.0, 7.0)
+    stress_15 = [
+        {**base_a, "compound_return_pct": 5.0, "annualized_compound_return_pct": 2.5},
+        {**base_b, "compound_return_pct": 3.0, "annualized_compound_return_pct": 1.5},
+        {**base_c, "compound_return_pct": 2.0, "annualized_compound_return_pct": 1.0},
+    ]
+    stress_20 = [
+        {**base_a, "compound_return_pct": -0.1, "annualized_compound_return_pct": -0.05},
+        {**base_b, "compound_return_pct": 1.0, "annualized_compound_return_pct": 0.5},
+        {**base_c, "compound_return_pct": 0.5, "annualized_compound_return_pct": 0.25},
+    ]
+    result = research.select_cost_robust_operating_point(
+        {1.0: [base_a, base_b, base_c], 1.5: stress_15, 2.0: stress_20},
+        minimum_trades=100,
+        max_drawdown_floor_pct=-15.0,
+    )
+    assert result["eligible_parameter_count"] == 2
+    assert result["selected_parameters"]["net_target_pct"] == 8.0
+    assert result["validation_by_cost"][2.0]["compound_return_pct"] == 1.0
+
+
+def test_cost_robust_selection_returns_no_point_when_high_cost_gate_fails():
+    base = _row(2, 0.65, 10.0, 2.5, 8.0)
+    stress_15 = {**base, "compound_return_pct": 2.0, "annualized_compound_return_pct": 1.0}
+    stress_20 = {**base, "profit_factor": 1.19}
+    result = research.select_cost_robust_operating_point(
+        {1.0: [base], 1.5: [stress_15], 2.0: [stress_20]},
+        minimum_trades=100,
+        max_drawdown_floor_pct=-15.0,
+    )
+    assert result["eligible_parameter_count"] == 0
+    assert result["selected_parameters"] is None
+    assert result["validation_by_cost"] == {}
+
+
 def test_adjacent_parameter_grid_changes_only_one_parameter():
     selected = {
         "probability_threshold": 0.65,
