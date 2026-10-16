@@ -1,0 +1,110 @@
+name: "12 私有策略实际交易回放"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/private_strategy_replay_backtest.py"
+      - "tests/test_private_strategy_replay_backtest.py"
+      - "docs/私有策略实际交易回放.md"
+      - ".github/workflows/12-private-strategy-replay.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "私有策略实际交易回放-main"
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    name: "同口径回放基准策略与实验策略"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONWARNINGS: "error"
+    steps:
+      - name: "检出公开仓库与完整历史行情"
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: "检出冻结基准策略 2.6.0"
+        uses: actions/checkout@v7
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: 886a01a3a314dd1ba133b9273054b280e3bc871c
+          path: baseline-strategy
+          token: ${ secrets.AQUANT_PRIVATE_TOKEN }}
+          fetch-depth: 1
+
+      - name: "检出策略实验 2.7.0"
+        uses: actions/checkout@v7
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: 10485ed36379f076f837e1fce8707681ce44586b
+          path: candidate-strategy
+          token: ${ secrets.AQUANT_PRIVATE_TOKEN }}
+          fetch-depth: 1
+
+      - name: "设置固定 Python 版本"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: "安装仓库锁定依赖"
+        run: python -m pip install -r requirements.txt
+
+      - name: "检查公开回放脚本与测试"
+        run: |
+          set -euo pipefail
+          python -m compileall -q scripts tests
+          python -m pytest -q
+
+      - name: "云端验证基准策略代码"
+        working-directory: baseline-strategy
+        run: |
+          set -euo pipefail
+          python -m compileall -q strategy tests
+          python -m pytest -q
+
+      - name: "云端验证实验策略代码"
+        working-directory: candidate-strategy
+        run: |
+          set -euo pipefail
+          python -m compileall -q strategy tests
+          python -m pytest -q
+
+      - name: "同口径回放实际选股策略及三档交易成本"
+        run: python scripts/private_strategy_replay_backtest.py --baseline-dir baseline-strategy --candidate-dir candidate-strategy --output data/backtest/private_strategy_replay_latest.json
+
+      - name: "保存策略对照结果"
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: "私有策略实际交易回放结果"
+          path: data/backtest/private_strategy_replay_latest.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: "输出明确的保留或拒绝结论"
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("data/backtest/private_strategy_replay_latest.json")
+          if not path.exists():
+              print("研究未形成最终结论：回放结果文件缺失；不视为策略成功。")
+              raise SystemExit(0)
+          data = json.loads(path.read_text(encoding="utf-8"))
+          decision = data.get("decision", {})
+          print("策略对照结论：", decision.get("decision"))
+          print("全成本与双窗口门槛通过：", decision.get("all_quality_gates_passed"))
+          print("相对基准无回撤恶化且收益不退步：", decision.get("all_baseline_comparisons_passed"))
+          print("允许正式发布：否")
+          PY
