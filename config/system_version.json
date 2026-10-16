@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "system_version": "2.6.0",
-  "strategy_version": "2.6.0",
+  "system_version": "2.7.0",
+  "strategy_version": "2.7.0",
   "lifecycle_status": "research",
   "release_status": "not_released",
   "strategy_source_repo": "13415837267/Aquant-Private",
   "strategy_source_branch": "main",
-  "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
+  "strategy_commit": "10485ed36379f076f837e1fce8707681ce44586b",
   "version_policy": "每次候选运行动态读取 Aquant-Private/main 最新提交；版本号和提交号仅记录本次快照来源，不固定历史策略。",
   "current_model": "Aquant-Private/strategy/model.py",
-  "candidate_admission_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
+  "candidate_admission_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor_recovery_confirmation_rank_bonus_1p",
   "candidate_count_max": 2,
   "production_release": false,
   "automatic_ordering": false,
@@ -25,5 +25,5 @@
     "cost_stress_test_required": true,
     "adjacent_parameter_robustness_required": true
   },
-  "note": "本轮候选运行使用 Aquant-Private/main 最新策略版本 2.6.0，来源提交 886a01a3a314dd1ba133b9273054b280e3bc871c。此提交号仅用于本轮候选、计划与审计追溯；后续运行将重新读取 main 最新提交。研究候选不代表正式发布。"
+  "note": "本轮候选运行使用 Aquant-Private/main 最新策略版本 2.7.0，来源提交 10485ed36379f076f837e1fce8707681ce44586b。此提交号仅用于本轮候选、计划与审计追溯；后续运行将重新读取 main 最新提交。研究候选不代表正式发布。"
 }

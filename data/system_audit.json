@@ -1,12 +1,12 @@
 {
   "schema_version": 4,
   "status": "current_research_audit",
-  "audited_at": "2026-10-16T14:34:54.904832+00:00",
+  "audited_at": "2026-10-16T18:10:23.759821+00:00",
   "timezone": "Asia/Shanghai",
-  "system_version": "2.6.0",
-  "strategy_version": "2.6.0",
+  "system_version": "2.7.0",
+  "strategy_version": "2.7.0",
   "strategy_source": "Aquant-Private/main",
-  "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
+  "strategy_commit": "10485ed36379f076f837e1fce8707681ce44586b",
   "lifecycle_status": "research",
   "historical_database": "complete_incremental",
   "fundamentals_database": "complete_pit",
@@ -15,8 +15,8 @@
     "status": "pass",
     "as_of": "2026-10-16T18:00:00+08:00",
     "candidate_count": 0,
-    "strategy_version": "2.6.0",
-    "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
+    "strategy_version": "2.7.0",
+    "strategy_commit": "10485ed36379f076f837e1fce8707681ce44586b",
     "market_regime": "risk_off"
   },
   "plan_check": {
@@ -24,8 +24,8 @@
     "signal_date": "2026-10-16",
     "next_trading_day": "2026-10-19",
     "candidate_count": 0,
-    "strategy_version": "2.6.0",
-    "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c"
+    "strategy_version": "2.7.0",
+    "strategy_commit": "10485ed36379f076f837e1fce8707681ce44586b"
   },
   "production_version": null,
   "production_gate": "research_only",

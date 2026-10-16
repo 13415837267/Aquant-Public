@@ -1,14 +1,14 @@
 {
   "schema_version": 3,
   "status": "research_pending",
-  "as_of": "2026-10-14",
+  "as_of": "2026-10-17",
   "timezone": "Asia/Shanghai",
-  "system_version": "2.6.0",
-  "strategy_version": "2.6.0",
+  "system_version": "2.7.0",
+  "strategy_version": "2.7.0",
   "strategy_source": "Aquant-Private/main",
-  "strategy_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
+  "strategy_commit": "10485ed36379f076f837e1fce8707681ce44586b",
   "release_status": "not_released",
   "data_cutoff": "2026-09-30",
   "production_release": false,
-  "note": "当前系统与策略版本已统一为2.6.0。旧近期训练窗口模型的62.32%标签命中率仅作历史对照，不是当前策略的验证结果。2.6.0须重新完成与当前策略提交一致的云端历史验证、执行约束组合回测、成本压力测试和未来影子验证后再考虑晋级。"
+  "note": "已自动跟随 Aquant-Private/main 最新策略版本 2.7.0，本轮来源提交为 10485ed36379f076f837e1fce8707681ce44586b。候选生产立即使用当前策略，研究未完成不阻断候选生成；旧提交的验证证据不会转移给新提交，正式发布门禁与自动下单关闭状态保持不变。"
 }
