@@ -446,6 +446,9 @@ def run_market_breadth_filter_study(
         )
         summary = _portfolio_summary(portfolio)
         summary["market_breadth_floor_pct"] = floor
+        summary["probability_threshold"] = float(parameters["probability_threshold"])
+        summary["net_target_pct"] = float(parameters["net_target_pct"])
+        summary["stop_loss_pct"] = float(parameters["stop_loss_pct"])
         summary["cost_multiplier"] = multiplier
         summary["round_trip_cost_bps"] = cost_bps
         summary["passes_cost_gate"] = eligible_operating_point(
