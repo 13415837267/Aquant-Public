@@ -1,7 +1,7 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 38762248929,
-  "completed_at": "2026-10-15T15:40:22Z",
+  "cleanup_run_id": 38855723793,
+  "completed_at": "2026-10-16T05:26:21Z",
   "deleted_actions": [],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
@@ -16,31 +16,137 @@
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
+      "run_id": 38855723793,
+      "created_at": "2026-10-16T05:25:44Z",
+      "status": "in_progress",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38849573171,
+      "created_at": "2026-10-16T04:14:10Z",
+      "status": "in_progress",
+      "name": "13 候选数量独立参数复核"
+    },
+    {
+      "run_id": 38849573077,
+      "created_at": "2026-10-16T04:14:10Z",
+      "status": "in_progress",
+      "name": "11 盘后选股策略统一研究"
+    },
+    {
+      "run_id": 38762362809,
+      "created_at": "2026-10-15T15:40:14Z",
+      "status": "pending",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38762248713,
+      "created_at": "2026-10-15T15:39:27Z",
+      "status": "waiting",
+      "name": "05 网页自动部署"
+    }
+  ],
+  "preserved_successful_runs": [
+    {
+      "run_id": 38853444323,
+      "created_at": "2026-10-16T04:59:38Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38849638441,
+      "created_at": "2026-10-16T04:14:57Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38849573173,
+      "created_at": "2026-10-16T04:14:10Z",
+      "name": "09 路径感知模型可执行复利复核"
+    },
+    {
+      "run_id": 38849573119,
+      "created_at": "2026-10-16T04:14:10Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38849573034,
+      "created_at": "2026-10-16T04:14:10Z",
+      "name": "07 可执行净收益研究"
+    },
+    {
+      "run_id": 38800429009,
+      "created_at": "2026-10-15T20:15:13Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38778240018,
+      "created_at": "2026-10-15T17:32:48Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38768468275,
+      "created_at": "2026-10-15T16:22:37Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38768349184,
+      "created_at": "2026-10-15T16:21:46Z",
+      "name": "11 盘后选股策略统一研究"
+    },
+    {
+      "run_id": 38768349160,
+      "created_at": "2026-10-15T16:21:46Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38768349111,
+      "created_at": "2026-10-15T16:21:46Z",
+      "name": "09 路径感知模型可执行复利复核"
+    },
+    {
+      "run_id": 38768349024,
+      "created_at": "2026-10-15T16:21:46Z",
+      "name": "07 可执行净收益研究"
+    },
+    {
+      "run_id": 38768334454,
+      "created_at": "2026-10-15T16:21:40Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38768215908,
+      "created_at": "2026-10-15T16:20:50Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38768209773,
+      "created_at": "2026-10-15T16:20:47Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38768209644,
+      "created_at": "2026-10-15T16:20:47Z",
+      "name": "13 候选数量独立参数复核"
+    },
+    {
+      "run_id": 38768138441,
+      "created_at": "2026-10-15T16:20:17Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38762362606,
+      "created_at": "2026-10-15T15:40:14Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
       "run_id": 38762300356,
       "created_at": "2026-10-15T15:39:49Z",
-      "status": "in_progress",
       "name": "03 候选池生产"
     },
     {
       "run_id": 38762248929,
       "created_at": "2026-10-15T15:39:27Z",
-      "status": "in_progress",
       "name": "维护历史 Action 记录"
     },
-    {
-      "run_id": 38762248713,
-      "created_at": "2026-10-15T15:39:27Z",
-      "status": "in_progress",
-      "name": "05 网页自动部署"
-    },
-    {
-      "run_id": 38726077348,
-      "created_at": "2026-10-15T11:15:46Z",
-      "status": "in_progress",
-      "name": "11 盘后选股策略统一研究"
-    }
-  ],
-  "preserved_successful_runs": [
     {
       "run_id": 38762164562,
       "created_at": "2026-10-15T15:38:51Z",
@@ -260,6 +366,11 @@
       "run_id": 38726181286,
       "created_at": "2026-10-15T11:16:39Z",
       "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38726077348,
+      "created_at": "2026-10-15T11:15:46Z",
+      "name": "11 盘后选股策略统一研究"
     },
     {
       "run_id": 38726077338,
@@ -1510,16 +1621,6 @@
       "run_id": 38260348955,
       "created_at": "2026-10-12T14:05:19Z",
       "name": "维护历史 Action 记录"
-    },
-    {
-      "run_id": 38260227511,
-      "created_at": "2026-10-12T14:04:19Z",
-      "name": "01 Python质量检查"
-    },
-    {
-      "run_id": 38260227351,
-      "created_at": "2026-10-12T14:04:19Z",
-      "name": "07 可执行净收益研究"
     },
     {
       "run_id": 38260227511,
