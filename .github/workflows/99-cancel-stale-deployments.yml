@@ -1,0 +1,70 @@
+name: "99 清理已被成功版本替代的旧网页部署"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/99-cancel-stale-deployments.yml"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cancel_stale_deployments:
+    name: "确认新部署成功后取消旧的挂起任务"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: "确认替代版本已成功发布"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/${REPOSITORY}/actions/runs/38938425606")"
+          status="$(jq -r '.status' <<< "${run_json}")"
+          conclusion="$(jq -r '.conclusion // ""' <<< "${run_json}")"
+          echo "[清理校验] 替代部署运行状态：${status}；结论：${conclusion}。"
+          if [[ "${status}" != "completed" || "${conclusion}" != "success" ]]; then
+            echo "[清理停止] 替代部署尚未成功，不取消任何旧任务。" >&2
+            exit 1
+          fi
+          echo "[清理校验] 替代部署已成功，允许取消指定旧任务。"
+
+      - name: "取消被成功部署替代的两条旧任务"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for run_id in 38762248713 38938275217; do
+            endpoint="repos/${REPOSITORY}/actions/runs/${run_id}"
+            if ! run_json="$(gh api "${endpoint}" 2>/dev/null)"; then
+              echo "[清理失败] 无法读取旧运行 ${run_id}，停止操作。" >&2
+              exit 1
+            fi
+            status="$(jq -r '.status' <<< "${run_json}")"
+            conclusion="$(jq -r '.conclusion // ""' <<< "${run_json}")"
+            echo "[清理进度] 旧运行 ${run_id}：${status}；结论：${conclusion:-无}。"
+            if [[ "${status}" == "completed" ]]; then
+              echo "[清理跳过] 旧运行 ${run_id} 已结束，保留记录。"
+              continue
+            fi
+            if gh api -X POST "${endpoint}/cancel" >/dev/null 2>&1; then
+              echo "[清理完成] 已向 GitHub 请求取消旧运行 ${run_id}。"
+            elif gh api -X POST "${endpoint}/force-cancel" >/dev/null 2>&1; then
+              echo "[清理完成] 普通取消未受理，已请求强制取消旧运行 ${run_id}。"
+            else
+              after_json="$(gh api "${endpoint}")"
+              after_status="$(jq -r '.status' <<< "${after_json}")"
+              if [[ "${after_status}" == "completed" ]]; then
+                echo "[清理确认] 旧运行 ${run_id} 已在请求期间结束。"
+              else
+                echo "[清理失败] 旧运行 ${run_id} 仍为 ${after_status}，请保留记录并继续排查。" >&2
+                exit 1
+              fi
+            fi
+          done
