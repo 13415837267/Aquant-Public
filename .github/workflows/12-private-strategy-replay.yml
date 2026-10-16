@@ -62,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m compileall -q scripts tests
-          python -m pytest -q
+          python -m pytest -q tests
 
       - name: "云端验证基准策略代码"
         working-directory: baseline-strategy
