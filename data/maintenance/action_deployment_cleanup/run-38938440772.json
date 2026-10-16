@@ -1,7 +1,7 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 38923119750,
-  "completed_at": "2026-10-16T15:21:42Z",
+  "cleanup_run_id": 38938440772,
+  "completed_at": "2026-10-16T17:17:49Z",
   "deleted_actions": [],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
@@ -16,14 +16,32 @@
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
-      "run_id": 38923119750,
-      "created_at": "2026-10-16T15:20:24Z",
+      "run_id": 38938502139,
+      "created_at": "2026-10-16T17:17:08Z",
+      "status": "pending",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38938440772,
+      "created_at": "2026-10-16T17:16:40Z",
       "status": "in_progress",
       "name": "维护历史 Action 记录"
     },
     {
-      "run_id": 38923111909,
-      "created_at": "2026-10-16T15:20:21Z",
+      "run_id": 38938425641,
+      "created_at": "2026-10-16T17:16:32Z",
+      "status": "in_progress",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38938425606,
+      "created_at": "2026-10-16T17:16:32Z",
+      "status": "in_progress",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38938275217,
+      "created_at": "2026-10-16T17:15:22Z",
       "status": "pending",
       "name": "05 网页自动部署"
     },
@@ -41,6 +59,96 @@
     }
   ],
   "preserved_successful_runs": [
+    {
+      "run_id": 38938393577,
+      "created_at": "2026-10-16T17:16:18Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38938344052,
+      "created_at": "2026-10-16T17:15:54Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38938282212,
+      "created_at": "2026-10-16T17:15:25Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38938275199,
+      "created_at": "2026-10-16T17:15:22Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38933920205,
+      "created_at": "2026-10-16T16:41:25Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38933809219,
+      "created_at": "2026-10-16T16:40:33Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38925676838,
+      "created_at": "2026-10-16T15:39:13Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38925667879,
+      "created_at": "2026-10-16T15:39:09Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38925570497,
+      "created_at": "2026-10-16T15:38:24Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38925570300,
+      "created_at": "2026-10-16T15:38:24Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38925405290,
+      "created_at": "2026-10-16T15:37:10Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 38923917185,
+      "created_at": "2026-10-16T15:26:13Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38923858611,
+      "created_at": "2026-10-16T15:25:47Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38923797085,
+      "created_at": "2026-10-16T15:25:19Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38923778570,
+      "created_at": "2026-10-16T15:25:12Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38923778567,
+      "created_at": "2026-10-16T15:25:12Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38923574315,
+      "created_at": "2026-10-16T15:23:43Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 38923119750,
+      "created_at": "2026-10-16T15:20:24Z",
+      "name": "维护历史 Action 记录"
+    },
     {
       "run_id": 38923111934,
       "created_at": "2026-10-16T15:20:21Z",
