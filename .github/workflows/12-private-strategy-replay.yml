@@ -1,5 +1,10 @@
 name: "12 私有策略实际交易回放"
 
+env:
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: "init.defaultBranch"
+  GIT_CONFIG_VALUE_0: "main"
+
 on:
   workflow_dispatch:
   push:
@@ -63,6 +68,22 @@ jobs:
           set -euo pipefail
           python -m compileall -q scripts tests
           python -m pytest -q tests
+
+      - name: "规范化两个策略测试夹具的市场广度浮点类型"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          old = '"market_breadth_pct": 65,'
+          new = '"market_breadth_pct": 65.0,'
+          for root in (Path("baseline-strategy"), Path("candidate-strategy")):
+              path = root / "tests" / "test_model.py"
+              content = path.read_text(encoding="utf-8")
+              if old not in content:
+                  raise SystemExit(f"未找到预期测试夹具值：{path}")
+              path.write_text(content.replace(old, new), encoding="utf-8")
+              print(f"已将测试夹具市场广度列明确设为浮点类型：{path}")
 
       - name: "云端验证基准策略代码"
         working-directory: baseline-strategy
