@@ -38,7 +38,7 @@ jobs:
           repository: 13415837267/Aquant-Private
           ref: 886a01a3a314dd1ba133b9273054b280e3bc871c
           path: baseline-strategy
-          token: ${ secrets.AQUANT_PRIVATE_TOKEN }}
+          token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
 
       - name: "检出策略实验 2.7.0"
@@ -47,7 +47,7 @@ jobs:
           repository: 13415837267/Aquant-Private
           ref: 10485ed36379f076f837e1fce8707681ce44586b
           path: candidate-strategy
-          token: ${ secrets.AQUANT_PRIVATE_TOKEN }}
+          token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
 
       - name: "设置固定 Python 版本"
