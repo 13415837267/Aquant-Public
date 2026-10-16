@@ -53,18 +53,21 @@ jobs:
               echo "[清理跳过] 旧运行 ${run_id} 已结束，保留记录。"
               continue
             fi
-            if gh api -X POST "${endpoint}/cancel" >/dev/null 2>&1; then
-              echo "[清理完成] 已向 GitHub 请求取消旧运行 ${run_id}。"
-            elif gh api -X POST "${endpoint}/force-cancel" >/dev/null 2>&1; then
-              echo "[清理完成] 普通取消未受理，已请求强制取消旧运行 ${run_id}。"
-            else
+            gh api -X POST "${endpoint}/cancel" >/dev/null 2>&1 || true
+            sleep 2
+            after_json="$(gh api "${endpoint}")"
+            after_status="$(jq -r '.status' <<< "${after_json}")"
+            if [[ "${after_status}" != "completed" ]]; then
+              echo "[清理重试] 普通取消后仍为 ${after_status}，改用强制取消。"
+              gh api -X POST "${endpoint}/force-cancel" >/dev/null 2>&1 || true
+              sleep 2
               after_json="$(gh api "${endpoint}")"
               after_status="$(jq -r '.status' <<< "${after_json}")"
-              if [[ "${after_status}" == "completed" ]]; then
-                echo "[清理确认] 旧运行 ${run_id} 已在请求期间结束。"
-              else
-                echo "[清理失败] 旧运行 ${run_id} 仍为 ${after_status}，请保留记录并继续排查。" >&2
-                exit 1
-              fi
+            fi
+            if [[ "${after_status}" == "completed" ]]; then
+              echo "[清理确认] 旧运行 ${run_id} 已结束；保留其审计记录。"
+            else
+              echo "[清理失败] 旧运行 ${run_id} 仍为 ${after_status}，请保留记录并继续排查。" >&2
+              exit 1
             fi
           done
