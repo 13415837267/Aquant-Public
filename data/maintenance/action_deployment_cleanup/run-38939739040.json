@@ -1,19 +1,18 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 38925667879,
-  "completed_at": "2026-10-16T15:39:46Z",
-  "deleted_actions": [
-    {
-      "run_id": 38923902348,
-      "created_at": "2026-10-16T15:26:06Z",
-      "conclusion": "cancelled",
-      "name": "05 网页自动部署",
-      "diagnostic": null
-    }
-  ],
+  "cleanup_run_id": 38939739040,
+  "completed_at": "2026-10-16T17:27:42Z",
+  "deleted_actions": [],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
-  "preserved_other_deployments": [],
+  "preserved_other_deployments": [
+    {
+      "deployment_id": 7125139978,
+      "environment": "aquant-pages-auto",
+      "ref": "main",
+      "state": "success"
+    }
+  ],
   "preserved_current_deployment": {
     "deployment_id": 7097049817,
     "sha": "7f1b7dfb13ea4a5c8f5d8f787a7f73185c06fa32",
@@ -24,37 +23,132 @@
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
-      "run_id": 38925676838,
-      "created_at": "2026-10-16T15:39:13Z",
-      "status": "pending",
-      "name": "维护历史 Action 记录"
+      "run_id": 38939812590,
+      "created_at": "2026-10-16T17:27:22Z",
+      "status": "in_progress",
+      "name": "12 私有策略实际交易回放"
     },
     {
-      "run_id": 38925667934,
-      "created_at": "2026-10-16T15:39:09Z",
+      "run_id": 38939812523,
+      "created_at": "2026-10-16T17:27:22Z",
       "status": "pending",
-      "name": "05 网页自动部署"
+      "name": "01 Python质量检查"
     },
     {
-      "run_id": 38925667879,
-      "created_at": "2026-10-16T15:39:09Z",
+      "run_id": 38939739040,
+      "created_at": "2026-10-16T17:26:46Z",
       "status": "in_progress",
       "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38939672940,
+      "created_at": "2026-10-16T17:26:14Z",
+      "status": "in_progress",
+      "name": "01 Python质量检查"
     },
     {
       "run_id": 38892922244,
       "created_at": "2026-10-16T11:18:39Z",
       "status": "in_progress",
       "name": "11 盘后选股策略统一研究"
-    },
-    {
-      "run_id": 38762248713,
-      "created_at": "2026-10-15T15:39:27Z",
-      "status": "waiting",
-      "name": "05 网页自动部署"
     }
   ],
   "preserved_successful_runs": [
+    {
+      "run_id": 38939647017,
+      "created_at": "2026-10-16T17:26:02Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38939612569,
+      "created_at": "2026-10-16T17:25:45Z",
+      "name": "99 清理已被成功版本替代的旧网页部署"
+    },
+    {
+      "run_id": 38939612447,
+      "created_at": "2026-10-16T17:25:45Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38939569486,
+      "created_at": "2026-10-16T17:25:24Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38939551423,
+      "created_at": "2026-10-16T17:25:16Z",
+      "name": "99 清理已被成功版本替代的旧网页部署"
+    },
+    {
+      "run_id": 38939551387,
+      "created_at": "2026-10-16T17:25:16Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38938630178,
+      "created_at": "2026-10-16T17:18:08Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38938603361,
+      "created_at": "2026-10-16T17:17:56Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38938440772,
+      "created_at": "2026-10-16T17:16:40Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38938425641,
+      "created_at": "2026-10-16T17:16:32Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38938425606,
+      "created_at": "2026-10-16T17:16:32Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38938393577,
+      "created_at": "2026-10-16T17:16:18Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38938344052,
+      "created_at": "2026-10-16T17:15:54Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38938282212,
+      "created_at": "2026-10-16T17:15:25Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38938275199,
+      "created_at": "2026-10-16T17:15:22Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38933920205,
+      "created_at": "2026-10-16T16:41:25Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38933809219,
+      "created_at": "2026-10-16T16:40:33Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38925676838,
+      "created_at": "2026-10-16T15:39:13Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38925667879,
+      "created_at": "2026-10-16T15:39:09Z",
+      "name": "维护历史 Action 记录"
+    },
     {
       "run_id": 38925570497,
       "created_at": "2026-10-16T15:38:24Z",
