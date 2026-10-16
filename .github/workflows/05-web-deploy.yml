@@ -42,7 +42,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: "网页部署-main"
+  group: "网页部署-main-auto"
   cancel-in-progress: true
 
 jobs:
