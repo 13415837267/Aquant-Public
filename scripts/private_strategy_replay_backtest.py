@@ -31,7 +31,7 @@ from scripts.short_term_research import (
 )
 
 BASELINE_COMMIT = "886a01a3a314dd1ba133b9273054b280e3bc871c"
-CANDIDATE_COMMIT = "6fc9f38e4b579600a8190dc7cd8a46526c69bcc8"
+CANDIDATE_COMMIT = "4a5e973fc2e9794275add995e5f8c6fee79e7d36"
 VALIDATION_START = "2023-01-03"
 FINAL_START = "2025-01-02"
 FINAL_NOMINAL_END = "2026-09-30"
@@ -95,49 +95,23 @@ def load_strategy(root: Path, alias: str) -> dict[str, Any]:
         "minimum_price": yaml_number(config_text, "min_price"),
         "minimum_turnover_amount": yaml_number(config_text, "min_turnover_amount_cny"),
         "minimum_history_days": int(yaml_number(config_text, "minimum_history_days")),
+        "minimum_market_breadth": yaml_number(config_text, "minimum_breadth_pct"),
+        "minimum_market_median_return": yaml_number(config_text, "minimum_median_return_pct"),
         "target_return_pct": yaml_number(config_text, "target_return_pct"),
         "stop_loss_pct": yaml_number(config_text, "stop_loss_pct"),
         "max_holding_sessions": int(yaml_number(config_text, "max_holding_sessions")),
     }
 
 
-def assert_admission_threshold_shift(baseline_precision: Any, candidate_precision: Any) -> None:
-    """验证候选仅把三个准入概率门槛统一下移 0.05，且派生分数门槛一致。"""
-    threshold_fields = (
-        "PRECISION_PROBABILITY_THRESHOLD",
-        "COVERAGE_FALLBACK_PROBABILITY_THRESHOLD",
-        "DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD",
-    )
-    for key in threshold_fields:
-        expected = float(getattr(baseline_precision, key)) - 0.05
-        actual = float(getattr(candidate_precision, key))
-        if not math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-9):
-            raise ValueError(f"准入门槛必须统一下移0.05：{key} 期望 {expected}，实际 {actual}")
+def assert_market_breadth_shift(baseline_precision: Any, candidate_precision: Any) -> None:
+    """验证候选仅将市场上涨广度门槛上调5个百分点。"""
+    expected = float(baseline_precision.MIN_MARKET_BREADTH_PCT) + 5.0
+    actual = float(candidate_precision.MIN_MARKET_BREADTH_PCT)
+    if not math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-9):
+        raise ValueError(
+            f"市场上涨广度门槛必须从基准上调5个百分点：期望 {expected}，实际 {actual}"
+        )
 
-    for score_key, probability_key in (
-        ("MIN_SCORE", "PRECISION_PROBABILITY_THRESHOLD"),
-        ("COVERAGE_FALLBACK_MIN_SCORE", "COVERAGE_FALLBACK_PROBABILITY_THRESHOLD"),
-    ):
-        expected = float(getattr(candidate_precision, probability_key)) * 100.0
-        actual = float(getattr(candidate_precision, score_key))
-        if not math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-9):
-            raise ValueError(f"派生评分门槛与概率门槛不一致：{score_key}")
-
-    baseline_spacing = (
-        float(baseline_precision.PRECISION_PROBABILITY_THRESHOLD)
-        - float(baseline_precision.COVERAGE_FALLBACK_PROBABILITY_THRESHOLD),
-        float(baseline_precision.COVERAGE_FALLBACK_PROBABILITY_THRESHOLD)
-        - float(baseline_precision.DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD),
-    )
-    candidate_spacing = (
-        float(candidate_precision.PRECISION_PROBABILITY_THRESHOLD)
-        - float(candidate_precision.COVERAGE_FALLBACK_PROBABILITY_THRESHOLD),
-        float(candidate_precision.COVERAGE_FALLBACK_PROBABILITY_THRESHOLD)
-        - float(candidate_precision.DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD),
-    )
-    if any(not math.isclose(a, b, rel_tol=0.0, abs_tol=1e-9)
-           for a, b in zip(baseline_spacing, candidate_spacing)):
-        raise ValueError("实验不得改变三个准入层级之间的相对间距")
 
 
 def _normalized_module_logic(root: Path, relative_path: str) -> str:
@@ -165,11 +139,12 @@ def _normalized_module_logic(root: Path, relative_path: str) -> str:
 
 
 def assert_single_variable(baseline: dict[str, Any], candidate: dict[str, Any]) -> None:
-    """确保除了统一下移准入门槛，打分、市场门槛、风控和执行参数均不变。"""
+    """确保唯一变化是市场上涨广度门槛上调5个百分点。"""
     shared_config = (
         "minimum_price",
         "minimum_turnover_amount",
         "minimum_history_days",
+        "minimum_market_median_return",
         "target_return_pct",
         "stop_loss_pct",
         "max_holding_sessions",
@@ -178,21 +153,19 @@ def assert_single_variable(baseline: dict[str, Any], candidate: dict[str, Any]) 
         if baseline[key] != candidate[key]:
             raise ValueError(f"实验不满足单变量约束：配置项 {key} 不一致")
 
-    changed_fields = {
+    changed_fields = {"MIN_MARKET_BREADTH_PCT"}
+    unchanged_fields = (
+        "PRECISION_INTERCEPT",
+        "PRECISION_COEFFICIENTS",
+        "PRECISION_MARKET_COEFFICIENTS",
         "PRECISION_PROBABILITY_THRESHOLD",
         "COVERAGE_FALLBACK_PROBABILITY_THRESHOLD",
         "COVERAGE_FALLBACK_MIN_SCORE",
         "DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD",
         "MIN_SCORE",
-    }
-    fields = (
-        "PRECISION_INTERCEPT",
-        "PRECISION_COEFFICIENTS",
-        "PRECISION_MARKET_COEFFICIENTS",
         "COVERAGE_FALLBACK_MAX_CANDIDATES",
         "DAILY_TOP1_FALLBACK_MAX_CANDIDATES",
         "MAX_CANDIDATES",
-        "MIN_MARKET_BREADTH_PCT",
         "MIN_MARKET_MEDIAN_RETURN_PCT",
         "MAX_VOLATILITY_10D_PCT",
         "MIN_SINGLE_DAY_CHANGE_PCT",
@@ -200,21 +173,47 @@ def assert_single_variable(baseline: dict[str, Any], candidate: dict[str, Any]) 
         "MAX_LIMIT_UP_5D_COUNT",
         "MAX_INTRADAY_RETURN_PCT",
     )
-    for key in fields:
+    for key in unchanged_fields:
         if getattr(baseline["precision"], key) != getattr(candidate["precision"], key):
             raise ValueError(f"实验不满足单变量约束：策略参数 {key} 不一致")
-    if changed_fields & set(fields):
-        raise AssertionError("内部实验契约异常：阈值字段重复")
-    assert_admission_threshold_shift(baseline["precision"], candidate["precision"])
+    if changed_fields & set(unchanged_fields):
+        raise AssertionError("内部实验契约异常：允许变化字段与固定字段冲突")
 
-    expected_policy = "precision_top_2_with_084_primary_083_fallback_daily_top1_rescue_080_floor"
+    for strategy in (baseline, candidate):
+        precision = strategy["precision"]
+        for score_key, probability_key in (
+            ("MIN_SCORE", "PRECISION_PROBABILITY_THRESHOLD"),
+            ("COVERAGE_FALLBACK_MIN_SCORE", "COVERAGE_FALLBACK_PROBABILITY_THRESHOLD"),
+        ):
+            expected_score = float(getattr(precision, probability_key)) * 100.0
+            actual_score = float(getattr(precision, score_key))
+            if not math.isclose(actual_score, expected_score, rel_tol=0.0, abs_tol=1e-9):
+                raise ValueError(f"派生评分门槛与概率门槛不一致：{score_key}")
+        if not math.isclose(
+            float(strategy["minimum_market_breadth"]),
+            float(precision.MIN_MARKET_BREADTH_PCT),
+            rel_tol=0.0,
+            abs_tol=1e-9,
+        ):
+            raise ValueError("配置文件与代码中的市场上涨广度门槛不一致")
+        if not math.isclose(
+            float(strategy["minimum_market_median_return"]),
+            float(precision.MIN_MARKET_MEDIAN_RETURN_PCT),
+            rel_tol=0.0,
+            abs_tol=1e-9,
+        ):
+            raise ValueError("配置文件与代码中的市场中位收益门槛不一致")
+
+    assert_market_breadth_shift(baseline["precision"], candidate["precision"])
+    expected_policy = "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor"
     if candidate["policy"].ADMISSION_POLICY != expected_policy:
-        raise ValueError("实验准入策略标识与2.8.0门槛不一致")
+        raise ValueError("候选策略未恢复冻结基准的准入规则")
     if baseline["model"].WEIGHTS != candidate["model"].WEIGHTS:
         raise ValueError("实验不满足单变量约束：因子权重不一致")
     for relative_path in ("strategy/model.py", "strategy/candidate_policy.py"):
         if _normalized_module_logic(baseline["root"], relative_path) != _normalized_module_logic(candidate["root"], relative_path):
-            raise ValueError(f"实验不满足单变量约束：{relative_path} 除准入门槛标识外存在其他逻辑差异")
+            raise ValueError(f"实验不满足单变量约束：{relative_path} 除版本说明外存在其他逻辑差异")
+
 
 
 def _symbol_keys(values: Any) -> np.ndarray:

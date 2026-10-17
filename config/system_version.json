@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "system_version": "2.8.0",
-  "strategy_version": "2.8.0",
+  "system_version": "2.9.0",
+  "strategy_version": "2.9.0",
   "lifecycle_status": "research",
   "release_status": "not_released",
   "strategy_source_repo": "13415837267/Aquant-Private",
   "strategy_source_branch": "main",
-  "strategy_commit": "6fc9f38e4b579600a8190dc7cd8a46526c69bcc8",
+  "strategy_commit": "4a5e973fc2e9794275add995e5f8c6fee79e7d36",
   "version_policy": "每次候选运行动态读取 Aquant-Private/main 最新提交；版本号和提交号仅记录本次快照来源，不固定历史策略。",
   "current_model": "Aquant-Private/strategy/model.py",
-  "candidate_admission_policy": "precision_top_2_with_084_primary_083_fallback_daily_top1_rescue_080_floor",
+  "candidate_admission_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
   "candidate_count_max": 2,
   "production_release": false,
   "automatic_ordering": false,
@@ -25,5 +25,13 @@
     "cost_stress_test_required": true,
     "adjacent_parameter_robustness_required": true
   },
-  "note": "当前研究候选为 2.8.0（Private/main 提交 6fc9f38e4b579600a8190dc7cd8a46526c69bcc8）。本轮准入门槛下移实验等待云端同口径回放裁决；未通过预设门槛前不正式发布、不自动下单。"
+  "note": "2.8.0 准入门槛下移实验已由云端回放拒绝。当前 2.9.0 仅将市场上涨广度门槛从65%提高至70%，其余策略逻辑恢复冻结基准2.6.0；回放结果未通过前，不正式发布、不自动下单，也不更新网页候选快照。",
+  "strategy_replay_gate": {
+    "baseline_version": "2.6.0",
+    "baseline_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
+    "candidate_version": "2.9.0",
+    "candidate_commit": "4a5e973fc2e9794275add995e5f8c6fee79e7d36",
+    "decision": "待云端同口径回放",
+    "passed": false
+  }
 }

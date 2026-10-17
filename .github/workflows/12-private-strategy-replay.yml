@@ -46,11 +46,11 @@ jobs:
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
 
-      - name: "检出策略实验 2.8.0（修复准入标签）"
+      - name: "检出策略实验 2.9.0（市场广度门槛加强）"
         uses: actions/checkout@v7
         with:
           repository: 13415837267/Aquant-Private
-          ref: 6fc9f38e4b579600a8190dc7cd8a46526c69bcc8
+          ref: 4a5e973fc2e9794275add995e5f8c6fee79e7d36
           path: candidate-strategy
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
@@ -84,6 +84,7 @@ jobs:
                   raise SystemExit(f"未找到预期测试夹具值：{path}")
               path.write_text(content.replace(old, new), encoding="utf-8")
               print(f"已将测试夹具市场广度列明确设为浮点类型：{path}")
+          PY
 
       - name: "云端验证基准策略代码"
         working-directory: baseline-strategy

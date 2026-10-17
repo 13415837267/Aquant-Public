@@ -146,6 +146,13 @@ jobs:
               manifest_version = manifest.get("system_version")
               manifest_strategy = manifest.get("strategy_version")
               manifest_commit = manifest.get("strategy_commit")
+              replay_gate = manifest.get("strategy_replay_gate") or {}
+              if not (
+                  replay_gate.get("candidate_commit") == manifest_commit
+                  and replay_gate.get("decision") == "保留研究候选"
+                  and replay_gate.get("passed") is True
+              ):
+                  reasons.append("当前策略提交尚无通过同口径实际交易回放的证据，拒绝更新网页候选快照。")
 
               if latest_history_date is None:
                   reasons.append("历史行情目录没有可用的交易日文件。")

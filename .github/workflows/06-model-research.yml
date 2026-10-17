@@ -111,7 +111,7 @@ jobs:
           assert manifest["release_status"] == "not_released"
           assert manifest["production_release"] is False
           assert manifest["automatic_ordering"] is False
-          assert MIN_MARKET_BREADTH_PCT == 65.0, MIN_MARKET_BREADTH_PCT
+          assert MIN_MARKET_BREADTH_PCT == 70.0, MIN_MARKET_BREADTH_PCT
           print("系统/策略版本：", manifest["system_version"], "/", STRATEGY_VERSION)
           print("策略提交：", private_commit)
           print("研究市场上涨广度门槛：", MIN_MARKET_BREADTH_PCT)
