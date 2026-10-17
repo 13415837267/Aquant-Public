@@ -168,6 +168,9 @@ def rule_portfolio_report(
             "training_samples": 20000,
             "training_path_win_1pct_rate_pct": 73.0,
             "training_wilson_lower_pct": 72.0,
+            "training_mean_path_net_return_pct": 0.2,
+            "training_path_profit_factor": 1.2,
+            "training_edge_gate_passed": True,
             "selection_method": "training only",
         },
         "selection_policy": {
@@ -233,6 +236,14 @@ class AfterCloseStrategyReportTests(unittest.TestCase):
             report["portfolio_comparison"]["final_supplemental"]["model"]["target_hit_rate_pct"],
             72.5,
         )
+
+    def test_frozen_rule_portfolio_gate_rejects_missing_training_edge(self):
+        from scripts.after_close_strategy_report import summarize_rule_portfolio
+        data = rule_portfolio_report()
+        data["training_selected_rule"]["training_edge_gate_passed"] = False
+        result = summarize_rule_portfolio(data)
+        self.assertFalse(result["training_edge_gate_passed"])
+        self.assertFalse(result["validation_release_gate_passed"])
 
     def test_frozen_rule_portfolio_gate_rejects_negative_or_small_results(self):
         from scripts.after_close_strategy_report import summarize_rule_portfolio

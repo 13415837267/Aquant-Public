@@ -2,14 +2,73 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+import pandas as pd
+
 from scripts.path_rule_mining import (
+    ALL_FEATURES,
+    MARKET_FEATURES,
     RESEARCH_ABLATION_FAMILIES,
+    RESEARCH_CONFIG,
+    RULE_DEFS,
+    STOCK_FEATURES,
     build_factor_ablation_candidate_pairs,
     max_signal_index,
+    path_targets,
 )
+from scripts.selection_factor_catalog import market_thresholds
 
 
 class RuleMiningSplitBoundaryTests(unittest.TestCase):
+    def test_all_stock_and_market_factors_are_scanned_at_all_configured_thresholds(self):
+        expected = len(STOCK_FEATURES) * 2 * len(RESEARCH_CONFIG["分位阈值"])
+        for feature in MARKET_FEATURES:
+            expected += len(market_thresholds(feature, RESEARCH_CONFIG)) * 2
+        self.assertEqual(len(ALL_FEATURES), len(STOCK_FEATURES) + len(MARKET_FEATURES))
+        self.assertEqual(len(RULE_DEFS), expected)
+        self.assertGreaterEqual(len(STOCK_FEATURES), 50)
+        self.assertEqual(len(MARKET_FEATURES), 6)
+
+    def test_path_labels_use_executable_entry_and_realized_net_return(self):
+        symbols = ["000001"]
+        future = [
+            pd.DataFrame([{"symbol":"000001","open":100.0,"high":130.0,"low":99.0,"close":110.0,
+                           "high_limit":110.0,"is_paused":0}]),
+            pd.DataFrame([{"symbol":"000001","open":100.0,"high":102.0,"low":99.0,"close":101.0,
+                           "high_limit":111.0,"is_paused":0}]),
+            pd.DataFrame([{"symbol":"000001","open":101.0,"high":103.0,"low":100.0,"close":102.0,
+                           "high_limit":112.0,"is_paused":0}]),
+            pd.DataFrame([{"symbol":"000001","open":102.0,"high":104.0,"low":101.0,"close":103.0,
+                           "high_limit":113.0,"is_paused":0}]),
+            pd.DataFrame([{"symbol":"000001","open":103.0,"high":105.0,"low":102.0,"close":104.0,
+                           "high_limit":114.0,"is_paused":0}]),
+        ]
+        y, best, close, complete, mae, mfe, target_day, stop_day, path_net = path_targets(symbols, future)
+        self.assertTrue(complete[0])
+        self.assertTrue(y[0])
+        self.assertEqual(target_day[0], 2)
+        self.assertTrue(np.isclose(path_net[0], 1.0, atol=1e-8))
+        self.assertTrue(np.isfinite(best[0]))
+        self.assertTrue(np.isfinite(mfe[0]))
+
+    def test_path_labels_fail_closed_when_entry_limit_is_missing_or_paused(self):
+        symbols = ["000001"]
+        future = [
+            pd.DataFrame([{"symbol":"000001","open":100.0,"high":101.0,"low":99.0,"close":100.0,
+                           "high_limit":np.nan,"is_paused":0}]),
+            *[
+                pd.DataFrame([{"symbol":"000001","open":100.0,"high":102.0,"low":99.0,"close":101.0,
+                               "high_limit":110.0,"is_paused":0}])
+                for _ in range(4)
+            ],
+        ]
+        result = path_targets(symbols, future)
+        self.assertFalse(result[3][0])
+        future[0]["high_limit"] = 110.0
+        future[0]["is_paused"] = 1
+        result = path_targets(symbols, future)
+        self.assertFalse(result[3][0])
+
     def test_family_balanced_ablation_candidates_cover_every_configured_family(self):
         atomic_rows = []
         index = 0

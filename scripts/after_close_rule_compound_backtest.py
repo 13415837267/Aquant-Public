@@ -78,20 +78,33 @@ def select_training_rule(data: dict) -> dict:
             if not has_stock_condition:
                 continue
             samples = row.get("samples")
-            if not isinstance(samples, int) or samples < MIN_TRAIN_SAMPLES:
+            resolved_samples = row.get("resolved_net_return_samples")
+            if (
+                not isinstance(samples, int) or samples < MIN_TRAIN_SAMPLES
+                or not isinstance(resolved_samples, int) or resolved_samples < MIN_TRAIN_SAMPLES
+            ):
                 continue
             candidates.append(row)
     if not candidates:
         raise ValueError("训练期没有达到样本门槛且包含个股因子的可解释规则")
     candidates.sort(
         key=lambda row: (
+            _metric(row, "mean_path_net_return_pct"),
+            _metric(row, "path_profit_factor"),
             _metric(row, "wilson_lower_pct"),
-            _metric(row, "path_win_1pct_rate_pct"),
             _metric(row, "samples"),
         ),
         reverse=True,
     )
-    return candidates[0]
+    chosen = dict(candidates[0])
+    mean_net = _metric(chosen, "mean_path_net_return_pct")
+    profit_factor = _metric(chosen, "path_profit_factor")
+    chosen["training_edge_gate_passed"] = bool(
+        math.isfinite(mean_net) and mean_net > 0.0
+        and math.isfinite(profit_factor) and profit_factor > 1.0
+    )
+    chosen["training_selection_objective"] = "训练期路径净收益均值优先，其次路径盈利因子、Wilson下界和样本数"
+    return chosen
 
 
 def evaluate_rule_conditions(
@@ -349,7 +362,10 @@ def main() -> None:
             "training_samples": rule.get("samples"),
             "training_path_win_1pct_rate_pct": rule.get("path_win_1pct_rate_pct"),
             "training_wilson_lower_pct": rule.get("wilson_lower_pct"),
-            "selection_method": "仅按2015-2022训练期Wilson下界、路径命中率和样本数排序；不使用验证与最终期标签选规则",
+            "training_mean_path_net_return_pct": rule.get("mean_path_net_return_pct"),
+            "training_path_profit_factor": rule.get("path_profit_factor"),
+            "training_edge_gate_passed": rule.get("training_edge_gate_passed"),
+            "selection_method": "只按2015—2022发现期路径净收益均值、路径盈利因子、Wilson下界和样本量排序；验证与补充期不参与选式",
         },
         "selection_policy": {
             "top_k_per_signal_day": TOP_K_PER_DAY,
@@ -393,6 +409,9 @@ def main() -> None:
         "status": result["status"],
         "rule": result["training_selected_rule"]["rule_label"],
         "rule_train_hit_rate_pct": result["training_selected_rule"]["training_path_win_1pct_rate_pct"],
+        "rule_train_mean_path_net_return_pct": result["training_selected_rule"]["training_mean_path_net_return_pct"],
+        "rule_train_profit_factor": result["training_selected_rule"]["training_path_profit_factor"],
+        "rule_training_edge_gate_passed": result["training_selected_rule"]["training_edge_gate_passed"],
         "validation": {
             key: validation_portfolio.get(key)
             for key in ("completed_trades", "compound_return_pct", "annualized_compound_return_pct", "max_drawdown_pct", "target_hit_rate_pct")

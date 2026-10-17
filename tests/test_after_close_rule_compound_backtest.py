@@ -18,6 +18,8 @@ def candidate(
     samples: int = 20000,
     rate: float = 75.0,
     wilson: float = 74.0,
+    mean_net: float = 0.15,
+    profit_factor: float = 1.15,
 ) -> dict:
     return {
         "rule_type": "pair" if len(rules) > 1 else "atomic",
@@ -26,10 +28,52 @@ def candidate(
         "samples": samples,
         "path_win_1pct_rate_pct": rate,
         "wilson_lower_pct": wilson,
+        "mean_path_net_return_pct": mean_net,
+        "path_profit_factor": profit_factor,
+        "resolved_net_return_samples": samples,
     }
 
 
 class AfterCloseRulePortfolioTests(unittest.TestCase):
+    def test_rule_selection_prioritizes_path_net_return_over_hit_rate(self):
+        high_hit_rule = candidate(
+            "high-hit-low-return",
+            [{"feature":"atr_14_pct","op":"<=","threshold":0.3,"scale":"rank"}],
+            rate=82.0, wilson=81.0, mean_net=-0.2, profit_factor=0.7,
+        )
+        positive_return_rule = candidate(
+            "positive-net-return",
+            [{"feature":"return_20d_pct","op":">=","threshold":0.7,"scale":"rank"}],
+            rate=63.0, wilson=62.0, mean_net=0.3, profit_factor=1.4,
+        )
+        result = select_training_rule({
+            "status":"research_only",
+            "train_top_atomic":[high_hit_rule, positive_return_rule],
+            "train_top_pairs":[],
+        })
+        self.assertEqual(result["rule_label"], "positive-net-return")
+        self.assertTrue(result["training_edge_gate_passed"])
+        result = select_training_rule({
+            "status":"research_only",
+            "train_top_atomic":[high_hit_rule],
+            "train_top_pairs":[],
+        })
+        self.assertFalse(result["training_edge_gate_passed"])
+
+    def test_rule_selection_requires_enough_resolved_path_samples(self):
+        incomplete = candidate(
+            "too-few-resolved",
+            [{"feature":"return_20d_pct","op":">=","threshold":0.7,"scale":"rank"}],
+            samples=20000, mean_net=0.4, profit_factor=1.5,
+        )
+        incomplete["resolved_net_return_samples"] = 9999
+        with self.assertRaises(ValueError):
+            select_training_rule({
+                "status":"research_only",
+                "train_top_atomic":[incomplete],
+                "train_top_pairs":[],
+            })
+
     def test_rule_selection_uses_training_statistics_and_requires_stock_factor(self):
         market_only = candidate(
             "market-only",

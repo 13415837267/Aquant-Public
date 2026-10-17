@@ -18,7 +18,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, history_files, read_daily
+from scripts.short_term_research import FeatureState, FEATURE_WARMUP_SESSIONS, executable_entry_mask, history_files, read_daily
 from scripts.selection_factor_catalog import active_market_factors, active_stock_factors, load_research_config, market_thresholds, raw_market_feature
 
 OUT_DIR = ROOT / "data" / "backtest"
@@ -135,10 +135,12 @@ def empty_targets(n):
         np.zeros(n, dtype=bool),
         np.full(n, np.nan), np.full(n, np.nan),
         np.full(n, np.nan), np.full(n, np.nan),
+        np.full(n, np.nan),
     )
 
 
 def path_targets(symbols, future_days):
+    """构造可执行的未来路径标签与净收益估值；特征只用信号日收盘信息。"""
     n = len(symbols)
     if len(future_days) < MAX_FORWARD_SESSIONS:
         return empty_targets(n)
@@ -146,34 +148,39 @@ def path_targets(symbols, future_days):
     keys = pd.Index(pd.Series(symbols, dtype="string").astype(str).str.zfill(6))
     first = future_days[0].set_index("symbol")
     entry = pd.to_numeric(first["open"], errors="coerce").reindex(keys).to_numpy(dtype=float)
-    if ENTRY_LIMIT_UP_BLOCK and "high_limit" in first.columns:
-        high_limit = pd.to_numeric(first["high_limit"], errors="coerce").reindex(keys).to_numpy(dtype=float)
-        executable = ~np.isfinite(high_limit) | (entry < high_limit * (1.0 - 1e-6))
-    else:
-        executable = np.ones(n, dtype=bool)
+    executable = executable_entry_mask(symbols, future_days[0])
 
-    target_gross = NET_WIN_THRESHOLD_PCT + ROUND_TRIP_COST_BPS / 100.0
-    target = entry * (1.0 + target_gross / 100.0)
+    target_gross_pct = NET_WIN_THRESHOLD_PCT + ROUND_TRIP_COST_BPS / 100.0
+    target = entry * (1.0 + target_gross_pct / 100.0)
     stop = entry * (1.0 - STOP_LOSS_PCT / 100.0)
 
-    opens, highs, lows, closes = [], [], [], []
+    opens, highs, lows, closes, paused = [], [], [], [], []
     for day in future_days[:MAX_FORWARD_SESSIONS]:
         idx = day.set_index("symbol")
         opens.append(pd.to_numeric(idx["open"], errors="coerce").reindex(keys).to_numpy(dtype=float))
         highs.append(pd.to_numeric(idx["high"], errors="coerce").reindex(keys).to_numpy(dtype=float))
         lows.append(pd.to_numeric(idx["low"], errors="coerce").reindex(keys).to_numpy(dtype=float))
         closes.append(pd.to_numeric(idx["close"], errors="coerce").reindex(keys).to_numpy(dtype=float))
+        if "is_paused" in idx.columns:
+            pause_values = pd.to_numeric(idx["is_paused"], errors="coerce").reindex(keys).fillna(1.0)
+            paused.append(pause_values.to_numpy(dtype=float) > 0.0)
+        else:
+            paused.append(np.zeros(n, dtype=bool))
 
     opens = np.column_stack(opens)
     highs = np.column_stack(highs)
     lows = np.column_stack(lows)
     closes = np.column_stack(closes)
+    paused = np.column_stack(paused)
+
     complete = (
         np.isfinite(entry) & (entry > 0) & executable
         & np.isfinite(opens).all(axis=1)
         & np.isfinite(highs).all(axis=1)
         & np.isfinite(lows).all(axis=1)
         & np.isfinite(closes).all(axis=1)
+        # 若T+2至持有期末一直停牌，无法形成可靠的退出路径。
+        & (~paused[:, 1:]).any(axis=1)
     )
 
     path_win = np.zeros(n, dtype=bool)
@@ -183,29 +190,65 @@ def path_targets(symbols, future_days):
     mfe = np.full(n, np.nan)
     target_day = np.full(n, np.nan)
     stop_day = np.full(n, np.nan)
+    path_net = np.full(n, np.nan)
+    cost_pct = ROUND_TRIP_COST_BPS / 100.0
 
     for row in np.flatnonzero(complete):
-        best_net[row] = np.max(highs[row]) / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
-        close_net[row] = closes[row, -1] / entry[row] * 100.0 - 100.0 - ROUND_TRIP_COST_BPS / 100.0
-        mae[row] = np.min(lows[row]) / entry[row] * 100.0 - 100.0
-        mfe[row] = np.max(highs[row]) / entry[row] * 100.0 - 100.0
+        sellable_days = np.flatnonzero(~paused[row, 1:]) + 1
+        if len(sellable_days):
+            # 可兑现价格路径从T+2开始，不把T+1不可卖出的波动算作可兑现收益。
+            best_net[row] = np.max(highs[row, sellable_days]) / entry[row] * 100.0 - 100.0 - cost_pct
+            mfe[row] = best_net[row] + cost_pct
+            mae[row] = np.min(lows[row, sellable_days]) / entry[row] * 100.0 - 100.0
+            last_sellable = int(sellable_days[-1])
+            close_net[row] = closes[row, last_sellable] / entry[row] * 100.0 - 100.0 - cost_pct
 
-        stopped = False
-        for d in range(MAX_FORWARD_SESSIONS):
-            # T+1 为建仓日，严格禁止在 T+1 触发卖出；T+2 才是最早退出日。
-            if d == 0:
+        last_valid_close = closes[row, 0]
+        exited = False
+        for day_index in range(1, MAX_FORWARD_SESSIONS):
+            if paused[row, day_index]:
                 continue
-            day_open, day_high, day_low = opens[row, d], highs[row, d], lows[row, d]
+            day_open = opens[row, day_index]
+            day_high = highs[row, day_index]
+            day_low = lows[row, day_index]
+            day_close = closes[row, day_index]
+            last_valid_close = day_close
+
+            # 同日止损优先；止损跳空按开盘价估值。
             if day_open <= stop[row] or day_low <= stop[row]:
-                stop_day[row] = d + 1
-                stopped = True
+                stop_day[row] = day_index + 1
+                fill = day_open if day_open < stop[row] else stop[row]
+                path_net[row] = (fill / entry[row] - 1.0) * 100.0 - cost_pct
+                exited = True
+                break
+
+            if day_open >= target[row]:
+                target_day[row] = day_index + 1
+                path_win[row] = True
+                path_net[row] = (day_open / entry[row] - 1.0) * 100.0 - cost_pct
+                exited = True
                 break
             if day_high >= target[row]:
-                target_day[row] = d + 1
+                target_day[row] = day_index + 1
+                path_win[row] = True
+                path_net[row] = (target[row] / entry[row] - 1.0) * 100.0 - cost_pct
+                exited = True
                 break
-        path_win[row] = target_day[row] > 0 and not stopped
 
-    return path_win, best_net, close_net, complete, mae, mfe, target_day, stop_day
+            if day_index == MAX_FORWARD_SESSIONS - 1:
+                path_net[row] = (day_close / entry[row] - 1.0) * 100.0 - cost_pct
+                exited = True
+                break
+
+        if not exited:
+            # 持有期最后一天仍停牌时没有可靠退出成交价，不伪造成已实现收益。
+            if paused[row, -1]:
+                path_net[row] = np.nan
+            else:
+                path_net[row] = (last_valid_close / entry[row] - 1.0) * 100.0 - cost_pct
+
+    path_win &= complete
+    return path_win, best_net, close_net, complete, mae, mfe, target_day, stop_day, path_net
 
 
 def atomic_masks(x, rule_indices=None):
@@ -233,22 +276,39 @@ def new_accumulator(count):
         "target_day_count": np.zeros(count, dtype=np.int64),
         "stop_day_sum": np.zeros(count, dtype=np.float64),
         "stop_day_count": np.zeros(count, dtype=np.int64),
+        "net_return_sum": np.zeros(count, dtype=np.float64),
+        "net_return_square_sum": np.zeros(count, dtype=np.float64),
+        "net_return_count": np.zeros(count, dtype=np.int64),
+        "positive_return_sum": np.zeros(count, dtype=np.float64),
+        "negative_return_abs_sum": np.zeros(count, dtype=np.float64),
+        "positive_return_count": np.zeros(count, dtype=np.int64),
     }
 
 
-def accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day):
+def accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day, path_net):
     acc["samples"] += masks.sum(axis=0, dtype=np.int64)
     acc["wins"] += (masks * y[:, None]).sum(axis=0, dtype=np.int64)
-    acc["best_sum"] += (masks * best[:, None]).sum(axis=0)
-    acc["close_sum"] += (masks * close[:, None]).sum(axis=0)
-    acc["mae_sum"] += (masks * mae[:, None]).sum(axis=0)
-    acc["mfe_sum"] += (masks * mfe[:, None]).sum(axis=0)
+    # 收益统计按止盈/止损/到期路径估值，不再只奖励高命中率。
+    acc["best_sum"] += (masks * np.nan_to_num(best, nan=0.0)[:, None]).sum(axis=0)
+    acc["close_sum"] += (masks * np.nan_to_num(close, nan=0.0)[:, None]).sum(axis=0)
+    acc["mae_sum"] += (masks * np.nan_to_num(mae, nan=0.0)[:, None]).sum(axis=0)
+    acc["mfe_sum"] += (masks * np.nan_to_num(mfe, nan=0.0)[:, None]).sum(axis=0)
     target_valid = (target_day > 0).astype(np.float64)
     stop_valid = (stop_day > 0).astype(np.float64)
-    acc["target_day_sum"] += (masks * (target_day * target_valid)[:, None]).sum(axis=0)
+    acc["target_day_sum"] += (masks * (np.nan_to_num(target_day, nan=0.0) * target_valid)[:, None]).sum(axis=0)
     acc["target_day_count"] += (masks * target_valid[:, None]).sum(axis=0, dtype=np.int64)
-    acc["stop_day_sum"] += (masks * (stop_day * stop_valid)[:, None]).sum(axis=0)
+    acc["stop_day_sum"] += (masks * (np.nan_to_num(stop_day, nan=0.0) * stop_valid)[:, None]).sum(axis=0)
     acc["stop_day_count"] += (masks * stop_valid[:, None]).sum(axis=0, dtype=np.int64)
+
+    valid_return = np.isfinite(path_net)
+    selected_valid = masks * valid_return[:, None].astype(np.uint8)
+    net = np.nan_to_num(path_net, nan=0.0)
+    acc["net_return_sum"] += (selected_valid * net[:, None]).sum(axis=0)
+    acc["net_return_square_sum"] += (selected_valid * (net * net)[:, None]).sum(axis=0)
+    acc["net_return_count"] += selected_valid.sum(axis=0, dtype=np.int64)
+    acc["positive_return_sum"] += (selected_valid * np.maximum(net, 0.0)[:, None]).sum(axis=0)
+    acc["negative_return_abs_sum"] += (selected_valid * np.maximum(-net, 0.0)[:, None]).sum(axis=0)
+    acc["positive_return_count"] += (selected_valid * (net > 0.0)[:, None]).sum(axis=0, dtype=np.int64)
 
 
 def rule_row(rule_type, rule_indices, acc, pos):
@@ -267,6 +327,19 @@ def rule_row(rule_type, rule_indices, acc, pos):
         "mean_5d_close_return_pct": (acc["close_sum"][pos] / n) if n else None,
         "mean_mae_pct": (acc["mae_sum"][pos] / n) if n else None,
         "mean_mfe_pct": (acc["mfe_sum"][pos] / n) if n else None,
+        "resolved_net_return_samples": int(acc["net_return_count"][pos]),
+        "mean_path_net_return_pct": (
+            acc["net_return_sum"][pos] / acc["net_return_count"][pos]
+            if acc["net_return_count"][pos] else None
+        ),
+        "positive_path_net_return_rate_pct": (
+            acc["positive_return_count"][pos] / acc["net_return_count"][pos] * 100.0
+            if acc["net_return_count"][pos] else None
+        ),
+        "path_profit_factor": (
+            acc["positive_return_sum"][pos] / acc["negative_return_abs_sum"][pos]
+            if acc["negative_return_abs_sum"][pos] > 0 else None
+        ),
         "target_day_mean": (
             acc["target_day_sum"][pos] / acc["target_day_count"][pos]
             if acc["target_day_count"][pos] else None
@@ -283,15 +356,16 @@ def summarize_atomic(acc):
     rows = []
     for idx, rule in enumerate(RULE_DEFS):
         n = int(acc["samples"][idx])
-        if n < MIN_TRAIN_RULE_SAMPLES:
+        resolved = int(acc["net_return_count"][idx])
+        if n < MIN_TRAIN_RULE_SAMPLES or resolved < MIN_TRAIN_RULE_SAMPLES:
             continue
         rows.append(rule_row("atomic", [idx], acc, idx))
-    rows.sort(key=lambda r: (r["wilson_lower_pct"], r["path_win_1pct_rate_pct"], r["samples"]), reverse=True)
+    rows.sort(key=_training_candidate_key, reverse=True)
     return rows
 
 
 def _training_candidate_key(row):
-    """统一使用训练期统计对原子条件排序。"""
+    """训练期首先比较路径净收益均值，再参考Wilson下界与样本数。"""
     def value(name):
         try:
             number = float(row.get(name))
@@ -300,8 +374,8 @@ def _training_candidate_key(row):
         return number if math.isfinite(number) else -math.inf
 
     return (
+        value("mean_path_net_return_pct"),
         value("wilson_lower_pct"),
-        value("path_win_1pct_rate_pct"),
         value("samples"),
     )
 
@@ -336,7 +410,12 @@ def _balanced_atomic_candidates(
         candidates.sort(key=_training_candidate_key, reverse=True)
 
     selected = []
-    feature_names = sorted(by_feature)
+    # 各个因子先取其最佳阈值，按训练期净收益排序，避免字母顺序决定因子覆盖范围。
+    feature_names = sorted(
+        by_feature,
+        key=lambda name: _training_candidate_key(by_feature[name][0]),
+        reverse=True,
+    )
     depth = 0
     while len(selected) < limit:
         found = False
@@ -416,7 +495,7 @@ def summarize_selected(acc, rule_specs):
     rows = []
     for pos, (rule_type, indices) in enumerate(rule_specs):
         rows.append(rule_row(rule_type, indices, acc, pos))
-    rows.sort(key=lambda r: (r["path_win_1pct_rate_pct"] or -1, r["wilson_lower_pct"] or -1, r["samples"]), reverse=True)
+    rows.sort(key=_training_candidate_key, reverse=True)
     return rows
 
 
@@ -459,7 +538,7 @@ def iter_split(files, start, end, state, allow_forward_after_end=False):
         futures = [get(i + j) for j in range(1, MAX_FORWARD_SESSIONS + 1)]
         x_full = make_features(frame)
         symbols = frame["symbol"].astype(str).str.zfill(6).tolist()
-        y, best, close, complete, mae, mfe, target_day, stop_day = path_targets(symbols, futures)
+        y, best, close, complete, mae, mfe, target_day, stop_day, path_net = path_targets(symbols, futures)
         keep = np.flatnonzero(complete)
         if len(keep) == 0:
             continue
@@ -473,6 +552,7 @@ def iter_split(files, start, end, state, allow_forward_after_end=False):
             mfe[keep],
             target_day[keep],
             stop_day[keep],
+            path_net[keep],
         )
 
 
@@ -480,9 +560,9 @@ def scan_atomic(files, start, end):
     state = FeatureState()
     acc = new_accumulator(len(RULE_DEFS))
     processed = samples = 0
-    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state):
+    for date, x, y, best, close, mae, mfe, target_day, stop_day, path_net in iter_split(files, start, end, state):
         masks = atomic_masks(x)
-        accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day)
+        accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day, path_net)
         processed += 1
         samples += len(y)
         if processed % 50 == 0:
@@ -495,13 +575,13 @@ def scan_pairs(files, start, end, atomic_indices, pair_indices):
     rule_specs = [("pair", pair) for pair in pair_indices]
     acc = new_accumulator(len(rule_specs))
     processed = samples = 0
-    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state):
+    for date, x, y, best, close, mae, mfe, target_day, stop_day, path_net in iter_split(files, start, end, state):
         base_masks = atomic_masks(x, atomic_indices)
         local_index = {rule_idx: pos for pos, rule_idx in enumerate(atomic_indices)}
         masks = np.empty((len(x), len(pair_indices)), dtype=np.uint8)
         for pos, (left, right) in enumerate(pair_indices):
             masks[:, pos] = base_masks[:, local_index[left]] & base_masks[:, local_index[right]]
-        accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day)
+        accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day, path_net)
         processed += 1
         samples += len(y)
         if processed % 50 == 0:
@@ -515,14 +595,14 @@ def scan_selected(files, start, end, atomic_indices, pair_indices, allow_forward
     acc = new_accumulator(len(rule_specs))
     processed = samples = 0
     atomic_pos = {idx: pos for pos, idx in enumerate(atomic_indices)}
-    for date, x, y, best, close, mae, mfe, target_day, stop_day in iter_split(files, start, end, state, allow_forward_after_end=allow_forward_after_end):
+    for date, x, y, best, close, mae, mfe, target_day, stop_day, path_net in iter_split(files, start, end, state, allow_forward_after_end=allow_forward_after_end):
         base_masks = atomic_masks(x, atomic_indices)
         masks = np.empty((len(x), len(rule_specs)), dtype=np.uint8)
         for pos, idx in enumerate(atomic_indices):
             masks[:, pos] = base_masks[:, atomic_pos[idx]]
         for offset, (left, right) in enumerate(pair_indices, len(atomic_indices)):
             masks[:, offset] = base_masks[:, atomic_pos[left]] & base_masks[:, atomic_pos[right]]
-        accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day)
+        accumulate_masks(acc, masks, y, best, close, mae, mfe, target_day, stop_day, path_net)
         processed += 1
         samples += len(y)
         if processed % 50 == 0:
@@ -555,8 +635,9 @@ def main():
         raise ValueError("训练区间必须落在历史数据范围内")
 
     train_atomic_acc, train_days, train_samples = scan_atomic(files, args.start, TRAIN_END)
+    # 全部原子条件都参与统计；配对候选按各因子的训练期净收益优先，而非单看命中率。
     train_atomic = summarize_atomic(train_atomic_acc)
-    top_atomic = train_atomic[:MAX_ATOMIC_CANDIDATES]
+    top_atomic = _balanced_atomic_candidates(train_atomic, MAX_ATOMIC_CANDIDATES)
     atomic_indices = [row["rule_indices"][0] for row in top_atomic]
     if not atomic_indices:
         raise RuntimeError("没有满足训练样本门槛的原子条件")
@@ -585,20 +666,25 @@ def main():
 
     pair_rows_by_indices = {}
     for pos, pair in enumerate(pair_scan_indices):
-        if int(train_pair_acc["samples"][pos]) < MIN_TRAIN_RULE_SAMPLES:
+        if (
+            int(train_pair_acc["samples"][pos]) < MIN_TRAIN_RULE_SAMPLES
+            or int(train_pair_acc["net_return_count"][pos]) < MIN_TRAIN_RULE_SAMPLES
+        ):
             continue
         pair_rows_by_indices[tuple(pair)] = rule_row("pair", pair, train_pair_acc, pos)
 
-    # 主规则继续只从原先全局 Top 原子配对选取，保持规则组合基准可比。
+    # 主公式候选池同时纳入通用优选配对与各因子族的匹配消融配对，
+    # 让每个研究因子族都有机会进入最终训练期净收益排序。
+    all_formula_pair_indices = list(dict.fromkeys([
+        *general_candidate_pairs,
+        *factor_pair_indices,
+    ]))
     train_pairs_all = [
         pair_rows_by_indices[pair]
-        for pair in general_candidate_pairs
+        for pair in all_formula_pair_indices
         if pair in pair_rows_by_indices
     ]
-    train_pairs_all.sort(
-        key=lambda row: (row["wilson_lower_pct"], row["path_win_1pct_rate_pct"], row["samples"]),
-        reverse=True,
-    )
+    train_pairs_all.sort(key=_training_candidate_key, reverse=True)
     top_pairs = train_pairs_all[:MAX_PAIR_CANDIDATES]
     pair_indices = [tuple(row["rule_indices"]) for row in top_pairs]
 
@@ -612,8 +698,8 @@ def main():
         factor_pair_summary[spec["target_family"]]["qualified_training_pairs"] += 1
     train_factor_ablation_pairs.sort(key=lambda row: (
         row["target_family"],
-        -float(row["wilson_lower_pct"]),
-        -float(row["path_win_1pct_rate_pct"]),
+        -float(row["mean_path_net_return_pct"] if row["mean_path_net_return_pct"] is not None else -math.inf),
+        -float(row["wilson_lower_pct"] if row["wilson_lower_pct"] is not None else -math.inf),
         -int(row["samples"]),
     ))
 
@@ -624,10 +710,7 @@ def main():
     eligible_validation = [
         row for row in validation_rows_all if row["samples"] >= MIN_VALIDATION_RULE_SAMPLES
     ]
-    eligible_validation.sort(
-        key=lambda r: (r["path_win_1pct_rate_pct"] or -1, r["wilson_lower_pct"] or -1, r["samples"]),
-        reverse=True,
-    )
+    eligible_validation.sort(key=_training_candidate_key, reverse=True)
     selected = eligible_validation[:TOP_OUTPUT_RULES]
 
     selected_specs = [(row["rule_type"], tuple(row["rule_indices"])) for row in selected]
@@ -700,6 +783,11 @@ def main():
         "factor_configuration": {"active_stock_factors": STOCK_FEATURES, "active_market_factors": MARKET_FEATURES,
             "market_thresholds": {feature: market_thresholds(feature, RESEARCH_CONFIG) for feature in MARKET_FEATURES}},
         "parameters": {
+            "active_stock_factor_count": len(STOCK_FEATURES),
+            "active_market_factor_count": len(MARKET_FEATURES),
+            "total_active_factor_count": len(ALL_FEATURES),
+            "single_condition_candidate_count": len(RULE_DEFS),
+            "selection_primary_metric": "training_mean_path_net_return_pct",
             "net_win_threshold_pct": NET_WIN_THRESHOLD_PCT,
             "stop_loss_pct": STOP_LOSS_PCT,
             "round_trip_cost_bps": ROUND_TRIP_COST_BPS,
@@ -732,7 +820,7 @@ def main():
                 if final_map else None,
             },
         },
-        "train_top_atomic": train_atomic[:TOP_OUTPUT_RULES],
+        "train_top_atomic": top_atomic,
         # 为训练期匹配消融保留完整候选池；验证期展示数量仍由 TOP_OUTPUT_RULES 控制。
         "train_top_pairs": top_pairs,
         "factor_ablation_candidate_summary": factor_pair_summary,
@@ -750,7 +838,10 @@ def main():
             "final_holdout_used_only_after_validation_selection": True,
             "factor_ablation_candidates_selected_from_training_only": True,
             "rule_discovery_split": "train",
-            "rule_selection_split": "validation",
+            "rule_selection_split": "validation_for_diagnostics_only",
+            "portfolio_formula_source": "train_only",
+            "formula_primary_metric": "training_mean_path_net_return_pct",
+            "no_validation_or_final_labels_used_to_choose_portfolio_formula": True,
             "final_holdout_split": "final",
             "train_and_validation_label_windows_stay_inside_split": True,
             "final_signal_window_truncated_to_available_complete_exit_bars": True,

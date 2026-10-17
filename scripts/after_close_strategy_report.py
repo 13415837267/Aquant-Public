@@ -254,8 +254,10 @@ def summarize_rule_portfolio(data: dict[str, Any]) -> dict[str, Any]:
     validation_annualized = _number(validation.get("annualized_compound_return_pct"))
     validation_drawdown = _number(validation.get("max_drawdown_pct"))
     validation_trades = _integer(validation.get("completed_trades")) or 0
+    training_edge_gate = rule.get("training_edge_gate_passed") is True
     validation_gate = bool(
-        validation.get("status") == "ready"
+        training_edge_gate
+        and validation.get("status") == "ready"
         and validation_trades >= minimum_trades
         and validation_return is not None
         and validation_return > 0
@@ -281,11 +283,14 @@ def summarize_rule_portfolio(data: dict[str, Any]) -> dict[str, Any]:
             key: rule.get(key)
             for key in (
                 "rule_type", "rule_label", "rules", "training_samples",
-                "training_path_win_1pct_rate_pct", "training_wilson_lower_pct", "selection_method",
+                "training_path_win_1pct_rate_pct", "training_wilson_lower_pct",
+                "training_mean_path_net_return_pct", "training_path_profit_factor",
+                "training_edge_gate_passed", "selection_method",
             )
             if key in rule
         },
         "rule_frozen_before_validation": bool((data.get("audit") or {}).get("rule_selected_from_training_only")),
+        "training_edge_gate_passed": training_edge_gate,
         "validation_portfolio": validation_summary,
         "validation_release_gate_passed": validation_gate,
         "final_supplemental_portfolio": final_summary,
