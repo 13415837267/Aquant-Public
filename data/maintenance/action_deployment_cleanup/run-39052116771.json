@@ -1,8 +1,30 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 39040115076,
-  "completed_at": "2026-10-17T14:17:53Z",
-  "deleted_actions": [],
+  "cleanup_run_id": 39052116771,
+  "completed_at": "2026-10-17T17:04:25Z",
+  "deleted_actions": [
+    {
+      "run_id": 39049873649,
+      "created_at": "2026-10-17T16:32:41Z",
+      "conclusion": "failure",
+      "name": "12 私有策略实际交易回放",
+      "diagnostic": {
+        "run_id": 39049873649,
+        "captured_at": "2026-10-17T17:04:23Z",
+        "log_capture_status": "complete",
+        "jobs": [
+          {
+            "conclusion": "failure",
+            "html_url": "https://github.com/13415837267/Aquant-Public/actions/runs/39049873649/job/117446097391",
+            "id": 117446097391,
+            "name": "同口径回放基准策略与实验策略",
+            "status": "completed"
+          }
+        ],
+        "failure_excerpt": "同口径回放基准策略与实验策略\t检出公开仓库与完整历史行情\t2026-10-17T16:32:47.0990475Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\t检出冻结基准策略 2.6.0\t2026-10-17T16:33:14.7134898Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\t检出策略实验 3.0.0（风险调整短线策略重构）\t2026-10-17T16:33:15.2896747Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\t设置固定 Python 版本\t2026-10-17T16:33:15.8212847Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\t安装仓库锁定依赖\t2026-10-17T16:33:16.1481546Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\t检查公开回放脚本与测试\t2026-10-17T16:33:35.0726419Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\t检查公开回放脚本与测试\t2026-10-17T16:33:41.2755320Z =================================== FAILURES ===================================\n同口径回放基准策略与实验策略\t检查公开回放脚本与测试\t2026-10-17T16:33:41.2759549Z         assert 'PYTHONWARNINGS: \"error\"' in replay_workflow\n同口径回放基准策略与实验策略\t检查公开回放脚本与测试\t2026-10-17T16:33:41.2764384Z tests/test_workflow_action_runtimes.py:69: AssertionError\n同口径回放基准策略与实验策略\t检查公开回放脚本与测试\t2026-10-17T16:33:41.2767805Z FAILED tests/test_workflow_action_runtimes.py::test_private_strategy_replay_normalizes_test_fixture_without_ignoring_warnings - assert '规范化两个策略测试夹具的市场广度浮点类型' in 'name: \"12 私有策略实际交易回放\"\\n\\nenv:\\n  GIT_CONFIG_COUNT: \"1\"\\n  GIT_CONFIG_KEY_0: \"init.defaultBranch\"\\n  GIT_CONFIG_VALUE_...rint(\"相对基准无回撤恶化且收益不退步：\", decision.get(\"all_baseline_comparisons_passed\"))\\n          print(\"允许正式发布：否\")\\n          PY\\n'\n同口径回放基准策略与实验策略\t检查公开回放脚本与测试\t2026-10-17T16:33:41.2770419Z 1 failed, 165 passed in 5.40s\n同口径回放基准策略与实验策略\t检查公开回放脚本与测试\t2026-10-17T16:33:41.4547119Z ##[error]Process completed with exit code 1.\n同口径回放基准策略与实验策略\t输出明确的保留或拒绝结论\t2026-10-17T16:33:41.4687192Z   PYTHONWARNINGS: error"
+      }
+    }
+  ],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
   "preserved_other_deployments": [],
@@ -16,19 +38,22 @@
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
-      "run_id": 39040115076,
-      "created_at": "2026-10-17T14:17:29Z",
+      "run_id": 39052116771,
+      "created_at": "2026-10-17T17:03:57Z",
       "status": "in_progress",
       "name": "维护历史 Action 记录"
-    },
-    {
-      "run_id": 39040115072,
-      "created_at": "2026-10-17T14:17:29Z",
-      "status": "in_progress",
-      "name": "05 网页自动部署"
     }
   ],
   "preserved_unresolved_runs": [
+    {
+      "run_id": 39041279169,
+      "created_at": "2026-10-17T14:33:44Z",
+      "conclusion": "failure",
+      "name": "04 历史研究流水线",
+      "workflow_id": 374804198,
+      "head_sha": "b2c0ddee37be4e6d2c339e61270ad1d421260999",
+      "reason": "同一工作流在后续不同提交上尚无成功运行；保留原始记录"
+    },
     {
       "run_id": 38994489714,
       "created_at": "2026-10-17T02:19:51Z",
@@ -58,6 +83,91 @@
     }
   ],
   "preserved_successful_runs": [
+    {
+      "run_id": 39050331182,
+      "created_at": "2026-10-17T16:39:02Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39050266719,
+      "created_at": "2026-10-17T16:38:06Z",
+      "name": "12 私有策略实际交易回放"
+    },
+    {
+      "run_id": 39050266711,
+      "created_at": "2026-10-17T16:38:06Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 39049959463,
+      "created_at": "2026-10-17T16:33:51Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39049954775,
+      "created_at": "2026-10-17T16:33:47Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39049909925,
+      "created_at": "2026-10-17T16:33:10Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39049873695,
+      "created_at": "2026-10-17T16:32:41Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39046063251,
+      "created_at": "2026-10-17T15:40:14Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39041561015,
+      "created_at": "2026-10-17T14:37:45Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39041525992,
+      "created_at": "2026-10-17T14:37:15Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39041525834,
+      "created_at": "2026-10-17T14:37:15Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39041488179,
+      "created_at": "2026-10-17T14:36:43Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39041488121,
+      "created_at": "2026-10-17T14:36:43Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39041382299,
+      "created_at": "2026-10-17T14:35:12Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 39040146212,
+      "created_at": "2026-10-17T14:17:55Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39040115076,
+      "created_at": "2026-10-17T14:17:29Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39040115072,
+      "created_at": "2026-10-17T14:17:29Z",
+      "name": "05 网页自动部署"
+    },
     {
       "run_id": 39040082037,
       "created_at": "2026-10-17T14:17:01Z",
