@@ -76,14 +76,18 @@ jobs:
           from pathlib import Path
 
           old = '"market_breadth_pct": 65,'
-          new = '"market_breadth_pct": 65.0,'
+          normalized_integer = '"market_breadth_pct": 65.0,'
           for root in (Path("baseline-strategy"), Path("candidate-strategy")):
               path = root / "tests" / "test_model.py"
               content = path.read_text(encoding="utf-8")
-              if old not in content:
-                  raise SystemExit(f"未找到预期测试夹具值：{path}")
-              path.write_text(content.replace(old, new), encoding="utf-8")
-              print(f"已将测试夹具市场广度列明确设为浮点类型：{path}")
+              if old in content:
+                  content = content.replace(old, normalized_integer)
+                  path.write_text(content, encoding="utf-8")
+                  print(f"已将基准测试夹具市场广度列转换为浮点类型：{path}")
+              elif '"market_breadth_pct": 65.0,' in content or '"market_breadth_pct": 70.0,' in content:
+                  print(f"测试夹具市场广度列已是浮点类型，无需修改：{path}")
+              else:
+                  raise SystemExit(f"测试夹具缺少可识别的浮点市场广度值：{path}")
           PY
 
       - name: "云端验证基准策略代码"
