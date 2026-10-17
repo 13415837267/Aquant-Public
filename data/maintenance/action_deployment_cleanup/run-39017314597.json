@@ -1,0 +1,263 @@
+{
+  "repository": "13415837267/Aquant-Public",
+  "cleanup_run_id": 39017314597,
+  "completed_at": "2026-10-17T08:26:17Z",
+  "deleted_actions": [],
+  "deleted_deployments": [],
+  "preserved_active_deployments": [],
+  "preserved_other_deployments": [],
+  "preserved_current_deployment": {
+    "deployment_id": 7126210659,
+    "sha": "0a9a6004357bf8a64a68b53ad59f58d4bb06c217",
+    "ref": "main",
+    "created_at": "2026-10-16T18:11:42Z",
+    "state": "success"
+  },
+  "cancelled_obsolete_runs": [],
+  "preserved_active_runs": [
+    {
+      "run_id": 39017321416,
+      "created_at": "2026-10-17T08:25:42Z",
+      "status": "in_progress",
+      "name": "12 私有策略实际交易回放"
+    },
+    {
+      "run_id": 39017321362,
+      "created_at": "2026-10-17T08:25:42Z",
+      "status": "in_progress",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 39017314597,
+      "created_at": "2026-10-17T08:25:35Z",
+      "status": "in_progress",
+      "name": "维护历史 Action 记录"
+    }
+  ],
+  "preserved_unresolved_runs": [
+    {
+      "run_id": 39017310048,
+      "created_at": "2026-10-17T08:25:30Z",
+      "conclusion": "cancelled",
+      "name": "维护历史 Action 记录",
+      "workflow_id": 379248960,
+      "head_sha": "67d09efe3455112fbd39dc6a3db0f11494d8c769",
+      "reason": "同一工作流在后续不同提交上尚无成功运行；保留原始记录"
+    },
+    {
+      "run_id": 39017254503,
+      "created_at": "2026-10-17T08:24:41Z",
+      "conclusion": "failure",
+      "name": "12 私有策略实际交易回放",
+      "workflow_id": 386904699,
+      "head_sha": "35e9a357509784a168b8ddf32d960811ec3bd6cf",
+      "reason": "同一工作流在后续不同提交上尚无成功运行；保留原始记录"
+    },
+    {
+      "run_id": 38994489714,
+      "created_at": "2026-10-17T02:19:51Z",
+      "conclusion": "failure",
+      "name": "04 历史研究流水线",
+      "workflow_id": 374804198,
+      "head_sha": "0dc406b18fb65c77d115b8f55f4cbfc86dfba801",
+      "reason": "同一工作流在后续不同提交上尚无成功运行；保留原始记录"
+    },
+    {
+      "run_id": 38994489711,
+      "created_at": "2026-10-17T02:19:51Z",
+      "conclusion": "cancelled",
+      "name": "06 模型研究",
+      "workflow_id": 378372782,
+      "head_sha": "0dc406b18fb65c77d115b8f55f4cbfc86dfba801",
+      "reason": "同一工作流在后续不同提交上尚无成功运行；保留原始记录"
+    },
+    {
+      "run_id": 38951099594,
+      "created_at": "2026-10-16T18:55:51Z",
+      "conclusion": "cancelled",
+      "name": "11 盘后选股策略统一研究",
+      "workflow_id": 381962972,
+      "head_sha": "0aaa44eef29f88b7d033390e07c3421473b24e88",
+      "reason": "同一工作流在后续不同提交上尚无成功运行；保留原始记录"
+    }
+  ],
+  "preserved_successful_runs": [
+    {
+      "run_id": 39017288323,
+      "created_at": "2026-10-17T08:25:11Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39017270095,
+      "created_at": "2026-10-17T08:24:56Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39017254499,
+      "created_at": "2026-10-17T08:24:41Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 39017254430,
+      "created_at": "2026-10-17T08:24:41Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39003358953,
+      "created_at": "2026-10-17T04:39:05Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38996716967,
+      "created_at": "2026-10-17T02:54:11Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38995211615,
+      "created_at": "2026-10-17T02:30:49Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38995138704,
+      "created_at": "2026-10-17T02:29:49Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38995082032,
+      "created_at": "2026-10-17T02:28:57Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38995082001,
+      "created_at": "2026-10-17T02:28:57Z",
+      "name": "12 私有策略实际交易回放"
+    },
+    {
+      "run_id": 38995081961,
+      "created_at": "2026-10-17T02:28:57Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38994547425,
+      "created_at": "2026-10-17T02:20:38Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38994519606,
+      "created_at": "2026-10-17T02:20:16Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38994489728,
+      "created_at": "2026-10-17T02:19:51Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38994489672,
+      "created_at": "2026-10-17T02:19:51Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38978004847,
+      "created_at": "2026-10-16T22:49:25Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38956496529,
+      "created_at": "2026-10-16T19:39:16Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38954383953,
+      "created_at": "2026-10-16T19:22:00Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38951621356,
+      "created_at": "2026-10-16T19:00:04Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38951455465,
+      "created_at": "2026-10-16T18:58:43Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38951455434,
+      "created_at": "2026-10-16T18:58:43Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38951455429,
+      "created_at": "2026-10-16T18:58:43Z",
+      "name": "12 私有策略实际交易回放"
+    },
+    {
+      "run_id": 38951099672,
+      "created_at": "2026-10-16T18:55:51Z",
+      "name": "12 私有策略实际交易回放"
+    },
+    {
+      "run_id": 38951099588,
+      "created_at": "2026-10-16T18:55:51Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38948048598,
+      "created_at": "2026-10-16T18:31:51Z",
+      "name": "11 盘后选股策略统一研究"
+    },
+    {
+      "run_id": 38948048578,
+      "created_at": "2026-10-16T18:31:51Z",
+      "name": "12 私有策略实际交易回放"
+    },
+    {
+      "run_id": 38948048558,
+      "created_at": "2026-10-16T18:31:51Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38946619437,
+      "created_at": "2026-10-16T18:20:46Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38946501740,
+      "created_at": "2026-10-16T18:19:53Z",
+      "name": "01 Python质量检查"
+    },
+    {
+      "run_id": 38945485258,
+      "created_at": "2026-10-16T18:11:59Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38945298805,
+      "created_at": "2026-10-16T18:10:31Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38945298791,
+      "created_at": "2026-10-16T18:10:31Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 38945068999,
+      "created_at": "2026-10-16T18:08:43Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 38945068963,
+      "created_at": "2026-10-16T18:08:43Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 38944867044,
+      "created_at": "2026-10-16T18:07:08Z",
+      "name": "02 数据维护"
+    }
+  ],
+  "preserved_other_completed_runs": [],
+  "errors": []
+}
