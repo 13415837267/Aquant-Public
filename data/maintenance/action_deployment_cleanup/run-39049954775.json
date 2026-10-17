@@ -1,7 +1,7 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 39039943534,
-  "completed_at": "2026-10-17T14:15:33Z",
+  "cleanup_run_id": 39049954775,
+  "completed_at": "2026-10-17T16:34:13Z",
   "deleted_actions": [],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
@@ -16,19 +16,46 @@
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
-      "run_id": 39039943583,
-      "created_at": "2026-10-17T14:15:07Z",
-      "status": "in_progress",
-      "name": "03 候选池生产"
+      "run_id": 39049959463,
+      "created_at": "2026-10-17T16:33:51Z",
+      "status": "pending",
+      "name": "维护历史 Action 记录"
     },
     {
-      "run_id": 39039943534,
-      "created_at": "2026-10-17T14:15:07Z",
+      "run_id": 39049954775,
+      "created_at": "2026-10-17T16:33:47Z",
       "status": "in_progress",
       "name": "维护历史 Action 记录"
     }
   ],
   "preserved_unresolved_runs": [
+    {
+      "run_id": 39049873649,
+      "created_at": "2026-10-17T16:32:41Z",
+      "conclusion": "failure",
+      "name": "12 私有策略实际交易回放",
+      "workflow_id": 386904699,
+      "head_sha": "2e331e91f59a37c77d59b77a7f0e43bc295e2e89",
+      "reason": "同一工作流在后续不同提交上尚无成功运行；保留原始记录"
+    },
+    {
+      "run_id": 39049873626,
+      "created_at": "2026-10-17T16:32:41Z",
+      "conclusion": "failure",
+      "name": "01 Python质量检查",
+      "workflow_id": 374790342,
+      "head_sha": "2e331e91f59a37c77d59b77a7f0e43bc295e2e89",
+      "reason": "同一工作流在后续不同提交上尚无成功运行；保留原始记录"
+    },
+    {
+      "run_id": 39041279169,
+      "created_at": "2026-10-17T14:33:44Z",
+      "conclusion": "failure",
+      "name": "04 历史研究流水线",
+      "workflow_id": 374804198,
+      "head_sha": "b2c0ddee37be4e6d2c339e61270ad1d421260999",
+      "reason": "同一工作流在后续不同提交上尚无成功运行；保留原始记录"
+    },
     {
       "run_id": 38994489714,
       "created_at": "2026-10-17T02:19:51Z",
@@ -58,6 +85,96 @@
     }
   ],
   "preserved_successful_runs": [
+    {
+      "run_id": 39049909925,
+      "created_at": "2026-10-17T16:33:10Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39049873695,
+      "created_at": "2026-10-17T16:32:41Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39046063251,
+      "created_at": "2026-10-17T15:40:14Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39041561015,
+      "created_at": "2026-10-17T14:37:45Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39041525992,
+      "created_at": "2026-10-17T14:37:15Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39041525834,
+      "created_at": "2026-10-17T14:37:15Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39041488179,
+      "created_at": "2026-10-17T14:36:43Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39041488121,
+      "created_at": "2026-10-17T14:36:43Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39041382299,
+      "created_at": "2026-10-17T14:35:12Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 39040146212,
+      "created_at": "2026-10-17T14:17:55Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39040115076,
+      "created_at": "2026-10-17T14:17:29Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39040115072,
+      "created_at": "2026-10-17T14:17:29Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39040082037,
+      "created_at": "2026-10-17T14:17:01Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39040011867,
+      "created_at": "2026-10-17T14:16:01Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39039981346,
+      "created_at": "2026-10-17T14:15:36Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39039981312,
+      "created_at": "2026-10-17T14:15:36Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39039943583,
+      "created_at": "2026-10-17T14:15:07Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39039943534,
+      "created_at": "2026-10-17T14:15:07Z",
+      "name": "维护历史 Action 记录"
+    },
     {
       "run_id": 39039868445,
       "created_at": "2026-10-17T14:14:05Z",
