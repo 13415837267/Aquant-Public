@@ -1,79 +1,8 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 39033685941,
-  "completed_at": "2026-10-17T12:44:27Z",
-  "deleted_actions": [
-    {
-      "run_id": 39028102439,
-      "created_at": "2026-10-17T11:17:01Z",
-      "conclusion": "cancelled",
-      "name": "维护历史 Action 记录",
-      "diagnostic": null
-    },
-    {
-      "run_id": 39028047978,
-      "created_at": "2026-10-17T11:16:08Z",
-      "conclusion": "failure",
-      "name": "12 私有策略实际交易回放",
-      "diagnostic": {
-        "run_id": 39028047978,
-        "captured_at": "2026-10-17T12:44:21Z",
-        "log_capture_status": "complete",
-        "jobs": [
-          {
-            "conclusion": "failure",
-            "html_url": "https://github.com/13415837267/Aquant-Public/actions/runs/39028047978/job/117382824626",
-            "id": 117382824626,
-            "name": "同口径回放基准策略与实验策略",
-            "status": "completed"
-          }
-        ],
-        "failure_excerpt": "同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:13.5015115Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:34.4626098Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:35.0755439Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:35.7049457Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:35.8402089Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:49.3137855Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:53.9488916Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:53.9822707Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:54.7266020Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:55.4767730Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:55.7175827Z Traceback (most recent call last):\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:55.7185894Z     raise ValueError(\"基准与实验版本不符合本次回放契约\")\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:55.7186167Z ValueError: 基准与实验版本不符合本次回放契约\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:55.7526588Z ##[error]Process completed with exit code 1.\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T11:16:55.7633787Z   PYTHONWARNINGS: error"
-      }
-    },
-    {
-      "run_id": 39017321416,
-      "created_at": "2026-10-17T08:25:42Z",
-      "conclusion": "failure",
-      "name": "12 私有策略实际交易回放",
-      "diagnostic": {
-        "run_id": 39017321416,
-        "captured_at": "2026-10-17T12:44:23Z",
-        "log_capture_status": "complete",
-        "jobs": [
-          {
-            "conclusion": "failure",
-            "html_url": "https://github.com/13415837267/Aquant-Public/actions/runs/39017321416/job/117352007050",
-            "id": 117352007050,
-            "name": "同口径回放基准策略与实验策略",
-            "status": "completed"
-          }
-        ],
-        "failure_excerpt": "同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:25:47.6647256Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:05.9379559Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:06.5462207Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:07.2107523Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:07.3755559Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:24.3197404Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:31.4338595Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:31.4747428Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:32.4672571Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:33.4586898Z =================================== FAILURES ===================================\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:33.4590239Z E       AssertionError: assert '2.9.0' == '2.8.0'\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:33.4591840Z tests/test_strategy_config.py:25: AssertionError\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:33.4592963Z FAILED tests/test_strategy_config.py::test_strategy_config_matches_execution_contract_and_research_policy - AssertionError: assert '2.9.0' == '2.8.0'\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:33.4595316Z 1 failed, 17 passed in 0.75s\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:33.5086393Z ##[error]Process completed with exit code 1.\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:26:33.5210248Z   PYTHONWARNINGS: error"
-      }
-    },
-    {
-      "run_id": 39017254503,
-      "created_at": "2026-10-17T08:24:41Z",
-      "conclusion": "failure",
-      "name": "12 私有策略实际交易回放",
-      "diagnostic": {
-        "run_id": 39017254503,
-        "captured_at": "2026-10-17T12:44:26Z",
-        "log_capture_status": "complete",
-        "jobs": [
-          {
-            "conclusion": "failure",
-            "html_url": "https://github.com/13415837267/Aquant-Public/actions/runs/39017254503/job/117351819853",
-            "id": 117351819853,
-            "name": "同口径回放基准策略与实验策略",
-            "status": "completed"
-          }
-        ],
-        "failure_excerpt": "同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:24:45.4059562Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:25:03.3257902Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:25:03.8752486Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:25:04.3952873Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:25:04.5313256Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:25:19.4707489Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:25:24.1687745Z   PYTHONWARNINGS: error\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:25:24.3864907Z ##[error]Process completed with exit code 1.\n同口径回放基准策略与实验策略\tUNKNOWN STEP\t2026-10-17T08:25:24.4672913Z   PYTHONWARNINGS: error"
-      }
-    }
-  ],
+  "cleanup_run_id": 39038286888,
+  "completed_at": "2026-10-17T13:52:06Z",
+  "deleted_actions": [],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
   "preserved_other_deployments": [],
@@ -87,8 +16,14 @@
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
-      "run_id": 39033685941,
-      "created_at": "2026-10-17T12:43:52Z",
+      "run_id": 39038318225,
+      "created_at": "2026-10-17T13:51:53Z",
+      "status": "pending",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39038286888,
+      "created_at": "2026-10-17T13:51:27Z",
       "status": "in_progress",
       "name": "维护历史 Action 记录"
     }
@@ -123,6 +58,106 @@
     }
   ],
   "preserved_successful_runs": [
+    {
+      "run_id": 39038286797,
+      "created_at": "2026-10-17T13:51:27Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39038252198,
+      "created_at": "2026-10-17T13:50:59Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39038252127,
+      "created_at": "2026-10-17T13:50:59Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39038136153,
+      "created_at": "2026-10-17T13:49:18Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 39037744481,
+      "created_at": "2026-10-17T13:43:33Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39037716373,
+      "created_at": "2026-10-17T13:43:09Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39037716347,
+      "created_at": "2026-10-17T13:43:09Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39037685733,
+      "created_at": "2026-10-17T13:42:41Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39037685730,
+      "created_at": "2026-10-17T13:42:41Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39037581618,
+      "created_at": "2026-10-17T13:41:11Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39037552302,
+      "created_at": "2026-10-17T13:40:46Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39037552291,
+      "created_at": "2026-10-17T13:40:46Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39037520675,
+      "created_at": "2026-10-17T13:40:19Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39036337332,
+      "created_at": "2026-10-17T13:23:10Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39036304610,
+      "created_at": "2026-10-17T13:22:42Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39036304599,
+      "created_at": "2026-10-17T13:22:42Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39036197491,
+      "created_at": "2026-10-17T13:21:06Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39036197434,
+      "created_at": "2026-10-17T13:21:06Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39036100656,
+      "created_at": "2026-10-17T13:19:44Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 39033685941,
+      "created_at": "2026-10-17T12:43:52Z",
+      "name": "维护历史 Action 记录"
+    },
     {
       "run_id": 39032481777,
       "created_at": "2026-10-17T12:25:45Z",
