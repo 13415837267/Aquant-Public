@@ -6,7 +6,7 @@
   "release_status": "not_released",
   "strategy_source_repo": "13415837267/Aquant-Private",
   "strategy_source_branch": "main",
-  "strategy_commit": "8c18d9bb57fc2d960004a8ad5cdf036d72b90d48",
+  "strategy_commit": "6fc9f38e4b579600a8190dc7cd8a46526c69bcc8",
   "version_policy": "每次候选运行动态读取 Aquant-Private/main 最新提交；版本号和提交号仅记录本次快照来源，不固定历史策略。",
   "current_model": "Aquant-Private/strategy/model.py",
   "candidate_admission_policy": "precision_top_2_with_084_primary_083_fallback_daily_top1_rescue_080_floor",
@@ -25,5 +25,5 @@
     "cost_stress_test_required": true,
     "adjacent_parameter_robustness_required": true
   },
-  "note": "当前研究候选为 2.8.0（Private/main 提交 8c18d9bb57fc2d960004a8ad5cdf036d72b90d48）。本轮仅将三档准入门槛整体下移 0.05，正在等待与冻结基准 2.6.0 的云端同口径回放裁决；未通过门槛前不正式发布、不自动下单。"
+  "note": "当前研究候选为 2.8.0（Private/main 提交 6fc9f38e4b579600a8190dc7cd8a46526c69bcc8）。本轮准入门槛下移实验等待云端同口径回放裁决；未通过预设门槛前不正式发布、不自动下单。"
 }

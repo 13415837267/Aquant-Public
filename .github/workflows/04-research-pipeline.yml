@@ -10,7 +10,6 @@ on:
     - cron: "0 12 * * 6"
   push:
     paths:
-      - ".github/workflows/04-research-pipeline.yml"
       - "scripts/short_term_release_validation.py"
       - "scripts/short_term_research.py"
       - "scripts/train_short_term_model.py"
@@ -18,7 +17,6 @@ on:
       - "tests/test_short_term_release_validation.py"
       - "tests/test_short_term_research.py"
       - "config/research_run_contract.json"
-      - "config/system_version.json"
   workflow_dispatch:
     inputs:
       resume_run_id:
@@ -52,7 +50,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: 13415837267/Aquant-Private
-          ref: main
+          ref: 886a01a3a314dd1ba133b9273054b280e3bc871c
           path: private-strategy
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
@@ -61,11 +59,11 @@ jobs:
         run: |
           set -euo pipefail
           ACTUAL_PRIVATE_COMMIT="$(git -C private-strategy rev-parse HEAD)"
-          echo "Private/main 当前提交: $ACTUAL_PRIVATE_COMMIT"
+          echo "冻结基准策略提交: $ACTUAL_PRIVATE_COMMIT"
           test "$ACTUAL_PRIVATE_COMMIT" = "886a01a3a314dd1ba133b9273054b280e3bc871c"
           grep -q 'STRATEGY_VERSION = "2.6.0"' private-strategy/strategy/version.py
           grep -q 'release_status: "research_only"' private-strategy/config/strategy.yaml
-          echo "当前唯一策略版本 2.6.0；本流水线仅研究，不能自动晋级正式。"
+          echo "已检出冻结基准策略 2.6.0；本流水线仅研究，不能自动晋级正式。"
 
       - name: "设置Python"
         uses: actions/setup-python@v7

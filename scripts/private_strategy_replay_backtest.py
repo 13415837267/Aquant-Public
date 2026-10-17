@@ -31,7 +31,7 @@ from scripts.short_term_research import (
 )
 
 BASELINE_COMMIT = "886a01a3a314dd1ba133b9273054b280e3bc871c"
-CANDIDATE_COMMIT = "8c18d9bb57fc2d960004a8ad5cdf036d72b90d48"
+CANDIDATE_COMMIT = "6fc9f38e4b579600a8190dc7cd8a46526c69bcc8"
 VALIDATION_START = "2023-01-03"
 FINAL_START = "2025-01-02"
 FINAL_NOMINAL_END = "2026-09-30"
@@ -142,7 +142,7 @@ def assert_admission_threshold_shift(baseline_precision: Any, candidate_precisio
 
 def _normalized_module_logic(root: Path, relative_path: str) -> str:
     source = (root / relative_path).read_text(encoding="utf-8")
-    marker = "from __future__ import annotations\\n"
+    marker = "from __future__ import annotations\n"
     if marker not in source:
         raise ValueError(f"策略源码缺少预期模块标记：{relative_path}")
     logic = source.split(marker, 1)[1]
@@ -157,6 +157,10 @@ def _normalized_module_logic(root: Path, relative_path: str) -> str:
             "Use 0.84 primary, 0.83 fallback, then a research-backed 0.80 daily Top-1 rescue.",
         ):
             logic = logic.replace(value, "__ADMISSION_POLICY_DOC__")
+        for value in ('"primary_089"', '"primary_084"'):
+            logic = logic.replace(value, "__PRIMARY_ADMISSION_TIER__")
+        for value in ('"coverage_fallback_088"', '"coverage_fallback_083"'):
+            logic = logic.replace(value, "__COVERAGE_FALLBACK_TIER__")
     return logic
 
 

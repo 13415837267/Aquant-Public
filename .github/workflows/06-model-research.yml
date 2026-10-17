@@ -5,15 +5,9 @@ env:
   GIT_CONFIG_KEY_0: "init.defaultBranch"
   GIT_CONFIG_VALUE_0: "main"
 
-# 仅手动启动，或修改本工作流定义后触发一次完整回归；普通数据提交不触发。
+# 全量模型研究耗时较长，仅手动启动；候选版本更新由轻量回放工作流验证，避免元数据变更触发整套训练。
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/06-model-research.yml"
-      - "config/system_version.json"
 
 permissions:
   contents: read
@@ -109,12 +103,14 @@ jobs:
               ["git", "-C", str(Path.cwd()), "rev-parse", "HEAD"], text=True
           ).strip()
 
-          assert STRATEGY_VERSION == "2.6.0", STRATEGY_VERSION
-          assert manifest["system_version"] == STRATEGY_VERSION
-          assert manifest["strategy_version"] == STRATEGY_VERSION
+          assert manifest["system_version"] == STRATEGY_VERSION == manifest["strategy_version"]
           assert manifest["strategy_commit"] == private_commit
+          assert manifest["strategy_source_repo"] == "13415837267/Aquant-Private"
+          assert manifest["strategy_source_branch"] == "main"
           assert manifest["lifecycle_status"] == "research"
           assert manifest["release_status"] == "not_released"
+          assert manifest["production_release"] is False
+          assert manifest["automatic_ordering"] is False
           assert MIN_MARKET_BREADTH_PCT == 65.0, MIN_MARKET_BREADTH_PCT
           print("系统/策略版本：", manifest["system_version"], "/", STRATEGY_VERSION)
           print("策略提交：", private_commit)
