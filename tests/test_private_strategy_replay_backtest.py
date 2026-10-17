@@ -63,3 +63,34 @@ def test_replay_cost_scenarios_include_base_and_stress_costs():
     assert BASE_COST_BPS in cost_levels
     assert BASE_COST_BPS * 1.5 in cost_levels
     assert BASE_COST_BPS * 2.0 in cost_levels
+
+
+from types import SimpleNamespace
+import pytest
+from scripts.private_strategy_replay_backtest import assert_admission_threshold_shift
+
+
+def _thresholds(primary, fallback, rescue):
+    return SimpleNamespace(
+        PRECISION_PROBABILITY_THRESHOLD=primary,
+        COVERAGE_FALLBACK_PROBABILITY_THRESHOLD=fallback,
+        DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD=rescue,
+        MIN_SCORE=primary * 100.0,
+        COVERAGE_FALLBACK_MIN_SCORE=fallback * 100.0,
+    )
+
+
+def test_admission_threshold_contract_accepts_uniform_five_point_shift():
+    assert_admission_threshold_shift(_thresholds(0.89, 0.88, 0.85), _thresholds(0.84, 0.83, 0.80))
+
+
+def test_admission_threshold_contract_rejects_nonuniform_shift():
+    with pytest.raises(ValueError, match="统一下移0.05"):
+        assert_admission_threshold_shift(_thresholds(0.89, 0.88, 0.85), _thresholds(0.84, 0.82, 0.80))
+
+
+def test_admission_threshold_contract_rejects_stale_derived_score_floor():
+    candidate = _thresholds(0.84, 0.83, 0.80)
+    candidate.MIN_SCORE = 89.0
+    with pytest.raises(ValueError, match="派生评分门槛"):
+        assert_admission_threshold_shift(_thresholds(0.89, 0.88, 0.85), candidate)

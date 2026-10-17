@@ -46,11 +46,11 @@ jobs:
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1
 
-      - name: "检出策略实验 2.7.0"
+      - name: "检出策略实验 2.8.0"
         uses: actions/checkout@v7
         with:
           repository: 13415837267/Aquant-Private
-          ref: 10485ed36379f076f837e1fce8707681ce44586b
+          ref: 8c18d9bb57fc2d960004a8ad5cdf036d72b90d48
           path: candidate-strategy
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1

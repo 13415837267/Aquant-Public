@@ -31,7 +31,7 @@ from scripts.short_term_research import (
 )
 
 BASELINE_COMMIT = "886a01a3a314dd1ba133b9273054b280e3bc871c"
-CANDIDATE_COMMIT = "10485ed36379f076f837e1fce8707681ce44586b"
+CANDIDATE_COMMIT = "8c18d9bb57fc2d960004a8ad5cdf036d72b90d48"
 VALIDATION_START = "2023-01-03"
 FINAL_START = "2025-01-02"
 FINAL_NOMINAL_END = "2026-09-30"
@@ -101,8 +101,67 @@ def load_strategy(root: Path, alias: str) -> dict[str, Any]:
     }
 
 
+def assert_admission_threshold_shift(baseline_precision: Any, candidate_precision: Any) -> None:
+    """验证候选仅把三个准入概率门槛统一下移 0.05，且派生分数门槛一致。"""
+    threshold_fields = (
+        "PRECISION_PROBABILITY_THRESHOLD",
+        "COVERAGE_FALLBACK_PROBABILITY_THRESHOLD",
+        "DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD",
+    )
+    for key in threshold_fields:
+        expected = float(getattr(baseline_precision, key)) - 0.05
+        actual = float(getattr(candidate_precision, key))
+        if not math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-9):
+            raise ValueError(f"准入门槛必须统一下移0.05：{key} 期望 {expected}，实际 {actual}")
+
+    for score_key, probability_key in (
+        ("MIN_SCORE", "PRECISION_PROBABILITY_THRESHOLD"),
+        ("COVERAGE_FALLBACK_MIN_SCORE", "COVERAGE_FALLBACK_PROBABILITY_THRESHOLD"),
+    ):
+        expected = float(getattr(candidate_precision, probability_key)) * 100.0
+        actual = float(getattr(candidate_precision, score_key))
+        if not math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-9):
+            raise ValueError(f"派生评分门槛与概率门槛不一致：{score_key}")
+
+    baseline_spacing = (
+        float(baseline_precision.PRECISION_PROBABILITY_THRESHOLD)
+        - float(baseline_precision.COVERAGE_FALLBACK_PROBABILITY_THRESHOLD),
+        float(baseline_precision.COVERAGE_FALLBACK_PROBABILITY_THRESHOLD)
+        - float(baseline_precision.DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD),
+    )
+    candidate_spacing = (
+        float(candidate_precision.PRECISION_PROBABILITY_THRESHOLD)
+        - float(candidate_precision.COVERAGE_FALLBACK_PROBABILITY_THRESHOLD),
+        float(candidate_precision.COVERAGE_FALLBACK_PROBABILITY_THRESHOLD)
+        - float(candidate_precision.DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD),
+    )
+    if any(not math.isclose(a, b, rel_tol=0.0, abs_tol=1e-9)
+           for a, b in zip(baseline_spacing, candidate_spacing)):
+        raise ValueError("实验不得改变三个准入层级之间的相对间距")
+
+
+def _normalized_module_logic(root: Path, relative_path: str) -> str:
+    source = (root / relative_path).read_text(encoding="utf-8")
+    marker = "from __future__ import annotations\\n"
+    if marker not in source:
+        raise ValueError(f"策略源码缺少预期模块标记：{relative_path}")
+    logic = source.split(marker, 1)[1]
+    if relative_path == "strategy/candidate_policy.py":
+        for value in (
+            "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
+            "precision_top_2_with_084_primary_083_fallback_daily_top1_rescue_080_floor",
+        ):
+            logic = logic.replace(value, "__ADMISSION_POLICY__")
+        for value in (
+            "Use 0.89 primary, 0.88 fallback, then a research-backed 0.85 daily Top-1 rescue.",
+            "Use 0.84 primary, 0.83 fallback, then a research-backed 0.80 daily Top-1 rescue.",
+        ):
+            logic = logic.replace(value, "__ADMISSION_POLICY_DOC__")
+    return logic
+
+
 def assert_single_variable(baseline: dict[str, Any], candidate: dict[str, Any]) -> None:
-    """确保候选版只改排名加分，不夹带阈值、风控、特征系数或执行参数变化。"""
+    """确保除了统一下移准入门槛，打分、市场门槛、风控和执行参数均不变。"""
     shared_config = (
         "minimum_price",
         "minimum_turnover_amount",
@@ -115,18 +174,20 @@ def assert_single_variable(baseline: dict[str, Any], candidate: dict[str, Any]) 
         if baseline[key] != candidate[key]:
             raise ValueError(f"实验不满足单变量约束：配置项 {key} 不一致")
 
+    changed_fields = {
+        "PRECISION_PROBABILITY_THRESHOLD",
+        "COVERAGE_FALLBACK_PROBABILITY_THRESHOLD",
+        "COVERAGE_FALLBACK_MIN_SCORE",
+        "DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD",
+        "MIN_SCORE",
+    }
     fields = (
         "PRECISION_INTERCEPT",
         "PRECISION_COEFFICIENTS",
         "PRECISION_MARKET_COEFFICIENTS",
-        "PRECISION_PROBABILITY_THRESHOLD",
-        "COVERAGE_FALLBACK_PROBABILITY_THRESHOLD",
-        "COVERAGE_FALLBACK_MIN_SCORE",
         "COVERAGE_FALLBACK_MAX_CANDIDATES",
-        "DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD",
         "DAILY_TOP1_FALLBACK_MAX_CANDIDATES",
         "MAX_CANDIDATES",
-        "MIN_SCORE",
         "MIN_MARKET_BREADTH_PCT",
         "MIN_MARKET_MEDIAN_RETURN_PCT",
         "MAX_VOLATILITY_10D_PCT",
@@ -138,8 +199,18 @@ def assert_single_variable(baseline: dict[str, Any], candidate: dict[str, Any]) 
     for key in fields:
         if getattr(baseline["precision"], key) != getattr(candidate["precision"], key):
             raise ValueError(f"实验不满足单变量约束：策略参数 {key} 不一致")
+    if changed_fields & set(fields):
+        raise AssertionError("内部实验契约异常：阈值字段重复")
+    assert_admission_threshold_shift(baseline["precision"], candidate["precision"])
+
+    expected_policy = "precision_top_2_with_084_primary_083_fallback_daily_top1_rescue_080_floor"
+    if candidate["policy"].ADMISSION_POLICY != expected_policy:
+        raise ValueError("实验准入策略标识与2.8.0门槛不一致")
     if baseline["model"].WEIGHTS != candidate["model"].WEIGHTS:
         raise ValueError("实验不满足单变量约束：因子权重不一致")
+    for relative_path in ("strategy/model.py", "strategy/candidate_policy.py"):
+        if _normalized_module_logic(baseline["root"], relative_path) != _normalized_module_logic(candidate["root"], relative_path):
+            raise ValueError(f"实验不满足单变量约束：{relative_path} 除准入门槛标识外存在其他逻辑差异")
 
 
 def _symbol_keys(values: Any) -> np.ndarray:
@@ -311,7 +382,7 @@ def run_replay(baseline_root: Path, candidate_root: Path) -> dict[str, Any]:
         raise ValueError(f"基准策略提交号不符：{baseline['commit']}")
     if candidate["commit"] != CANDIDATE_COMMIT:
         raise ValueError(f"实验策略提交号不符：{candidate['commit']}")
-    if baseline["version"] != "2.6.0" or candidate["version"] != "2.7.0":
+    if baseline["version"] != "2.6.0" or candidate["version"] != "2.8.0":
         raise ValueError("基准与实验版本不符合本次回放契约")
 
     files = history_files()
@@ -455,10 +526,12 @@ def run_replay(baseline_root: Path, candidate_root: Path) -> dict[str, Any]:
             "final_supplemental_is_fresh_unseen_holdout": False,
         },
         "strategy_change": {
-            "description": "市场中位收益至少+1.0%、距近20日低点不超过0.5%时，在原评分上增加1.0分",
+            "description": "相对冻结基准，将主准入、覆盖回退和每日Top-1回退概率门槛统一下移0.05（0.89/0.88/0.85至0.84/0.83/0.80）",
             "baseline_has_change": False,
             "candidate_has_change": True,
-            "probability_and_admission_thresholds_unchanged": True,
+            "uniform_probability_threshold_delta": -0.05,
+            "scoring_logic_unchanged": True,
+            "market_gate_unchanged": True,
             "risk_controls_unchanged": True,
             "execution_contract_unchanged": True,
         },
