@@ -1,7 +1,7 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 39036197434,
-  "completed_at": "2026-10-17T13:21:50Z",
+  "cleanup_run_id": 39038318225,
+  "completed_at": "2026-10-17T13:52:41Z",
   "deleted_actions": [],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
@@ -16,14 +16,8 @@
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
-      "run_id": 39036197491,
-      "created_at": "2026-10-17T13:21:06Z",
-      "status": "in_progress",
-      "name": "03 候选池生产"
-    },
-    {
-      "run_id": 39036197434,
-      "created_at": "2026-10-17T13:21:06Z",
+      "run_id": 39038318225,
+      "created_at": "2026-10-17T13:51:53Z",
       "status": "in_progress",
       "name": "维护历史 Action 记录"
     }
@@ -58,6 +52,101 @@
     }
   ],
   "preserved_successful_runs": [
+    {
+      "run_id": 39038286888,
+      "created_at": "2026-10-17T13:51:27Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39038286797,
+      "created_at": "2026-10-17T13:51:27Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39038252198,
+      "created_at": "2026-10-17T13:50:59Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39038252127,
+      "created_at": "2026-10-17T13:50:59Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39038136153,
+      "created_at": "2026-10-17T13:49:18Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 39037744481,
+      "created_at": "2026-10-17T13:43:33Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39037716373,
+      "created_at": "2026-10-17T13:43:09Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39037716347,
+      "created_at": "2026-10-17T13:43:09Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39037685733,
+      "created_at": "2026-10-17T13:42:41Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39037685730,
+      "created_at": "2026-10-17T13:42:41Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39037581618,
+      "created_at": "2026-10-17T13:41:11Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39037552302,
+      "created_at": "2026-10-17T13:40:46Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39037552291,
+      "created_at": "2026-10-17T13:40:46Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39037520675,
+      "created_at": "2026-10-17T13:40:19Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39036337332,
+      "created_at": "2026-10-17T13:23:10Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39036304610,
+      "created_at": "2026-10-17T13:22:42Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39036304599,
+      "created_at": "2026-10-17T13:22:42Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39036197491,
+      "created_at": "2026-10-17T13:21:06Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39036197434,
+      "created_at": "2026-10-17T13:21:06Z",
+      "name": "维护历史 Action 记录"
+    },
     {
       "run_id": 39036100656,
       "created_at": "2026-10-17T13:19:44Z",
