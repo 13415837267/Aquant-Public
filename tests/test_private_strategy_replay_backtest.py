@@ -1,4 +1,8 @@
-from scripts.private_strategy_replay_backtest import evaluate_candidate, quality_gate
+from scripts.private_strategy_replay_backtest import (
+    assert_replay_versions,
+    evaluate_candidate,
+    quality_gate,
+)
 
 
 def _metrics(*, trades=120, compound=5.0, mean=0.1, profit_factor=1.3, drawdown=-8.0):
@@ -81,3 +85,9 @@ def test_market_breadth_contract_accepts_five_percentage_point_increase():
 def test_market_breadth_contract_rejects_wrong_delta():
     with pytest.raises(ValueError, match="上调5个百分点"):
         assert_market_breadth_shift(_market_breadth(65.0), _market_breadth(69.0))
+
+
+def test_replay_version_contract_accepts_2_9_candidate_and_rejects_stale_2_8():
+    assert_replay_versions({"version": "2.6.0"}, {"version": "2.9.0"})
+    with pytest.raises(ValueError, match="候选 2.9.0"):
+        assert_replay_versions({"version": "2.6.0"}, {"version": "2.8.0"})

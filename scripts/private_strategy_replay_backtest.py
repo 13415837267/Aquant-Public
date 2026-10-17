@@ -36,6 +36,8 @@ VALIDATION_START = "2023-01-03"
 FINAL_START = "2025-01-02"
 FINAL_NOMINAL_END = "2026-09-30"
 MIN_VALIDATION_TRADES = 100
+BASELINE_VERSION = "2.6.0"
+CANDIDATE_VERSION = "2.9.0"
 MIN_FINAL_TRADES = 40
 MIN_PROFIT_FACTOR = 1.2
 MAX_DRAWDOWN_FLOOR_PCT = -15.0
@@ -54,6 +56,18 @@ def yaml_number(text: str, key: str) -> float:
     if match is None:
         raise ValueError(f"私有策略配置缺少数值参数：{key}")
     return float(match.group(1))
+
+
+def assert_replay_versions(baseline: dict[str, Any], candidate: dict[str, Any]) -> None:
+    """确保回放契约版本与当前冻结基准及研究候选一致。"""
+    baseline_version = baseline.get("version")
+    candidate_version = candidate.get("version")
+    if baseline_version != BASELINE_VERSION or candidate_version != CANDIDATE_VERSION:
+        raise ValueError(
+            "基准与实验版本不符合本次回放契约："
+            f"期望基准 {BASELINE_VERSION}、候选 {CANDIDATE_VERSION}；"
+            f"实际基准 {baseline_version}、候选 {candidate_version}"
+        )
 
 
 def load_strategy(root: Path, alias: str) -> dict[str, Any]:
@@ -385,8 +399,7 @@ def run_replay(baseline_root: Path, candidate_root: Path) -> dict[str, Any]:
         raise ValueError(f"基准策略提交号不符：{baseline['commit']}")
     if candidate["commit"] != CANDIDATE_COMMIT:
         raise ValueError(f"实验策略提交号不符：{candidate['commit']}")
-    if baseline["version"] != "2.6.0" or candidate["version"] != "2.8.0":
-        raise ValueError("基准与实验版本不符合本次回放契约")
+    assert_replay_versions(baseline, candidate)
 
     files = history_files()
     dates = [path.name[:10] for path in files]
