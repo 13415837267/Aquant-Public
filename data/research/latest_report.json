@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "状态": "等待首次云端全因子研究",
+  "研究目标": {
+    "信号": "T日收盘",
+    "买入": "T+1开盘",
+    "卖出": "T+2开盘",
+    "未来函数": false
+  },
+  "数据范围": {
+    "可用因子总数": 0,
+    "完整样本行数": 0,
+    "可执行三分类样本数": 0,
+    "因子清单": []
+  },
+  "时间分段": {},
+  "分组对比": {},
+  "首版公式候选": {
+    "status": "unavailable",
+    "selected_leaf_rules": [],
+    "eligible_for_production": false,
+    "automatic_ordering": false
+  },
+  "正式发布": false,
+  "自动下单": false
+}

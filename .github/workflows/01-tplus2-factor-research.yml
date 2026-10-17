@@ -1,0 +1,242 @@
+name: "01 全因子标签研究与首版策略"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/01-tplus2-factor-research.yml"
+      - "scripts/tplus2_factor_research.py"
+      - "tests/test_tplus2_factor_research.py"
+      - "config/tplus2_research.json"
+      - "docs/T_PLUS2_FACTOR_RESEARCH.md"
+      - "requirements-research.txt"
+      - "app/**"
+      - "README.md"
+      - "CHANGELOG.md"
+  workflow_dispatch:
+
+env:
+  RESET_OLD_HISTORY_ON_FIRST_RUN: "true"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONWARNINGS: "error"
+
+permissions:
+  contents: write
+  actions: write
+  deployments: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "首版全因子研究-main"
+  cancel-in-progress: false
+
+jobs:
+  reset_history:
+    name: "一次性清理旧运行与部署记录"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: "检出主分支"
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: "清理旧的已结束运行和部署历史"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [[ "$RESET_OLD_HISTORY_ON_FIRST_RUN" != "true" ]]; then
+            echo "一次性清理已完成，本次保留新的研究运行记录。"
+            exit 0
+          fi
+          echo "删除已结束的旧运行；活动中的任务不删除。"
+          gh api --paginate "/repos/$GITHUB_REPOSITORY/actions/runs?per_page=100" --jq '.workflow_runs[] | select(.status == "completed") | .id' > /tmp/old_run_ids.txt
+          failures=0
+          while IFS= read -r run_id; do
+            [[ "$run_id" == "$CURRENT_RUN_ID" ]] && continue
+            if gh api --silent --method DELETE "/repos/$GITHUB_REPOSITORY/actions/runs/$run_id"; then
+              echo "已清理运行记录 $run_id"
+            else
+              echo "删除运行记录失败：$run_id" >&2
+              failures=$((failures+1))
+            fi
+          done < /tmp/old_run_ids.txt
+          echo "开始清理旧部署历史。"
+          gh api --paginate "/repos/$GITHUB_REPOSITORY/deployments?per_page=100" --jq '.[].id' > /tmp/old_deployment_ids.txt
+          while IFS= read -r deployment_id; do
+            if ! gh api --silent --method POST "/repos/$GITHUB_REPOSITORY/deployments/$deployment_id/statuses" -f state=inactive; then
+              echo "标记部署为非活动状态失败：$deployment_id" >&2
+              failures=$((failures+1))
+              continue
+            fi
+            if gh api --silent --method DELETE "/repos/$GITHUB_REPOSITORY/deployments/$deployment_id"; then
+              echo "已清理部署 $deployment_id"
+            else
+              echo "删除部署失败：$deployment_id" >&2
+              failures=$((failures+1))
+            fi
+          done < /tmp/old_deployment_ids.txt
+          if (( failures > 0 )); then
+            echo "清理失败项目数：$failures；保留一次性清理开关，供修复后重试。" >&2
+            exit 1
+          fi
+          sed -i 's/RESET_OLD_HISTORY_ON_FIRST_RUN: "true"/RESET_OLD_HISTORY_ON_FIRST_RUN: "false"/' .github/workflows/01-tplus2-factor-research.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/01-tplus2-factor-research.yml
+          git commit -m "维护：完成旧运行与部署记录清理"
+          git push origin HEAD:main
+          echo "旧记录已清理；一次性开关已关闭。"
+
+  quality:
+    name: "研究脚本与个人策略云端验收"
+    needs: reset_history
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: "检出公开仓库"
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: "检出个人策略仓库"
+        uses: actions/checkout@v7
+        with:
+          repository: 13415837267/Aquant-Private
+          ref: main
+          path: private-strategy
+          token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
+          fetch-depth: 0
+      - name: "设置 Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-research.txt
+      - name: "安装开源研究依赖"
+        run: python -m pip install -r requirements-research.txt
+      - name: "检查语法、标签契约和私有策略接口"
+        run: |
+          set -euo pipefail
+          python -m compileall -q scripts tests private-strategy/strategy private-strategy/tests
+          python -m pytest -q tests
+          (cd private-strategy && python -m pytest -q)
+
+  research:
+    name: "构建全市场 T 日全因子样本与三分类报告"
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: "检出最新公开仓库和历史数据库"
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: "设置 Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-research.txt
+      - name: "安装开源研究依赖"
+        run: python -m pip install -r requirements-research.txt
+      - name: "建立逐股逐日全因子样本、分组比较和公式发现"
+        run: |
+          set -euo pipefail
+          python scripts/tplus2_factor_research.py \
+            --output data/research/latest_report.json \
+            --samples-dir data/research/samples
+      - name: "上传完整逐股逐日样本"
+        uses: actions/upload-artifact@v7
+        with:
+          name: "首版逐股逐日全因子与开盘收益标签"
+          path: data/research/samples/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: "提交研究报告并输出结论"
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/research/latest_report.json
+          if ! git diff --cached --quiet; then
+            git commit -m "研究：生成首版全因子分组与开盘收益报告"
+            git push origin HEAD:main
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report=json.loads(Path("data/research/latest_report.json").read_text(encoding="utf-8"))
+          formula=report.get("首版公式候选",{})
+          lines=[
+            "## 首版全因子研究结论",
+            f"- 历史范围：{report.get('数据范围',{}).get('历史数据库开始日期')} 至 {report.get('数据范围',{}).get('历史数据库最后信号日期')}",
+            f"- 全部因子数：{report.get('数据范围',{}).get('可用因子总数')}",
+            f"- 完整样本行数：{report.get('数据范围',{}).get('完整样本行数')}",
+            f"- 可执行三分类样本数：{report.get('数据范围',{}).get('可执行三分类样本数')}",
+            f"- 验证通过：{formula.get('validation_passed')}",
+            f"- 最终留出通过：{formula.get('final_holdout_passed')}",
+            "- 正式发布：关闭；自动下单：关闭",
+          ]
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as output:
+            output.write("\\n".join(lines)+"\\n")
+          PY
+      - name: "清理已由成功研究修复的旧失败记录"
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "/repos/$GITHUB_REPOSITORY/actions/runs?per_page=100" --jq '.workflow_runs[] | select(.status == "completed" and (.conclusion == "failure" or .conclusion == "cancelled") and .name == "01 全因子标签研究与首版策略") | .id' > /tmp/repaired_run_ids.txt
+          while IFS= read -r run_id; do
+            [[ "$run_id" == "$CURRENT_RUN_ID" ]] && continue
+            gh api --silent --method DELETE "/repos/$GITHUB_REPOSITORY/actions/runs/$run_id" || {
+              echo "清理既往失败记录失败：$run_id" >&2
+              exit 1
+            }
+            echo "已在本次研究成功后清理既往非成功运行：$run_id"
+          done < /tmp/repaired_run_ids.txt
+      - name: "上传全因子比较报告"
+        uses: actions/upload-artifact@v7
+        with:
+          name: "首版全因子分组比较与策略公式报告"
+          path: data/research/latest_report.json
+          if-no-files-found: error
+          retention-days: 90
+
+  deploy:
+    name: "构建和部署研究网页"
+    needs: research
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: "检出最新研究报告"
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: "设置 Node.js"
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - name: "安装网页依赖"
+        run: npm install --no-audit --no-fund
+      - name: "检查网页类型"
+        run: npm run typecheck
+      - name: "构建静态研究网页"
+        run: npm run build
+      - name: "上传网页工件"
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: out
+      - name: "部署研究网页"
+        id: deployment
+        uses: actions/deploy-pages@v4
