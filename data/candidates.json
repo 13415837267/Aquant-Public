@@ -1,14 +1,14 @@
 {
   "schema_version": 3,
-  "system_version": "2.7.0",
+  "system_version": "2.9.0",
   "lifecycle_status": "research_only",
   "as_of": "2026-10-16T18:00:00+08:00",
   "timezone": "Asia/Shanghai",
   "source": "Aquant-Public data/history",
   "status": "ready",
   "strategy_source": "Aquant-Private/main",
-  "strategy_version": "2.7.0",
-  "strategy_commit": "10485ed36379f076f837e1fce8707681ce44586b",
+  "strategy_version": "2.9.0",
+  "strategy_commit": "adde8b6a5ea61bf921287bb950d207433b38f64b",
   "model_definition": {
     "type": "private_short_term_precision_policy",
     "features": [
@@ -94,7 +94,7 @@
       "admission_tier": "未入选观察",
       "flags": [],
       "exclusion_reasons": [
-        "市场过滤：上涨广度 61.47% 低于门槛 65.00%，风险规避时禁止选股"
+        "市场过滤：上涨广度 61.47% 低于门槛 70.00%，风险规避时禁止选股"
       ]
     },
     {
@@ -121,7 +121,7 @@
       "admission_tier": "未入选观察",
       "flags": [],
       "exclusion_reasons": [
-        "市场过滤：上涨广度 61.47% 低于门槛 65.00%，风险规避时禁止选股"
+        "市场过滤：上涨广度 61.47% 低于门槛 70.00%，风险规避时禁止选股"
       ]
     },
     {
@@ -148,7 +148,7 @@
       "admission_tier": "未入选观察",
       "flags": [],
       "exclusion_reasons": [
-        "市场过滤：上涨广度 61.47% 低于门槛 65.00%，风险规避时禁止选股"
+        "市场过滤：上涨广度 61.47% 低于门槛 70.00%，风险规避时禁止选股"
       ]
     },
     {
@@ -175,7 +175,7 @@
       "admission_tier": "未入选观察",
       "flags": [],
       "exclusion_reasons": [
-        "市场过滤：上涨广度 61.47% 低于门槛 65.00%，风险规避时禁止选股"
+        "市场过滤：上涨广度 61.47% 低于门槛 70.00%，风险规避时禁止选股"
       ]
     },
     {
@@ -202,7 +202,7 @@
       "admission_tier": "未入选观察",
       "flags": [],
       "exclusion_reasons": [
-        "市场过滤：上涨广度 61.47% 低于门槛 65.00%，风险规避时禁止选股"
+        "市场过滤：上涨广度 61.47% 低于门槛 70.00%，风险规避时禁止选股"
       ]
     }
   ],
@@ -215,7 +215,7 @@
     "safety": 0.15
   },
   "future_function": false,
-  "candidate_admission_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor_recovery_confirmation_rank_bonus_1p",
+  "candidate_admission_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
   "audit": {
     "hard_eligibility_applied_before_scoring": true,
     "strategy_source_tracks_latest_private_main": true,

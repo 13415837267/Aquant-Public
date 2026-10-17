@@ -3,12 +3,12 @@
   "status": "research_pending",
   "as_of": "2026-10-17",
   "timezone": "Asia/Shanghai",
-  "system_version": "2.7.0",
-  "strategy_version": "2.7.0",
+  "system_version": "2.9.0",
+  "strategy_version": "2.9.0",
   "strategy_source": "Aquant-Private/main",
-  "strategy_commit": "10485ed36379f076f837e1fce8707681ce44586b",
+  "strategy_commit": "adde8b6a5ea61bf921287bb950d207433b38f64b",
   "release_status": "not_released",
   "data_cutoff": "2026-09-30",
   "production_release": false,
-  "note": "已自动跟随 Aquant-Private/main 最新策略版本 2.7.0，本轮来源提交为 10485ed36379f076f837e1fce8707681ce44586b。候选生产立即使用当前策略，研究未完成不阻断候选生成；旧提交的验证证据不会转移给新提交，正式发布门禁与自动下单关闭状态保持不变。"
+  "note": "已自动跟随 Aquant-Private/main 最新策略版本 2.9.0，本轮来源提交为 adde8b6a5ea61bf921287bb950d207433b38f64b。候选生产立即使用当前策略，研究未完成不阻断候选生成；旧提交的验证证据不会转移给新提交，正式发布门禁与自动下单关闭状态保持不变。"
 }
