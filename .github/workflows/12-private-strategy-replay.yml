@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: 13415837267/Aquant-Private
-          ref: 4a5e973fc2e9794275add995e5f8c6fee79e7d36
+          ref: adde8b6a5ea61bf921287bb950d207433b38f64b
           path: candidate-strategy
           token: ${{ secrets.AQUANT_PRIVATE_TOKEN }}
           fetch-depth: 1

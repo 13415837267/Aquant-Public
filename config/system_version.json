@@ -6,7 +6,7 @@
   "release_status": "not_released",
   "strategy_source_repo": "13415837267/Aquant-Private",
   "strategy_source_branch": "main",
-  "strategy_commit": "4a5e973fc2e9794275add995e5f8c6fee79e7d36",
+  "strategy_commit": "adde8b6a5ea61bf921287bb950d207433b38f64b",
   "version_policy": "每次候选运行动态读取 Aquant-Private/main 最新提交；版本号和提交号仅记录本次快照来源，不固定历史策略。",
   "current_model": "Aquant-Private/strategy/model.py",
   "candidate_admission_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
@@ -30,7 +30,7 @@
     "baseline_version": "2.6.0",
     "baseline_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
     "candidate_version": "2.9.0",
-    "candidate_commit": "4a5e973fc2e9794275add995e5f8c6fee79e7d36",
+    "candidate_commit": "adde8b6a5ea61bf921287bb950d207433b38f64b",
     "decision": "待云端同口径回放",
     "passed": false
   }
