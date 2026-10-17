@@ -1,4 +1,4 @@
-"""回放Private策略真实打分与准入逻辑，比较冻结基准和单一策略实验。"""
+"""统一回放冻结基准与3.0.0结构重构策略，比较真实执行约束下的成本后组合表现。"""
 from __future__ import annotations
 
 import argparse
@@ -31,13 +31,13 @@ from scripts.short_term_research import (
 )
 
 BASELINE_COMMIT = "886a01a3a314dd1ba133b9273054b280e3bc871c"
-CANDIDATE_COMMIT = "adde8b6a5ea61bf921287bb950d207433b38f64b"
+CANDIDATE_COMMIT = "d9d6a3b4cdbcc922942694372f93eeb1b906e746"
 VALIDATION_START = "2023-01-03"
 FINAL_START = "2025-01-02"
 FINAL_NOMINAL_END = "2026-09-30"
 MIN_VALIDATION_TRADES = 100
 BASELINE_VERSION = "2.6.0"
-CANDIDATE_VERSION = "2.9.0"
+CANDIDATE_VERSION = "3.0.0"
 MIN_FINAL_TRADES = 40
 MIN_PROFIT_FACTOR = 1.2
 MAX_DRAWDOWN_FLOOR_PCT = -15.0
@@ -56,6 +56,20 @@ def yaml_number(text: str, key: str) -> float:
     if match is None:
         raise ValueError(f"私有策略配置缺少数值参数：{key}")
     return float(match.group(1))
+
+
+def yaml_string(text: str, key: str) -> str:
+    match = re.search(r'^\s*' + re.escape(key) + r'\s*:\s*"([^"]+)"\s*$', text, re.MULTILINE)
+    if match is None:
+        raise ValueError(f"私有策略配置缺少文本参数：{key}")
+    return match.group(1)
+
+
+def yaml_bool(text: str, key: str) -> bool:
+    match = re.search(r'^\s*' + re.escape(key) + r'\s*:\s*(true|false)\s*$', text, re.MULTILINE)
+    if match is None:
+        raise ValueError(f"私有策略配置缺少布尔参数：{key}")
+    return match.group(1) == "true"
 
 
 def assert_replay_versions(baseline: dict[str, Any], candidate: dict[str, Any]) -> None:
@@ -111,123 +125,83 @@ def load_strategy(root: Path, alias: str) -> dict[str, Any]:
         "minimum_history_days": int(yaml_number(config_text, "minimum_history_days")),
         "minimum_market_breadth": yaml_number(config_text, "minimum_breadth_pct"),
         "minimum_market_median_return": yaml_number(config_text, "minimum_median_return_pct"),
+        "minimum_market_above_ma20": yaml_number(config_text, "minimum_above_ma20_pct") if re.search(r"^\s*minimum_above_ma20_pct\s*:", config_text, re.MULTILINE) else float("nan"),
+        "minimum_market_positive_5d": yaml_number(config_text, "minimum_positive_5d_pct") if re.search(r"^\s*minimum_positive_5d_pct\s*:", config_text, re.MULTILINE) else float("nan"),
+        "minimum_research_score": yaml_number(config_text, "minimum_research_score") if re.search(r"^\s*minimum_research_score\s*:", config_text, re.MULTILINE) else float("nan"),
+        "maximum_candidates": int(yaml_number(config_text, "maximum_candidates")) if re.search(r"^\s*maximum_candidates\s*:", config_text, re.MULTILINE) else int(modules["model"].MAX_CANDIDATES),
         "target_return_pct": yaml_number(config_text, "target_return_pct"),
         "stop_loss_pct": yaml_number(config_text, "stop_loss_pct"),
         "max_holding_sessions": int(yaml_number(config_text, "max_holding_sessions")),
+        "maximum_exit_session_after_signal": int(yaml_number(config_text, "maximum_exit_session_after_signal")),
+        "signal_at": yaml_string(config_text, "signal_at"),
+        "entry": yaml_string(config_text, "entry"),
+        "earliest_exit": yaml_string(config_text, "earliest_exit"),
+        "entry_limit_up_block": yaml_bool(config_text, "entry_limit_up_block"),
     }
 
 
-def assert_market_breadth_shift(baseline_precision: Any, candidate_precision: Any) -> None:
-    """验证候选仅将市场上涨广度门槛上调5个百分点。"""
-    expected = float(baseline_precision.MIN_MARKET_BREADTH_PCT) + 5.0
-    actual = float(candidate_precision.MIN_MARKET_BREADTH_PCT)
-    if not math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-9):
-        raise ValueError(
-            f"市场上涨广度门槛必须从基准上调5个百分点：期望 {expected}，实际 {actual}"
-        )
+def assert_reconstruction_contract(baseline: dict[str, Any], candidate: dict[str, Any]) -> None:
+    """核验3.0.0允许进行结构重构，同时保留A股执行时序和流动性范围。"""
+    assert_replay_versions(baseline, candidate)
 
-
-
-def _normalized_module_logic(root: Path, relative_path: str) -> str:
-    source = (root / relative_path).read_text(encoding="utf-8")
-    marker = "from __future__ import annotations\n"
-    if marker not in source:
-        raise ValueError(f"策略源码缺少预期模块标记：{relative_path}")
-    logic = source.split(marker, 1)[1]
-    if relative_path == "strategy/candidate_policy.py":
-        for value in (
-            "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
-            "precision_top_2_with_084_primary_083_fallback_daily_top1_rescue_080_floor",
-        ):
-            logic = logic.replace(value, "__ADMISSION_POLICY__")
-        for value in (
-            "Use 0.89 primary, 0.88 fallback, then a research-backed 0.85 daily Top-1 rescue.",
-            "Use 0.84 primary, 0.83 fallback, then a research-backed 0.80 daily Top-1 rescue.",
-        ):
-            logic = logic.replace(value, "__ADMISSION_POLICY_DOC__")
-        for value in ('"primary_089"', '"primary_084"'):
-            logic = logic.replace(value, "__PRIMARY_ADMISSION_TIER__")
-        for value in ('"coverage_fallback_088"', '"coverage_fallback_083"'):
-            logic = logic.replace(value, "__COVERAGE_FALLBACK_TIER__")
-    return logic
-
-
-def assert_single_variable(baseline: dict[str, Any], candidate: dict[str, Any]) -> None:
-    """确保唯一变化是市场上涨广度门槛上调5个百分点。"""
     shared_config = (
         "minimum_price",
         "minimum_turnover_amount",
         "minimum_history_days",
-        "minimum_market_median_return",
-        "target_return_pct",
-        "stop_loss_pct",
         "max_holding_sessions",
+        "maximum_exit_session_after_signal",
+        "signal_at",
+        "entry",
+        "earliest_exit",
+        "entry_limit_up_block",
     )
     for key in shared_config:
         if baseline[key] != candidate[key]:
-            raise ValueError(f"实验不满足单变量约束：配置项 {key} 不一致")
+            raise ValueError(f"结构重构改变了禁止变动的执行契约：{key}")
 
-    changed_fields = {"MIN_MARKET_BREADTH_PCT"}
-    unchanged_fields = (
-        "PRECISION_INTERCEPT",
-        "PRECISION_COEFFICIENTS",
-        "PRECISION_MARKET_COEFFICIENTS",
-        "PRECISION_PROBABILITY_THRESHOLD",
-        "COVERAGE_FALLBACK_PROBABILITY_THRESHOLD",
-        "COVERAGE_FALLBACK_MIN_SCORE",
-        "DAILY_TOP1_FALLBACK_PROBABILITY_THRESHOLD",
-        "MIN_SCORE",
-        "COVERAGE_FALLBACK_MAX_CANDIDATES",
-        "DAILY_TOP1_FALLBACK_MAX_CANDIDATES",
-        "MAX_CANDIDATES",
-        "MIN_MARKET_MEDIAN_RETURN_PCT",
-        "MAX_VOLATILITY_10D_PCT",
-        "MIN_SINGLE_DAY_CHANGE_PCT",
-        "MAX_RETURN_5D_PCT",
-        "MAX_LIMIT_UP_5D_COUNT",
-        "MAX_INTRADAY_RETURN_PCT",
+    if candidate["model"].STRATEGY_METHOD != "risk_adjusted_cross_sectional_rank_v1":
+        raise ValueError("候选策略未启用3.0.0风险调整横截面评分方法")
+    if candidate["policy"].ADMISSION_POLICY != "risk_adjusted_cross_sectional_rank_top_2":
+        raise ValueError("候选策略准入规则与3.0.0契约不符")
+
+    if not math.isclose(
+        sum(float(value) for value in candidate["precision"].COMPONENT_WEIGHTS.values()),
+        1.0,
+        rel_tol=0.0,
+        abs_tol=1e-9,
+    ):
+        raise ValueError("3.0.0评分因子组权重之和必须为1")
+    if not math.isclose(
+        candidate["minimum_research_score"],
+        float(candidate["precision"].MIN_RESEARCH_SCORE),
+        rel_tol=0.0,
+        abs_tol=1e-9,
+    ):
+        raise ValueError("配置文件与策略代码的最低研究评分不一致")
+    if candidate["maximum_candidates"] != int(candidate["precision"].MAX_CANDIDATES):
+        raise ValueError("配置文件与策略代码的候选数量限制不一致")
+
+    market_values = (
+        ("minimum_market_breadth", "MIN_MARKET_BREADTH_PCT"),
+        ("minimum_market_median_return", "MIN_MARKET_MEDIAN_RETURN_PCT"),
+        ("minimum_market_above_ma20", "MIN_MARKET_ABOVE_MA20_PCT"),
+        ("minimum_market_positive_5d", "MIN_MARKET_POSITIVE_5D_PCT"),
     )
-    for key in unchanged_fields:
-        if getattr(baseline["precision"], key) != getattr(candidate["precision"], key):
-            raise ValueError(f"实验不满足单变量约束：策略参数 {key} 不一致")
-    if changed_fields & set(unchanged_fields):
-        raise AssertionError("内部实验契约异常：允许变化字段与固定字段冲突")
-
-    for strategy in (baseline, candidate):
-        precision = strategy["precision"]
-        for score_key, probability_key in (
-            ("MIN_SCORE", "PRECISION_PROBABILITY_THRESHOLD"),
-            ("COVERAGE_FALLBACK_MIN_SCORE", "COVERAGE_FALLBACK_PROBABILITY_THRESHOLD"),
-        ):
-            expected_score = float(getattr(precision, probability_key)) * 100.0
-            actual_score = float(getattr(precision, score_key))
-            if not math.isclose(actual_score, expected_score, rel_tol=0.0, abs_tol=1e-9):
-                raise ValueError(f"派生评分门槛与概率门槛不一致：{score_key}")
+    for config_key, module_key in market_values:
         if not math.isclose(
-            float(strategy["minimum_market_breadth"]),
-            float(precision.MIN_MARKET_BREADTH_PCT),
+            float(candidate[config_key]),
+            float(getattr(candidate["precision"], module_key)),
             rel_tol=0.0,
             abs_tol=1e-9,
         ):
-            raise ValueError("配置文件与代码中的市场上涨广度门槛不一致")
-        if not math.isclose(
-            float(strategy["minimum_market_median_return"]),
-            float(precision.MIN_MARKET_MEDIAN_RETURN_PCT),
-            rel_tol=0.0,
-            abs_tol=1e-9,
-        ):
-            raise ValueError("配置文件与代码中的市场中位收益门槛不一致")
+            raise ValueError(f"配置文件与策略代码中的市场状态门槛不一致：{config_key}")
 
-    assert_market_breadth_shift(baseline["precision"], candidate["precision"])
-    expected_policy = "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor"
-    if candidate["policy"].ADMISSION_POLICY != expected_policy:
-        raise ValueError("候选策略未恢复冻结基准的准入规则")
-    if baseline["model"].WEIGHTS != candidate["model"].WEIGHTS:
-        raise ValueError("实验不满足单变量约束：因子权重不一致")
-    for relative_path in ("strategy/model.py", "strategy/candidate_policy.py"):
-        if _normalized_module_logic(baseline["root"], relative_path) != _normalized_module_logic(candidate["root"], relative_path):
-            raise ValueError(f"实验不满足单变量约束：{relative_path} 除版本说明外存在其他逻辑差异")
-
+    if not (candidate["target_return_pct"] > baseline["target_return_pct"]):
+        raise ValueError("3.0.0必须使用大于基准的研究止盈目标")
+    if not (0.0 < candidate["stop_loss_pct"] < baseline["stop_loss_pct"]):
+        raise ValueError("3.0.0必须使用正数且小于基准的研究止损幅度")
+    if candidate["maximum_candidates"] != 2:
+        raise ValueError("3.0.0当前契约要求每日最多两个候选")
 
 
 def _symbol_keys(values: Any) -> np.ndarray:
@@ -394,7 +368,7 @@ def run_replay(baseline_root: Path, candidate_root: Path) -> dict[str, Any]:
     started = time.time()
     baseline = load_strategy(baseline_root, "aquant_baseline")
     candidate = load_strategy(candidate_root, "aquant_candidate")
-    assert_single_variable(baseline, candidate)
+    assert_reconstruction_contract(baseline, candidate)
     if baseline["commit"] != BASELINE_COMMIT:
         raise ValueError(f"基准策略提交号不符：{baseline['commit']}")
     if candidate["commit"] != CANDIDATE_COMMIT:
@@ -488,8 +462,8 @@ def run_replay(baseline_root: Path, candidate_root: Path) -> dict[str, Any]:
                     daily[variant][window_name],
                     dates,
                     "每日排名",
-                    baseline["target_return_pct"],
-                    baseline["stop_loss_pct"],
+                    (baseline if variant == "baseline" else candidate)["target_return_pct"],
+                    (baseline if variant == "baseline" else candidate)["stop_loss_pct"],
                     cost_bps,
                     top_k=2,
                     窗口起始日期=start,
@@ -511,9 +485,9 @@ def run_replay(baseline_root: Path, candidate_root: Path) -> dict[str, Any]:
     candidate_result = results["candidate"]
     decision = evaluate_candidate(baseline_result, candidate_result)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "research_only",
-        "method": "frozen_private_strategy_candidate_replay",
+        "method": "risk_adjusted_strategy_reconstruction_replay",
         "created_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
         "source_public_commit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
@@ -529,6 +503,10 @@ def run_replay(baseline_root: Path, candidate_root: Path) -> dict[str, Any]:
             "max_holding_sessions": MAX_HOLD,
             "target_net_profit_pct": baseline["target_return_pct"],
             "stop_loss_pct": baseline["stop_loss_pct"],
+            "target_and_stop_by_version": {
+                "baseline": {"target_return_pct": baseline["target_return_pct"], "stop_loss_pct": baseline["stop_loss_pct"]},
+                "candidate": {"target_return_pct": candidate["target_return_pct"], "stop_loss_pct": candidate["stop_loss_pct"]},
+            },
             "base_round_trip_cost_bps": BASE_COST_BPS,
             "cost_multipliers": list(COST_MULTIPLIERS),
             "top_k_per_signal_day": 2,
@@ -542,14 +520,16 @@ def run_replay(baseline_root: Path, candidate_root: Path) -> dict[str, Any]:
             "final_supplemental_is_fresh_unseen_holdout": False,
         },
         "strategy_change": {
-            "description": "相对冻结基准，将主准入、覆盖回退和每日Top-1回退概率门槛统一下移0.05（0.89/0.88/0.85至0.84/0.83/0.80）",
-            "baseline_has_change": False,
-            "candidate_has_change": True,
-            "uniform_probability_threshold_delta": -0.05,
-            "scoring_logic_unchanged": True,
-            "market_gate_unchanged": True,
-            "risk_controls_unchanged": True,
+            "description": "3.0.0结构重构：以趋势、量能确认、价格位置、隔夜结构和风险效率五组横截面评分替代旧固定系数/概率阈值；加入多指标市场状态过滤，并将研究止盈/止损从1.0%/3.0%调整为2.5%/2.0%。",
+            "candidate_strategy_method": candidate["model"].STRATEGY_METHOD,
+            "candidate_admission_policy": candidate["policy"].ADMISSION_POLICY,
+            "multi_factor_scoring_changed": True,
+            "market_regime_filter_changed": True,
+            "admission_policy_changed": True,
+            "target_return_changed": baseline["target_return_pct"] != candidate["target_return_pct"],
+            "stop_loss_changed": baseline["stop_loss_pct"] != candidate["stop_loss_pct"],
             "execution_contract_unchanged": True,
+            "historical_research_only": True,
         },
         "results": results,
         "candidate_diagnostics": diagnostics,
@@ -562,7 +542,7 @@ def run_replay(baseline_root: Path, candidate_root: Path) -> dict[str, Any]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="回放旧版与实验策略真实选股逻辑并比较成本后组合表现")
+    parser = argparse.ArgumentParser(description="以真实执行约束回放冻结基准与3.0.0结构重构候选的成本后组合表现")
     parser.add_argument("--baseline-dir", type=Path, required=True)
     parser.add_argument("--candidate-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=ROOT / "data/backtest/private_strategy_replay_latest.json")

@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "system_version": "2.9.0",
-  "strategy_version": "2.9.0",
+  "system_version": "3.0.0",
+  "strategy_version": "3.0.0",
   "lifecycle_status": "research",
   "release_status": "not_released",
   "strategy_source_repo": "13415837267/Aquant-Private",
   "strategy_source_branch": "main",
-  "strategy_commit": "adde8b6a5ea61bf921287bb950d207433b38f64b",
+  "strategy_commit": "d9d6a3b4cdbcc922942694372f93eeb1b906e746",
   "version_policy": "每次候选运行动态读取 Aquant-Private/main 最新提交；版本号和提交号仅记录本次快照来源，不固定历史策略。",
   "current_model": "Aquant-Private/strategy/model.py",
-  "candidate_admission_policy": "precision_top_2_with_089_primary_088_fallback_daily_top1_rescue_085_floor",
+  "candidate_admission_policy": "risk_adjusted_cross_sectional_rank_top_2",
   "candidate_count_max": 2,
   "production_release": false,
   "automatic_ordering": false,
@@ -25,12 +25,12 @@
     "cost_stress_test_required": true,
     "adjacent_parameter_robustness_required": true
   },
-  "note": "本轮候选运行使用 Aquant-Private/main 最新策略版本 2.9.0，来源提交 adde8b6a5ea61bf921287bb950d207433b38f64b。此提交号仅用于本轮候选、计划与审计追溯；后续运行将重新读取 main 最新提交。研究候选不代表正式发布。",
+  "note": "当前3.0.0为研究候选：使用趋势、量能确认、价格位置、隔夜结构和风险效率综合评分，增加多指标市场状态过滤，并测试2.5%止盈/2.0%止损；回放结果未通过前，不正式发布、不自动下单、不更新网页候选快照。",
   "strategy_replay_gate": {
     "baseline_version": "2.6.0",
     "baseline_commit": "886a01a3a314dd1ba133b9273054b280e3bc871c",
-    "candidate_version": "2.9.0",
-    "candidate_commit": "adde8b6a5ea61bf921287bb950d207433b38f64b",
+    "candidate_version": "3.0.0",
+    "candidate_commit": "d9d6a3b4cdbcc922942694372f93eeb1b906e746",
     "decision": "待云端同口径回放",
     "passed": false
   }

@@ -1,4 +1,9 @@
+from types import SimpleNamespace
+
+import pytest
+
 from scripts.private_strategy_replay_backtest import (
+    assert_reconstruction_contract,
     assert_replay_versions,
     evaluate_candidate,
     quality_gate,
@@ -69,25 +74,56 @@ def test_replay_cost_scenarios_include_base_and_stress_costs():
     assert BASE_COST_BPS * 2.0 in cost_levels
 
 
-from types import SimpleNamespace
-import pytest
-from scripts.private_strategy_replay_backtest import assert_market_breadth_shift
+def _contract_strategy(*, candidate: bool):
+    precision = SimpleNamespace(
+        COMPONENT_WEIGHTS={
+            "trend": 0.32,
+            "volume_confirmation": 0.18,
+            "price_location": 0.16,
+            "overnight_structure": 0.10,
+            "risk_efficiency": 0.24,
+        },
+        MIN_RESEARCH_SCORE=58.0,
+        MAX_CANDIDATES=2,
+        MIN_MARKET_BREADTH_PCT=45.0,
+        MIN_MARKET_MEDIAN_RETURN_PCT=-1.25,
+        MIN_MARKET_ABOVE_MA20_PCT=25.0,
+        MIN_MARKET_POSITIVE_5D_PCT=30.0,
+    )
+    return {
+        "version": "3.0.0" if candidate else "2.6.0",
+        "model": SimpleNamespace(STRATEGY_METHOD="risk_adjusted_cross_sectional_rank_v1") if candidate else SimpleNamespace(),
+        "policy": SimpleNamespace(ADMISSION_POLICY="risk_adjusted_cross_sectional_rank_top_2") if candidate else SimpleNamespace(),
+        "precision": precision,
+        "minimum_price": 2.0,
+        "minimum_turnover_amount": 30000000.0,
+        "minimum_history_days": 20,
+        "max_holding_sessions": 5,
+        "maximum_exit_session_after_signal": 5,
+        "signal_at": "T_close",
+        "entry": "T+1_open",
+        "earliest_exit": "T+2",
+        "entry_limit_up_block": True,
+        "minimum_research_score": 58.0,
+        "maximum_candidates": 2,
+        "minimum_market_breadth": 45.0,
+        "minimum_market_median_return": -1.25,
+        "minimum_market_above_ma20": 25.0,
+        "minimum_market_positive_5d": 30.0,
+        "target_return_pct": 2.5 if candidate else 1.0,
+        "stop_loss_pct": 2.0 if candidate else 3.0,
+    }
 
 
-def _market_breadth(value):
-    return SimpleNamespace(MIN_MARKET_BREADTH_PCT=value)
+def test_reconstruction_contract_accepts_3_0_and_preserves_execution_timing():
+    assert_reconstruction_contract(_contract_strategy(candidate=False), _contract_strategy(candidate=True))
 
 
-def test_market_breadth_contract_accepts_five_percentage_point_increase():
-    assert_market_breadth_shift(_market_breadth(65.0), _market_breadth(70.0))
-
-
-def test_market_breadth_contract_rejects_wrong_delta():
-    with pytest.raises(ValueError, match="上调5个百分点"):
-        assert_market_breadth_shift(_market_breadth(65.0), _market_breadth(69.0))
-
-
-def test_replay_version_contract_accepts_2_9_candidate_and_rejects_stale_2_8():
-    assert_replay_versions({"version": "2.6.0"}, {"version": "2.9.0"})
-    with pytest.raises(ValueError, match="候选 2.9.0"):
-        assert_replay_versions({"version": "2.6.0"}, {"version": "2.8.0"})
+def test_reconstruction_contract_rejects_2_9_and_invalid_stop_loss():
+    baseline = _contract_strategy(candidate=False)
+    candidate = _contract_strategy(candidate=True)
+    with pytest.raises(ValueError, match="候选 3.0.0"):
+        assert_replay_versions({"version": "2.6.0"}, {"version": "2.9.0"})
+    candidate["stop_loss_pct"] = 4.0
+    with pytest.raises(ValueError, match="止损"):
+        assert_reconstruction_contract(baseline, candidate)
