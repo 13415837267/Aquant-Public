@@ -1,30 +1,8 @@
 {
   "repository": "13415837267/Aquant-Public",
-  "cleanup_run_id": 39038252198,
-  "completed_at": "2026-10-17T13:51:31Z",
-  "deleted_actions": [
-    {
-      "run_id": 39037603263,
-      "created_at": "2026-10-17T13:41:29Z",
-      "conclusion": "failure",
-      "name": "02 数据维护",
-      "diagnostic": {
-        "run_id": 39037603263,
-        "captured_at": "2026-10-17T13:51:29Z",
-        "log_capture_status": "complete",
-        "jobs": [
-          {
-            "conclusion": "failure",
-            "html_url": "https://github.com/13415837267/Aquant-Public/actions/runs/39037603263/job/117410464970",
-            "id": 117410464970,
-            "name": "北京时间交易日数据维护",
-            "status": "completed"
-          }
-        ],
-        "failure_excerpt": "北京时间交易日数据维护\t检查北京时间交易日\t2026-10-17T13:42:36.3968411Z WARN daily 2026-10-17 attempt 1: RuntimeError: empty daily dataframe; sleep=1.8s\n北京时间交易日数据维护\t检查北京时间交易日\t2026-10-17T13:42:36.3969176Z WARN daily 2026-10-17 attempt 2: RuntimeError: empty daily dataframe; sleep=2.0s\n北京时间交易日数据维护\t检查北京时间交易日\t2026-10-17T13:42:36.3969902Z WARN daily 2026-10-17 attempt 3: RuntimeError: empty daily dataframe; sleep=4.3s\n北京时间交易日数据维护\t检查北京时间交易日\t2026-10-17T13:42:36.3970621Z WARN daily 2026-10-17 attempt 4: RuntimeError: empty daily dataframe; sleep=8.5s\n北京时间交易日数据维护\t检查北京时间交易日\t2026-10-17T13:42:36.3971446Z TRADE_DAY_FALLBACK_ERROR=RuntimeError: zzshare bulk failed for 2026-10-17: empty daily dataframe\n北京时间交易日数据维护\t提交交易日状态与数据检查点\t2026-10-17T13:42:37.0720639Z error: failed to push some refs to 'https://github.com/13415837267/Aquant-Public'\n北京时间交易日数据维护\t提交交易日状态与数据检查点\t2026-10-17T13:42:37.0752331Z ##[error]Process completed with exit code 1."
-      }
-    }
-  ],
+  "cleanup_run_id": 39040146212,
+  "completed_at": "2026-10-17T14:18:23Z",
+  "deleted_actions": [],
   "deleted_deployments": [],
   "preserved_active_deployments": [],
   "preserved_other_deployments": [],
@@ -38,16 +16,10 @@
   "cancelled_obsolete_runs": [],
   "preserved_active_runs": [
     {
-      "run_id": 39038252198,
-      "created_at": "2026-10-17T13:50:59Z",
+      "run_id": 39040146212,
+      "created_at": "2026-10-17T14:17:55Z",
       "status": "in_progress",
       "name": "维护历史 Action 记录"
-    },
-    {
-      "run_id": 39038252127,
-      "created_at": "2026-10-17T13:50:59Z",
-      "status": "in_progress",
-      "name": "03 候选池生产"
     }
   ],
   "preserved_unresolved_runs": [
@@ -80,6 +52,106 @@
     }
   ],
   "preserved_successful_runs": [
+    {
+      "run_id": 39040115076,
+      "created_at": "2026-10-17T14:17:29Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39040115072,
+      "created_at": "2026-10-17T14:17:29Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39040082037,
+      "created_at": "2026-10-17T14:17:01Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39040011867,
+      "created_at": "2026-10-17T14:16:01Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39039981346,
+      "created_at": "2026-10-17T14:15:36Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39039981312,
+      "created_at": "2026-10-17T14:15:36Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39039943583,
+      "created_at": "2026-10-17T14:15:07Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39039943534,
+      "created_at": "2026-10-17T14:15:07Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39039868445,
+      "created_at": "2026-10-17T14:14:05Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 39039544257,
+      "created_at": "2026-10-17T14:09:28Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39039513974,
+      "created_at": "2026-10-17T14:09:02Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39039513955,
+      "created_at": "2026-10-17T14:09:02Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39039485365,
+      "created_at": "2026-10-17T14:08:36Z",
+      "name": "03 候选池生产"
+    },
+    {
+      "run_id": 39039485341,
+      "created_at": "2026-10-17T14:08:36Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39039397667,
+      "created_at": "2026-10-17T14:07:20Z",
+      "name": "02 数据维护"
+    },
+    {
+      "run_id": 39038318225,
+      "created_at": "2026-10-17T13:51:53Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39038286888,
+      "created_at": "2026-10-17T13:51:27Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39038286797,
+      "created_at": "2026-10-17T13:51:27Z",
+      "name": "05 网页自动部署"
+    },
+    {
+      "run_id": 39038252198,
+      "created_at": "2026-10-17T13:50:59Z",
+      "name": "维护历史 Action 记录"
+    },
+    {
+      "run_id": 39038252127,
+      "created_at": "2026-10-17T13:50:59Z",
+      "name": "03 候选池生产"
+    },
     {
       "run_id": 39038136153,
       "created_at": "2026-10-17T13:49:18Z",
